@@ -492,6 +492,7 @@ const App: React.FC = () => {
             onCreateCharacter={handleCreateCharacter}
             onSelectProfile={(p) => setCurrentProfileId(p.id)}
             onSelectCharacter={(cid) => setCurrentCharacterId(cid)}
+            onLogout={handleLogout}
         />
       );
   }

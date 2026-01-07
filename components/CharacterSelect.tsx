@@ -10,6 +10,7 @@ interface CharacterSelectProps {
   onSelectCharacter: (characterId: string) => void;
   onCreateProfile: (name: string) => void;
   onCreateCharacter: (profileId: string, name: string, archetype: string, race: string, gender: string, fullDetails?: Partial<Character>) => void;
+  onLogout: () => void;
 }
 
 const ARCHETYPES = [
@@ -19,7 +20,7 @@ const ARCHETYPES = [
 ];
 
 export const CharacterSelect: React.FC<CharacterSelectProps> = ({ 
-    profiles, characters, onSelectProfile, onSelectCharacter, onCreateProfile, onCreateCharacter 
+    profiles, characters, onSelectProfile, onSelectCharacter, onCreateProfile, onCreateCharacter, onLogout 
 }) => {
   const [view, setView] = useState<'profiles' | 'characters'>('profiles');
   const [creationMode, setCreationMode] = useState<'manual' | 'chat' | 'import'>('manual');
@@ -370,6 +371,11 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                     &larr; Switch Profile
                 </button>
             )}
+
+            {/* Logout */}
+            <button onClick={onLogout} className="mt-2 text-xs text-red-500 hover:text-red-300 w-full text-center">
+                &larr; Back to Login
+            </button>
         </div>
     </div>
   );

@@ -91,14 +91,24 @@ const StatBar: React.FC<{
                 style={{ width: `${Math.min(value/5, 100)}%` }}
             ></div>
         </div>
-        <input 
-            type="range" 
-            min="0" 
-            max="1000" 
-            value={value} 
-            onChange={(e) => onChange(parseInt(e.target.value))}
-            className="w-full mt-2 opacity-0 group-hover:opacity-100 h-1 appearance-none bg-gray-700 rounded transition-opacity"
-        />
+        <div className="flex items-center gap-2 mt-2">
+          <input 
+              type="range" 
+              min="0" 
+              max="1000" 
+              value={value} 
+              onChange={(e) => onChange(parseInt(e.target.value))}
+              className="flex-1 opacity-0 group-hover:opacity-100 h-1 appearance-none bg-gray-700 rounded transition-opacity"
+          />
+          <input
+              type="number"
+              min="0"
+              max="1000"
+              value={value}
+              onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+              className="w-16 bg-black/40 border border-skyrim-border rounded text-gray-300 text-xs p-1 focus:outline-none focus:border-skyrim-gold"
+          />
+        </div>
     </div>
 );
 
