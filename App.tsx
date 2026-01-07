@@ -63,65 +63,6 @@ const App: React.FC = () => {
   const [currentCharacterId, setCurrentCharacterId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(TABS.CHARACTER);
 
-  // Kimlik Doğrulama Fonksiyonları (render sırasında referans almadan önce tanımla)
-  const handleRegister = async (email: string, password: string) => {
-    setAuthError(null);
-    try {
-      if (!email || !password) {
-        setAuthError('E-posta ve şifre gereklidir');
-        return;
-      }
-      if (password.length < 6) {
-        setAuthError('Şifre en az 6 karakter olmalıdır');
-        return;
-      }
-      await registerUser(email, password);
-      setLoginEmail('');
-      setLoginPassword('');
-      setAuthError(null);
-    } catch (error: any) {
-      if (error.code === 'auth/email-already-in-use') {
-        setAuthError('Bu e-posta zaten kullanımda');
-      } else if (error.code === 'auth/invalid-email') {
-        setAuthError('Geçersiz e-posta adresi');
-      } else {
-        setAuthError('Kayıt başarısız oldu: ' + error.message);
-      }
-    }
-  };
-
-  const handleLogin = async (email: string, password: string) => {
-    setAuthError(null);
-    try {
-      if (!email || !password) {
-        setAuthError('E-posta ve şifre gereklidir');
-        return;
-      }
-      await loginUser(email, password);
-      setLoginEmail('');
-      setLoginPassword('');
-      setAuthError(null);
-    } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
-        setAuthError('Bu e-posta için kullanıcı bulunamadı');
-      } else if (error.code === 'auth/wrong-password') {
-        setAuthError('Yanlış şifre');
-      } else {
-        setAuthError('Giriş başarısız: ' + error.message);
-      }
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-      setCurrentProfileId(null);
-      setCurrentCharacterId(null);
-    } catch (error) {
-      setAuthError('Çıkış yapılamadı');
-    }
-  };
-
   // Firebase Authentication Listener
   useEffect(() => {
     const unsubscribe = onAuthChange((user) => {
@@ -462,6 +403,65 @@ const App: React.FC = () => {
         activeQuests: getCharacterQuests().filter(q => q.status === 'active'),
         recentStory: getCharacterStory().slice(-3)
     });
+  };
+
+  // Kimlik Doğrulama Fonksiyonları
+  const handleRegister = async (email: string, password: string) => {
+    setAuthError(null);
+    try {
+      if (!email || !password) {
+        setAuthError('E-posta ve şifre gereklidir');
+        return;
+      }
+      if (password.length < 6) {
+        setAuthError('Şifre en az 6 karakter olmalıdır');
+        return;
+      }
+      await registerUser(email, password);
+      setLoginEmail('');
+      setLoginPassword('');
+      setAuthError(null);
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        setAuthError('Bu e-posta zaten kullanımda');
+      } else if (error.code === 'auth/invalid-email') {
+        setAuthError('Geçersiz e-posta adresi');
+      } else {
+        setAuthError('Kayıt başarısız oldu: ' + error.message);
+      }
+    }
+  };
+
+  const handleLogin = async (email: string, password: string) => {
+    setAuthError(null);
+    try {
+      if (!email || !password) {
+        setAuthError('E-posta ve şifre gereklidir');
+        return;
+      }
+      await loginUser(email, password);
+      setLoginEmail('');
+      setLoginPassword('');
+      setAuthError(null);
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found') {
+        setAuthError('Bu e-posta için kullanıcı bulunamadı');
+      } else if (error.code === 'auth/wrong-password') {
+        setAuthError('Yanlış şifre');
+      } else {
+        setAuthError('Giriş başarısız: ' + error.message);
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      setCurrentProfileId(null);
+      setCurrentCharacterId(null);
+    } catch (error) {
+      setAuthError('Çıkış yapılamadı');
+    }
   };
 
   // Render Logic
