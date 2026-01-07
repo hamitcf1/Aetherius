@@ -27,6 +27,7 @@ const getFirebaseApp = () => {
 
 // Initialize Firestore
 let db: ReturnType<typeof initializeFirestore> | null = null;
+let persistenceEnabled = false;
 
 export const initializeFirestoreDb = async () => {
   if (db) return db; // Already initialized
@@ -42,14 +43,20 @@ export const initializeFirestoreDb = async () => {
       cacheSizeBytes: 40 * 1024 * 1024, // 40MB cache
     });
 
-    // Enable offline persistence
-    try {
-      await enableIndexedDbPersistence(db);
-    } catch (err: any) {
-      if (err.code === 'failed-precondition') {
-        console.warn('Multiple tabs open, persistence disabled');
-      } else if (err.code === 'unimplemented') {
-        console.warn('Browser does not support persistence');
+    // Enable offline persistence ONLY if not already enabled
+    if (!persistenceEnabled) {
+      try {
+        await enableIndexedDbPersistence(db);
+        persistenceEnabled = true;
+        console.log('Firestore persistence enabled');
+      } catch (err: any) {
+        if (err.code === 'failed-precondition') {
+          console.warn('Multiple tabs open, persistence disabled');
+        } else if (err.code === 'unimplemented') {
+          console.warn('Browser does not support persistence');
+        } else {
+          console.warn('Could not enable persistence:', err.message);
+        }
       }
     }
 
@@ -160,8 +167,21 @@ export const saveQuest = async (uid: string, quest: CustomQuest): Promise<void> 
   const db = getDb();
   if (!db) throw new Error('Firestore not initialized');
 
+  // Remove undefined fields before saving
+  const questData = {
+    ...quest,
+    dueDate: quest.dueDate && quest.dueDate.trim() ? quest.dueDate : undefined,
+  };
+
+  // Remove undefined properties to avoid Firestore errors
+  Object.keys(questData).forEach(key => {
+    if (questData[key as keyof typeof questData] === undefined) {
+      delete questData[key as keyof typeof questData];
+    }
+  });
+
   const docRef = doc(db, 'users', uid, 'quests', quest.id);
-  await setDoc(docRef, quest, { merge: true });
+  await setDoc(docRef, questData, { merge: true });
 };
 
 export const loadQuests = async (uid: string, characterId?: string): Promise<CustomQuest[]> => {
