@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { StoryChapter, Character, CustomQuest, JournalEntry, InventoryItem } from '../types';
 import { Scroll, Calendar, Image as ImageIcon, Loader2, Plus, Download, Send } from 'lucide-react';
 import { generateLoreImage, generateGameMasterResponse } from '../services/geminiService';
-import { jsPDF } from 'jspdf';
 
 interface StoryLogProps {
   chapters: StoryChapter[];
@@ -99,6 +98,7 @@ export const StoryLog: React.FC<StoryLogProps> = ({
   const handleExportStory = async () => {
       setIsExportingStory(true);
       try {
+          const { jsPDF } = await import('jspdf');
           const doc = new jsPDF();
           const pageWidth = doc.internal.pageSize.getWidth();
           const pageHeight = doc.internal.pageSize.getHeight();

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Character, Milestone, Perk, InventoryItem, CustomQuest, JournalEntry, StoryChapter } from '../types';
 import { ChevronDown, ChevronRight, User, Brain, ShieldBan, Zap, Map, Activity, Info, Heart, Droplets, BicepsFlexed, CheckCircle, Circle, Trash2, Plus, Star, LayoutList, Layers, Ghost, Sparkles, ScrollText, Download, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { jsPDF } from 'jspdf';
 import { generateCharacterProfileImage } from '../services/geminiService';
 
 interface CharacterSheetProps {
@@ -198,17 +197,19 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
 
   const handleExportPDF = async () => {
     setIsExporting(true);
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 20;
-    const contentWidth = pageWidth - (margin * 2);
-    let yPos = margin;
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      let yPos = margin;
 
-    // Theme Config
-    const COLOR_BG = [20, 20, 20]; // Dark Grey
-    const COLOR_TEXT = [220, 220, 220]; // White/Grey
-    const COLOR_GOLD = [192, 160, 98]; // Skyrim Gold
+      // Theme Config
+      const COLOR_BG = [20, 20, 20]; // Dark Grey
+      const COLOR_TEXT = [220, 220, 220]; // White/Grey
+      const COLOR_GOLD = [192, 160, 98]; // Skyrim Gold
 
     const drawBackground = () => {
         doc.setFillColor(COLOR_BG[0], COLOR_BG[1], COLOR_BG[2]);
@@ -415,8 +416,12 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
         });
     }
 
-    doc.save(`${character.name}_Full_Record.pdf`);
-    setIsExporting(false);
+      doc.save(`${character.name}_Full_Record.pdf`);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const renderPerks = () => {
