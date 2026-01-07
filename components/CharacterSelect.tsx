@@ -11,6 +11,8 @@ interface CharacterSelectProps {
   onCreateProfile: (name: string) => void;
   onCreateCharacter: (profileId: string, name: string, archetype: string, race: string, gender: string, fullDetails?: Partial<Character>) => void;
   onLogout: () => void;
+  onUpdateProfile?: (profileId: string, newName: string) => void;
+  onUpdateCharacter?: (characterId: string, newName: string) => void;
 }
 
 const ARCHETYPES = [
@@ -20,7 +22,8 @@ const ARCHETYPES = [
 ];
 
 export const CharacterSelect: React.FC<CharacterSelectProps> = ({ 
-    profiles, characters, onSelectProfile, onSelectCharacter, onCreateProfile, onCreateCharacter, onLogout 
+    profiles, characters, onSelectProfile, onSelectCharacter, onCreateProfile, onCreateCharacter, onLogout,
+    onUpdateProfile, onUpdateCharacter
 }) => {
   const [view, setView] = useState<'profiles' | 'characters'>('profiles');
   const [creationMode, setCreationMode] = useState<'manual' | 'chat' | 'import'>('manual');
@@ -41,6 +44,11 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
 
   // Import State
   const [importText, setImportText] = useState('');
+  
+  // Edit State
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+  const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   useEffect(() => {
     if (chatBottomRef.current) chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -189,12 +197,62 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                     // Profile List
                     <div className="grid gap-4">
                         {profiles.map(p => (
-                            <button key={p.id} onClick={() => selectProfile(p)} className="flex items-center gap-4 p-4 bg-black/40 border border-skyrim-border hover:border-skyrim-gold hover:bg-black/60 transition-all text-left">
-                                <div className="w-10 h-10 bg-skyrim-gold/20 rounded-full flex items-center justify-center text-skyrim-gold">
-                                    <User size={20} />
-                                </div>
-                                <span className="text-xl font-serif text-gray-200">{p.username}</span>
-                            </button>
+                            <div key={p.id} className="flex items-center gap-3 p-4 bg-black/40 border border-skyrim-border hover:border-skyrim-gold hover:bg-black/60 transition-all group">
+                              {editingProfileId === p.id ? (
+                                <>
+                                  <input 
+                                    type="text" 
+                                    value={editingName} 
+                                    onChange={e => setEditingName(e.target.value)}
+                                    className="flex-1 bg-black/50 border border-skyrim-gold p-2 rounded text-gray-200 focus:outline-none"
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter' && onUpdateProfile) {
+                                        onUpdateProfile(p.id, editingName);
+                                        setEditingProfileId(null);
+                                      }
+                                    }}
+                                  />
+                                  <button 
+                                    onClick={() => {
+                                      if (onUpdateProfile) {
+                                        onUpdateProfile(p.id, editingName);
+                                      }
+                                      setEditingProfileId(null);
+                                    }}
+                                    className="px-3 py-1 bg-skyrim-gold text-skyrim-dark rounded text-sm hover:bg-yellow-400"
+                                  >
+                                    Save
+                                  </button>
+                                  <button 
+                                    onClick={() => setEditingProfileId(null)}
+                                    className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button 
+                                    onClick={() => selectProfile(p)} 
+                                    className="flex items-center gap-4 flex-1 text-left"
+                                  >
+                                    <div className="w-10 h-10 bg-skyrim-gold/20 rounded-full flex items-center justify-center text-skyrim-gold group-hover:bg-skyrim-gold group-hover:text-skyrim-dark transition-colors">
+                                        <User size={20} />
+                                    </div>
+                                    <span className="text-xl font-serif text-gray-200 group-hover:text-skyrim-gold transition-colors">{p.username}</span>
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      setEditingProfileId(p.id);
+                                      setEditingName(p.username);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-skyrim-gold/30 text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark rounded text-xs transition-all"
+                                  >
+                                    Edit
+                                  </button>
+                                </>
+                              )}
+                            </div>
                         ))}
                          {profiles.length === 0 && (
                             <div className="text-center text-gray-500 italic py-8">No profiles found. Create one to begin.</div>
@@ -206,15 +264,65 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                        {creationMode === 'manual' ? (
                            <div className="grid gap-4">
                                 {displayedCharacters.map(c => (
-                                    <button key={c.id} onClick={() => onSelectCharacter(c.id)} className="flex items-center gap-4 p-4 bg-black/40 border border-skyrim-border hover:border-skyrim-gold hover:bg-black/60 transition-all text-left group">
-                                        <div className="w-12 h-12 bg-skyrim-gold/20 rounded-full flex items-center justify-center text-skyrim-gold group-hover:text-white group-hover:bg-skyrim-gold transition-colors">
-                                            <Play size={24} fill="currentColor" />
-                                        </div>
-                                        <div>
-                                            <span className="block text-xl font-serif text-skyrim-gold">{c.name}</span>
-                                            <span className="text-sm text-gray-500">Lvl {c.level} {c.gender} {c.race} {c.archetype}</span>
-                                        </div>
-                                    </button>
+                                    <div key={c.id} className="flex items-center gap-3 p-4 bg-black/40 border border-skyrim-border hover:border-skyrim-gold hover:bg-black/60 transition-all group">
+                                      {editingCharacterId === c.id ? (
+                                        <>
+                                          <input 
+                                            type="text" 
+                                            value={editingName} 
+                                            onChange={e => setEditingName(e.target.value)}
+                                            className="flex-1 bg-black/50 border border-skyrim-gold p-2 rounded text-gray-200 focus:outline-none"
+                                            onKeyDown={e => {
+                                              if (e.key === 'Enter' && onUpdateCharacter) {
+                                                onUpdateCharacter(c.id, editingName);
+                                                setEditingCharacterId(null);
+                                              }
+                                            }}
+                                          />
+                                          <button 
+                                            onClick={() => {
+                                              if (onUpdateCharacter) {
+                                                onUpdateCharacter(c.id, editingName);
+                                              }
+                                              setEditingCharacterId(null);
+                                            }}
+                                            className="px-3 py-1 bg-skyrim-gold text-skyrim-dark rounded text-sm hover:bg-yellow-400"
+                                          >
+                                            Save
+                                          </button>
+                                          <button 
+                                            onClick={() => setEditingCharacterId(null)}
+                                            className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button 
+                                            onClick={() => onSelectCharacter(c.id)} 
+                                            className="flex items-center gap-4 flex-1 text-left"
+                                          >
+                                            <div className="w-12 h-12 bg-skyrim-gold/20 rounded-full flex items-center justify-center text-skyrim-gold group-hover:text-white group-hover:bg-skyrim-gold transition-colors">
+                                                <Play size={24} fill="currentColor" />
+                                            </div>
+                                            <div className="text-left">
+                                                <span className="block text-xl font-serif text-skyrim-gold group-hover:text-white transition-colors">{c.name}</span>
+                                                <span className="text-sm text-gray-500">Lvl {c.level} {c.gender} {c.race} {c.archetype}</span>
+                                            </div>
+                                          </button>
+                                          <button 
+                                            onClick={() => {
+                                              setEditingCharacterId(c.id);
+                                              setEditingName(c.name);
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-skyrim-gold/30 text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark rounded text-xs transition-all"
+                                          >
+                                            Edit
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
                                 ))}
                                 {displayedCharacters.length === 0 && (
                                     <div className="text-center text-gray-500 italic py-8">No characters found for this profile.</div>

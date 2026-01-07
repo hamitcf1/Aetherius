@@ -1,15 +1,34 @@
 import React, { useState } from 'react';
-import { StoryChapter } from '../types';
-import { Scroll, Calendar, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { generateLoreImage } from '../services/geminiService';
+import { StoryChapter, Character, CustomQuest, JournalEntry, InventoryItem } from '../types';
+import { Scroll, Calendar, Image as ImageIcon, Loader2, Plus, Download, Send } from 'lucide-react';
+import { generateLoreImage, generateGameMasterResponse } from '../services/geminiService';
+import { jsPDF } from 'jspdf';
 
 interface StoryLogProps {
   chapters: StoryChapter[];
   onUpdateChapter: (chapter: StoryChapter) => void;
+  onAddChapter?: (chapter: StoryChapter) => void;
+  character?: Character;
+  quests?: CustomQuest[];
+  journal?: JournalEntry[];
+  items?: InventoryItem[];
 }
 
-export const StoryLog: React.FC<StoryLogProps> = ({ chapters, onUpdateChapter }) => {
+export const StoryLog: React.FC<StoryLogProps> = ({ 
+  chapters, 
+  onUpdateChapter,
+  onAddChapter,
+  character,
+  quests = [],
+  journal = [],
+  items = []
+}) => {
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [creatingChapter, setCreatingChapter] = useState(false);
+  const [chapterPrompt, setChapterPrompt] = useState('');
+  const [chapterTitle, setChapterTitle] = useState('');
+  const [chapterContent, setChapterContent] = useState('');
+  const [isExportingStory, setIsExportingStory] = useState(false);
 
   const handleVisualize = async (chapter: StoryChapter) => {
       setLoadingId(chapter.id);
@@ -25,6 +44,145 @@ export const StoryLog: React.FC<StoryLogProps> = ({ chapters, onUpdateChapter })
       }
   };
 
+  const handleCreateChapter = async () => {
+      if (chapterTitle.trim() && chapterContent.trim()) {
+          const newChapter: StoryChapter = {
+              id: Math.random().toString(36).substr(2, 9),
+              characterId: character?.id || '',
+              title: chapterTitle,
+              content: chapterContent,
+              date: "4E 201",
+              summary: chapterTitle,
+              createdAt: Date.now()
+          };
+          onAddChapter?.(newChapter);
+          setChapterTitle('');
+          setChapterContent('');
+          setCreatingChapter(false);
+      }
+  };
+
+  const handleGenerateChapterWithAI = async () => {
+      if (!chapterPrompt.trim() || !character) return;
+      
+      setCreatingChapter(true);
+      try {
+          const context = JSON.stringify({
+              character,
+              quests: quests.filter(q => q.status === 'active'),
+              recentStory: chapters.slice(-2),
+              inventory: items.slice(0, 5)
+          });
+
+          const update = await generateGameMasterResponse(chapterPrompt, context);
+          
+          if (update.narrative) {
+              const newChapter: StoryChapter = {
+                  id: Math.random().toString(36).substr(2, 9),
+                  characterId: character.id,
+                  title: update.narrative.title,
+                  content: update.narrative.content,
+                  date: "4E 201",
+                  summary: update.narrative.title,
+                  createdAt: Date.now()
+              };
+              onAddChapter?.(newChapter);
+              setChapterPrompt('');
+          }
+      } catch (error) {
+          console.error('Error generating chapter:', error);
+      } finally {
+          setCreatingChapter(false);
+      }
+  };
+
+  const handleExportStory = async () => {
+      setIsExportingStory(true);
+      try {
+          const doc = new jsPDF();
+          const pageWidth = doc.internal.pageSize.getWidth();
+          const pageHeight = doc.internal.pageSize.getHeight();
+          const margin = 20;
+          const contentWidth = pageWidth - (margin * 2);
+          let yPos = margin;
+
+          // Theme
+          const COLOR_BG = [20, 20, 20];
+          const COLOR_TEXT = [220, 220, 220];
+          const COLOR_GOLD = [192, 160, 98];
+
+          const drawBackground = () => {
+              doc.setFillColor(COLOR_BG[0], COLOR_BG[1], COLOR_BG[2]);
+              doc.rect(0, 0, pageWidth, pageHeight, 'F');
+              doc.setDrawColor(COLOR_GOLD[0], COLOR_GOLD[1], COLOR_GOLD[2]);
+              doc.setLineWidth(0.5);
+              doc.rect(margin/2, margin/2, pageWidth - margin, pageHeight - margin, 'S');
+          };
+
+          const checkPageBreak = (heightNeeded: number) => {
+              if (yPos + heightNeeded > pageHeight - margin) {
+                  doc.addPage();
+                  drawBackground();
+                  yPos = margin + 10;
+              }
+          };
+
+          // Title Page
+          drawBackground();
+          
+          doc.setFont('times', 'bold');
+          doc.setFontSize(28);
+          doc.setTextColor(COLOR_GOLD[0], COLOR_GOLD[1], COLOR_GOLD[2]);
+          doc.text('The Chronicle', pageWidth / 2, yPos + 20, { align: 'center' });
+          yPos += 40;
+
+          if (character) {
+              doc.setFontSize(16);
+              doc.text(`${character.name}'s Journey`, pageWidth / 2, yPos, { align: 'center' });
+              yPos += 15;
+              
+              doc.setFontSize(11);
+              doc.setTextColor(180, 180, 180);
+              doc.text(`Level ${character.level} ${character.gender} ${character.race} ${character.archetype}`, pageWidth / 2, yPos, { align: 'center' });
+          }
+
+          // Chapters
+          const sortedChapters = [...chapters].sort((a, b) => a.createdAt - b.createdAt);
+          
+          sortedChapters.forEach((chapter, index) => {
+              checkPageBreak(30);
+              
+              doc.setFont('times', 'bold');
+              doc.setFontSize(14);
+              doc.setTextColor(COLOR_GOLD[0], COLOR_GOLD[1], COLOR_GOLD[2]);
+              doc.text(`Chapter ${index + 1}: ${chapter.title}`, margin, yPos);
+              yPos += 10;
+
+              doc.setFontSize(9);
+              doc.setTextColor(160, 160, 160);
+              doc.text(`${chapter.date}`, margin, yPos);
+              yPos += 8;
+
+              // Content
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(10);
+              doc.setTextColor(COLOR_TEXT[0], COLOR_TEXT[1], COLOR_TEXT[2]);
+              const lines = doc.splitTextToSize(chapter.content, contentWidth);
+              const contentHeight = lines.length * 4.5;
+              
+              checkPageBreak(contentHeight + 5);
+              doc.text(lines, margin, yPos);
+              yPos += contentHeight + 15;
+          });
+
+          doc.save(`${character?.name || 'Story'}_Chronicle.pdf`);
+      } catch (error) {
+          console.error('Error exporting story:', error);
+      } finally {
+          setIsExportingStory(false);
+      }
+  };
+
   const sortedChapters = [...chapters].sort((a, b) => b.createdAt - a.createdAt);
 
   return (
@@ -33,6 +191,91 @@ export const StoryLog: React.FC<StoryLogProps> = ({ chapters, onUpdateChapter })
         <h1 className="text-4xl font-serif text-skyrim-gold mb-2">The Chronicle</h1>
         <p className="text-gray-500 font-sans text-sm">The unfolding saga of your journey.</p>
       </div>
+
+      {/* Chapter Creation Section */}
+      {!creatingChapter ? (
+          <div className="mb-8 flex gap-3">
+              <button 
+                  onClick={() => setCreatingChapter(true)}
+                  className="flex-1 py-3 bg-skyrim-accent hover:bg-skyrim-accent/80 text-white font-bold rounded flex items-center justify-center gap-2 border border-skyrim-border transition-colors"
+              >
+                  <Plus size={20} /> Create Chapter
+              </button>
+              <button 
+                  onClick={handleExportStory}
+                  disabled={isExportingStory || sortedChapters.length === 0}
+                  className="flex-1 py-3 bg-skyrim-dark hover:bg-black text-skyrim-gold font-bold rounded flex items-center justify-center gap-2 border border-skyrim-gold disabled:opacity-50 transition-colors"
+              >
+                  <Download size={20} /> {isExportingStory ? 'Finalizing...' : 'Finalize & Download'}
+              </button>
+          </div>
+      ) : (
+          <div className="mb-8 p-6 bg-black/40 border border-skyrim-border rounded-lg">
+              <h3 className="text-xl font-serif text-skyrim-gold mb-4">New Chapter</h3>
+              
+              <div className="mb-4">
+                  <label className="text-sm uppercase tracking-wider text-gray-400 font-bold block mb-2">Title</label>
+                  <input 
+                      type="text"
+                      value={chapterTitle}
+                      onChange={e => setChapterTitle(e.target.value)}
+                      placeholder="Chapter title..."
+                      className="w-full bg-black/50 border border-skyrim-border rounded p-3 text-gray-300 focus:border-skyrim-gold focus:outline-none"
+                  />
+              </div>
+
+              <div className="mb-4">
+                  <label className="text-sm uppercase tracking-wider text-gray-400 font-bold block mb-2">Content</label>
+                  <textarea 
+                      value={chapterContent}
+                      onChange={e => setChapterContent(e.target.value)}
+                      placeholder="Write your chapter or use AI..."
+                      className="w-full bg-black/50 border border-skyrim-border rounded p-3 text-gray-300 focus:border-skyrim-gold focus:outline-none resize-none h-32 font-serif"
+                  />
+              </div>
+
+              <div className="mb-4 p-4 bg-black/30 border border-gray-700 rounded">
+                  <p className="text-xs text-gray-400 mb-3 uppercase tracking-wider font-bold">Or Generate with AI</p>
+                  <div className="flex gap-2">
+                      <input 
+                          type="text"
+                          value={chapterPrompt}
+                          onChange={e => setChapterPrompt(e.target.value)}
+                          placeholder="Describe what should happen in this chapter..."
+                          className="flex-1 bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none"
+                      />
+                      <button 
+                          onClick={handleGenerateChapterWithAI}
+                          disabled={!chapterPrompt.trim() || creatingChapter}
+                          className="px-4 py-2 bg-skyrim-accent hover:bg-skyrim-accent/80 text-white rounded text-sm font-bold disabled:opacity-50 flex items-center gap-1"
+                      >
+                          {creatingChapter ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />}
+                      </button>
+                  </div>
+              </div>
+
+              <div className="flex gap-2">
+                  <button 
+                      onClick={handleCreateChapter}
+                      disabled={!chapterTitle.trim() || !chapterContent.trim()}
+                      className="flex-1 py-2 bg-skyrim-gold text-skyrim-dark font-bold rounded hover:bg-yellow-400 disabled:opacity-50"
+                  >
+                      Save Chapter
+                  </button>
+                  <button 
+                      onClick={() => {
+                          setCreatingChapter(false);
+                          setChapterTitle('');
+                          setChapterContent('');
+                          setChapterPrompt('');
+                      }}
+                      className="flex-1 py-2 bg-gray-600 text-white font-bold rounded hover:bg-gray-700"
+                  >
+                      Cancel
+                  </button>
+              </div>
+          </div>
+      )}
 
       <div className="space-y-12">
         {sortedChapters.map((chapter) => (
@@ -82,7 +325,7 @@ export const StoryLog: React.FC<StoryLogProps> = ({ chapters, onUpdateChapter })
 
         {sortedChapters.length === 0 && (
             <div className="text-center py-20 text-gray-500 italic font-serif">
-                The pages are blank. Consult the Scribe to begin your tale.
+                The pages are blank. Begin your tale or consult the Scribe.
             </div>
         )}
       </div>

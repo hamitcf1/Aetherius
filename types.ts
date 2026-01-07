@@ -38,6 +38,7 @@ export interface Character {
   race: string;
   gender: string; // Added gender
   archetype: string;
+  profileImage?: string; // Profile photo URL
   
   // Progression
   level: number;

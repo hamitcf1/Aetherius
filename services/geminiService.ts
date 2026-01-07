@@ -90,8 +90,12 @@ export const generateLoreImage = async (prompt: string): Promise<string | null> 
       }
     }
     return null;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Image Generation Error:", error);
+    // Handle quota exceeded errors gracefully
+    if (error.message?.includes('429') || error.message?.includes('quota') || error.message?.includes('RESOURCE_EXHAUSTED')) {
+      console.warn("Image generation quota exceeded. Skipping visualization.");
+    }
     return null;
   }
 };
@@ -215,4 +219,43 @@ export const chatWithScribe = async (history: {role: 'user' | 'model', parts: [{
 
     const result = await chat.sendMessage({ message });
     return result.text;
+};
+
+export const generateCharacterProfileImage = async (
+    characterName: string,
+    race: string,
+    gender: string,
+    archetype: string
+): Promise<string | null> => {
+  if (!ai) return null;
+  try {
+    const prompt = `A detailed character portrait of a ${gender.toLowerCase()} ${race.split(' ')[0].toLowerCase()} ${archetype.toLowerCase()} named ${characterName} from Skyrim. Fantasy art style, high quality, heroic pose, detailed armor and features, professional fantasy game character design, no text, plain background.`;
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [{ text: prompt }]
+      },
+      config: {
+        imageConfig: {
+            aspectRatio: "1:1",
+        }
+      }
+    });
+    
+    // Iterate through parts to find image
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    return null;
+  } catch (error: any) {
+    console.error("Profile Image Generation Error:", error);
+    // Handle quota exceeded errors gracefully
+    if (error.message?.includes('429') || error.message?.includes('quota') || error.message?.includes('RESOURCE_EXHAUSTED')) {
+      console.warn("Profile image generation quota exceeded. Skipping image generation.");
+    }
+    return null;
+  }
 };

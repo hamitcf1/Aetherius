@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Character, Milestone, Perk, InventoryItem, CustomQuest, JournalEntry, StoryChapter } from '../types';
-import { ChevronDown, ChevronRight, User, Brain, ShieldBan, Zap, Map, Activity, Info, Heart, Droplets, BicepsFlexed, CheckCircle, Circle, Trash2, Plus, Star, LayoutList, Layers, Ghost, Sparkles, ScrollText, Download } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, Brain, ShieldBan, Zap, Map, Activity, Info, Heart, Droplets, BicepsFlexed, CheckCircle, Circle, Trash2, Plus, Star, LayoutList, Layers, Ghost, Sparkles, ScrollText, Download, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
+import { generateCharacterProfileImage } from '../services/geminiService';
 
 interface CharacterSheetProps {
   character: Character;
@@ -128,6 +129,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   const [newPerkDesc, setNewPerkDesc] = useState('');
   const [perkSort, setPerkSort] = useState<'name' | 'skill'>('skill');
   const [isExporting, setIsExporting] = useState(false);
+  const [isGeneratingProfileImage, setIsGeneratingProfileImage] = useState(false);
 
   const addMilestone = () => {
       if (!newMilestone.trim()) return;
@@ -173,6 +175,25 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   const updateSkill = (skillName: string, level: number) => {
       const updatedSkills = character.skills.map(s => s.name === skillName ? { ...s, level } : s);
       updateCharacter('skills', updatedSkills);
+  };
+
+  const handleGenerateProfileImage = async () => {
+      setIsGeneratingProfileImage(true);
+      try {
+          const imageUrl = await generateCharacterProfileImage(
+              character.name,
+              character.race,
+              character.gender,
+              character.archetype
+          );
+          if (imageUrl) {
+              updateCharacter('profileImage', imageUrl);
+          }
+      } catch (error) {
+          console.error('Failed to generate profile image:', error);
+      } finally {
+          setIsGeneratingProfileImage(false);
+      }
   };
 
   const handleExportPDF = async () => {
@@ -470,8 +491,18 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
 };
 
   return (
-    <div className="max-w-4xl mx-auto pb-24">
-      <div className="flex justify-end mb-2">
+      <div className="max-w-4xl mx-auto pb-24">
+      <div className="flex justify-end gap-2 mb-2">
+        {!character.profileImage && (
+          <button 
+              onClick={handleGenerateProfileImage} 
+              disabled={isGeneratingProfileImage}
+              className="flex items-center gap-2 px-4 py-2 bg-skyrim-dark border border-skyrim-accent text-skyrim-accent hover:bg-skyrim-accent hover:text-white rounded transition-colors text-sm font-bold disabled:opacity-50"
+          >
+              {isGeneratingProfileImage ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
+              {isGeneratingProfileImage ? 'Generating...' : 'Generate Profile Photo'}
+          </button>
+        )}
         <button 
             onClick={handleExportPDF} 
             disabled={isExporting}
@@ -483,6 +514,15 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
 
       <div id="character-sheet-content" className="p-4 bg-skyrim-dark"> 
           <div className="mb-8 p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center relative overflow-hidden">
+            {character.profileImage && (
+              <div className="mb-4 flex justify-center">
+                <img 
+                  src={character.profileImage} 
+                  alt={character.name}
+                  className="w-48 h-48 rounded-lg border-2 border-skyrim-gold object-cover shadow-[0_0_20px_rgba(192,160,98,0.3)]"
+                />
+              </div>
+            )}
             <div className="relative z-10">
                 <h1 className="text-4xl font-serif text-skyrim-gold mb-2">{character.name}</h1>
                 <p className="text-gray-500 font-sans text-sm uppercase tracking-widest">{character.gender} {character.race} {character.archetype} - Level {character.level}</p>

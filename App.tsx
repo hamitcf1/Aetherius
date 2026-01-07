@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     INITIAL_CHARACTER_TEMPLATE, Character, CustomQuest, JournalEntry, UserProfile, InventoryItem, StoryChapter, GameStateUpdate, GeneratedCharacterData 
 } from './types';
@@ -57,14 +57,11 @@ const App: React.FC = () => {
   const [quests, setQuests] = useState<CustomQuest[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [storyChapters, setStoryChapters] = useState<StoryChapter[]>([]);
-  const [dataLoaded, setDataLoaded] = useState(false);
 
   // Session State
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
   const [currentCharacterId, setCurrentCharacterId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(TABS.CHARACTER);
-
-  const dataUnsubRef = useRef<() => void>();
 
   // Firebase Authentication Listener
   useEffect(() => {
@@ -72,27 +69,18 @@ const App: React.FC = () => {
       setCurrentUser(user);
       setLoading(false);
       
-      // Yeni kullanıcı için önce önceki listener'ı kapat
-      if (dataUnsubRef.current) {
-        dataUnsubRef.current();
-        dataUnsubRef.current = undefined;
-      }
-
       if (user) {
         // Kullanıcı giriş yaptı, verilerini Firebase'den yükle
-        const unsub = subscribeToUserData(user.uid, (data) => {
+        subscribeToUserData(user.uid, (data) => {
           if (data) {
-            const toArray = (x:any)=> Array.isArray(x)? x : Object.values(x||{});
-            setProfiles(toArray(data.profiles));
-            setCharacters(toArray(data.characters));
-            setItems(toArray(data.items));
-            setQuests(toArray(data.quests));
-            setJournalEntries(toArray(data.journalEntries));
-            setStoryChapters(toArray(data.storyChapters));
+            setProfiles(data.profiles || []);
+            setCharacters(data.characters || []);
+            setItems(data.items || []);
+            setQuests(data.quests || []);
+            setJournalEntries(data.journalEntries || []);
+            setStoryChapters(data.storyChapters || []);
           }
-          setDataLoaded(true);
         });
-        dataUnsubRef.current = unsub;
       } else {
         // Kullanıcı çıkış yaptı, local state'i temizle
         setProfiles([]);
@@ -103,19 +91,16 @@ const App: React.FC = () => {
         setStoryChapters([]);
         setCurrentProfileId(null);
         setCurrentCharacterId(null);
-        setDataLoaded(false);
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Firebase'e veri kaydetme (hash kontrolü ile döngüyü önle)
-  const lastSavedHash = useRef<string>('');
-
+  // Firebase'e veri kaydetme
   useEffect(() => {
-    if (!currentUser || !dataLoaded) return;
-
+    if (!currentUser) return;
+    
     const gameState: AppGameState = {
       profiles,
       characters,
@@ -124,17 +109,22 @@ const App: React.FC = () => {
       journalEntries,
       storyChapters
     };
-    const hash = JSON.stringify(gameState);
-    if (hash === lastSavedHash.current) return; // değişiklik yok
-
+    
     updateUserData(currentUser.uid, gameState);
-    lastSavedHash.current = hash;
-  }, [profiles, characters, items, quests, journalEntries, storyChapters, currentUser, dataLoaded]);
+  }, [profiles, characters, items, quests, journalEntries, storyChapters, currentUser]);
 
   // Actions
   const handleCreateProfile = (name: string) => {
       const newProfile: UserProfile = { id: uniqueId(), username: name, created: Date.now() };
       setProfiles([...profiles, newProfile]);
+  };
+
+  const handleUpdateProfile = (profileId: string, newName: string) => {
+      setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, username: newName } : p));
+  };
+
+  const handleUpdateCharacter = (characterId: string, newName: string) => {
+      setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, name: newName } : c));
   };
 
   // Loading Screen
@@ -424,7 +414,7 @@ const App: React.FC = () => {
   };
 
   // Kimlik Doğrulama Fonksiyonları
-  async function handleRegister(email: string, password: string) {
+  const handleRegister = async (email: string, password: string) => {
     setAuthError(null);
     try {
       if (!email || !password) {
@@ -450,7 +440,7 @@ const App: React.FC = () => {
     }
   };
 
-  async function handleLogin(email: string, password: string) {
+  const handleLogin = async (email: string, password: string) => {
     setAuthError(null);
     try {
       if (!email || !password) {
@@ -493,6 +483,8 @@ const App: React.FC = () => {
             onSelectProfile={(p) => setCurrentProfileId(p.id)}
             onSelectCharacter={(cid) => setCurrentCharacterId(cid)}
             onLogout={handleLogout}
+            onUpdateProfile={handleUpdateProfile}
+            onUpdateCharacter={handleUpdateCharacter}
         />
       );
   }
@@ -581,7 +573,15 @@ const App: React.FC = () => {
             <QuestLog quests={getCharacterQuests()} setQuests={setCharacterQuests} />
           )}
           {activeTab === TABS.STORY && (
-            <StoryLog chapters={getCharacterStory()} onUpdateChapter={updateStoryChapter} />
+            <StoryLog 
+              chapters={getCharacterStory()} 
+              onUpdateChapter={updateStoryChapter}
+              onAddChapter={(chapter) => setStoryChapters(prev => [...prev, chapter])}
+              character={activeCharacter}
+              quests={getCharacterQuests()}
+              journal={getCharacterJournal()}
+              items={getCharacterItems()}
+            />
           )}
           {activeTab === TABS.JOURNAL && (
             <Journal entries={getCharacterJournal()} setEntries={setCharacterJournal} />
