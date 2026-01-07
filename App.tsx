@@ -406,7 +406,7 @@ const App: React.FC = () => {
   };
 
   // Kimlik Doğrulama Fonksiyonları
-  const handleRegister = async (email: string, password: string) => {
+  async function handleRegister(email: string, password: string) {
     setAuthError(null);
     try {
       if (!email || !password) {
@@ -432,7 +432,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogin = async (email: string, password: string) => {
+  async function handleLogin(email: string, password: string) {
     setAuthError(null);
     try {
       if (!email || !password) {
