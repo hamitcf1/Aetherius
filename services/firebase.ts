@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -9,26 +11,14 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   applyActionCode,
-  verifyPasswordResetCode,
-  confirmPasswordReset,
+  verifyPasswordResetCode as firebaseVerifyPasswordResetCode,
+  confirmPasswordReset as firebaseConfirmPasswordReset,
   updateProfile,
   updateEmail,
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider
 } from 'firebase/auth';
-import { 
-  getDatabase, 
-  ref, 
-  set, 
-  get, 
-  update,
-  onValue,
-  remove,
-  query,
-  orderByChild,
-  equalTo
-} from 'firebase/database';
 import { FirebaseError } from 'firebase/app';
 
 // Firebase konfigürasyonunuzu buraya yapıştırın
@@ -45,7 +35,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const database = getDatabase(app);
 
 // Kimlik Doğrulama Fonksiyonları
 export const registerUser = (email: string, password: string) => {
@@ -62,29 +51,6 @@ export const logoutUser = () => {
 
 export const onAuthChange = (callback: (user: User | null) => void) => {
   return onAuthStateChanged(auth, callback);
-};
-
-// Veri Tabanı Fonksiyonları
-export const saveUserData = (userId: string, data: any) => {
-  return set(ref(database, `users/${userId}`), data);
-};
-
-export const getUserData = (userId: string) => {
-  return get(ref(database, `users/${userId}`));
-};
-
-export const updateUserData = (userId: string, data: any) => {
-  return update(ref(database, `users/${userId}`), data);
-};
-
-export const subscribeToUserData = (userId: string, callback: (data: any) => void) => {
-  return onValue(ref(database, `users/${userId}`), (snapshot) => {
-    callback(snapshot.val());
-  });
-};
-
-export const deleteUserData = (userId: string) => {
-  return remove(ref(database, `users/${userId}`));
 };
 
 // Email Verification Functions
@@ -128,9 +94,9 @@ export const sendPasswordReset = async (email: string) => {
   }
 };
 
-export const verifyPasswordResetCode = async (oobCode: string) => {
+export const verifyPasswordResetCodeFn = async (oobCode: string) => {
   try {
-    const email = await verifyPasswordResetCode(auth, oobCode);
+    const email = await firebaseVerifyPasswordResetCode(auth, oobCode);
     return { success: true, email };
   } catch (error) {
     console.error("Error verifying password reset code:", error);
@@ -138,9 +104,9 @@ export const verifyPasswordResetCode = async (oobCode: string) => {
   }
 };
 
-export const confirmPasswordReset = async (oobCode: string, newPassword: string) => {
+export const confirmPasswordResetFn = async (oobCode: string, newPassword: string) => {
   try {
-    await confirmPasswordReset(auth, oobCode, newPassword);
+    await firebaseConfirmPasswordReset(auth, oobCode, newPassword);
     return { success: true };
   } catch (error) {
     console.error("Error confirming password reset:", error);
@@ -185,15 +151,6 @@ export const updateUserPassword = async (user: User, currentPassword: string, ne
 
 // Security Rules Helper
 export const getUserByEmail = async (email: string) => {
-  try {
-    const usersRef = query(ref(database, 'users'), orderByChild('email'), equalTo(email));
-    const snapshot = await get(usersRef);
-    if (snapshot.exists()) {
-      return { success: true, data: snapshot.val() };
-    }
-    return { success: false, error: "User not found" };
-  } catch (error) {
-    console.error("Error getting user by email:", error);
-    return { success: false, error: (error as FirebaseError).message };
-  }
+  console.warn('getUserByEmail: Legacy Realtime DB function. Use Firestore queries instead.');
+  return { success: false, error: "Not implemented" };
 };

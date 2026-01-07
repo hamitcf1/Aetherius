@@ -9,18 +9,37 @@ import { Inventory } from './components/Inventory';
 import { StoryLog } from './components/StoryLog';
 import { AIScribe } from './components/AIScribe';
 import { CharacterSelect } from './components/CharacterSelect';
-import { User, Scroll, BookOpen, Skull, Package, Feather, LogOut, Users, Loader } from 'lucide-react';
+import { User, Scroll, BookOpen, Skull, Package, Feather, LogOut, Users, Loader, Save } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
-  auth, 
-  database,
+  auth,
   onAuthChange, 
   registerUser, 
   loginUser, 
-  logoutUser,
-  subscribeToUserData,
-  updateUserData
+  logoutUser
 } from './services/firebase';
+import { 
+  initializeFirestoreDb,
+  loadCharacters,
+  loadInventoryItems,
+  loadQuests,
+  loadJournalEntries,
+  loadStoryChapters,
+  loadUserProfiles,
+  saveCharacter,
+  saveInventoryItem,
+  saveQuest,
+  saveJournalEntry,
+  saveStoryChapter,
+  saveUserProfile,
+  batchSaveGameState
+} from './services/firestore';
+import {
+  setUserOnline,
+  setUserOffline,
+  setActiveCharacter,
+  clearActiveCharacter
+} from './services/realtime';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -50,7 +69,7 @@ const App: React.FC = () => {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  // Global State
+  // Global State (in-memory)
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -58,31 +77,57 @@ const App: React.FC = () => {
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [storyChapters, setStoryChapters] = useState<StoryChapter[]>([]);
 
+  // Dirty state tracking for debounced saves
+  const [dirtyEntities, setDirtyEntities] = useState<Set<string>>(new Set());
+
   // Session State
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
   const [currentCharacterId, setCurrentCharacterId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(TABS.CHARACTER);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Firebase Authentication Listener
+  // Firebase Authentication Listener + Firestore Data Loading
   useEffect(() => {
-    const unsubscribe = onAuthChange((user) => {
+    const unsubscribe = onAuthChange(async (user) => {
       setCurrentUser(user);
-      setLoading(false);
       
       if (user) {
-        // Kullanıcı giriş yaptı, verilerini Firebase'den yükle
-        subscribeToUserData(user.uid, (data) => {
-          if (data) {
-            setProfiles(data.profiles || []);
-            setCharacters(data.characters || []);
-            setItems(data.items || []);
-            setQuests(data.quests || []);
-            setJournalEntries(data.journalEntries || []);
-            setStoryChapters(data.storyChapters || []);
-          }
-        });
+        try {
+          // Initialize Firestore
+          initializeFirestoreDb();
+
+          // Set user online status in Realtime DB
+          await setUserOnline(user.uid);
+
+          // Load all data from Firestore
+          const [userProfiles, userCharacters, userItems, userQuests, userEntries, userChapters] = await Promise.all([
+            loadUserProfiles(user.uid),
+            loadCharacters(user.uid),
+            loadInventoryItems(user.uid),
+            loadQuests(user.uid),
+            loadJournalEntries(user.uid),
+            loadStoryChapters(user.uid)
+          ]);
+
+          setProfiles(userProfiles);
+          setCharacters(userCharacters);
+          setItems(userItems);
+          setQuests(userQuests);
+          setJournalEntries(userEntries);
+          setStoryChapters(userChapters);
+        } catch (error) {
+          console.error('Error loading user data:', error);
+        } finally {
+          setLoading(false);
+        }
       } else {
-        // Kullanıcı çıkış yaptı, local state'i temizle
+        // User logged out - set offline and clear state
+        if (currentUser?.uid) {
+          await setUserOffline(currentUser.uid);
+          await clearActiveCharacter(currentUser.uid);
+        }
+        
         setProfiles([]);
         setCharacters([]);
         setItems([]);
@@ -91,43 +136,115 @@ const App: React.FC = () => {
         setStoryChapters([]);
         setCurrentProfileId(null);
         setCurrentCharacterId(null);
+        setLoading(false);
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Firebase'e veri kaydetme
+  // Debounced Firestore saves for dirty entities
   useEffect(() => {
     if (!currentUser) return;
     
-    const gameState: AppGameState = {
-      profiles,
-      characters,
-      items,
-      quests,
-      journalEntries,
-      storyChapters
-    };
-    
-    updateUserData(currentUser.uid, gameState);
-  }, [profiles, characters, items, quests, journalEntries, storyChapters, currentUser]);
+    const timer = setTimeout(async () => {
+      if (dirtyEntities.size === 0) return;
+
+      try {
+        // Only save modified entities (debounced)
+        for (const entityId of dirtyEntities) {
+          // Try to match entityId to entity type and save accordingly
+          const char = characters.find(c => c.id === entityId);
+          if (char) {
+            await saveCharacter(currentUser.uid, char);
+            continue;
+          }
+
+          const item = items.find(i => i.id === entityId);
+          if (item) {
+            await saveInventoryItem(currentUser.uid, item);
+            continue;
+          }
+
+          const quest = quests.find(q => q.id === entityId);
+          if (quest) {
+            await saveQuest(currentUser.uid, quest);
+            continue;
+          }
+
+          const entry = journalEntries.find(e => e.id === entityId);
+          if (entry) {
+            await saveJournalEntry(currentUser.uid, entry);
+            continue;
+          }
+
+          const chapter = storyChapters.find(s => s.id === entityId);
+          if (chapter) {
+            await saveStoryChapter(currentUser.uid, chapter);
+            continue;
+          }
+
+          const profile = profiles.find(p => p.id === entityId);
+          if (profile) {
+            await saveUserProfile(currentUser.uid, profile);
+          }
+        }
+
+        // Clear dirty state after successful save
+        setDirtyEntities(new Set());
+      } catch (error) {
+        console.error('Debounced save error:', error);
+      }
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(timer);
+  }, [dirtyEntities, currentUser, characters, items, quests, journalEntries, storyChapters, profiles]);
 
   // Actions
   const handleCreateProfile = (name: string) => {
       const newProfile: UserProfile = { id: uniqueId(), username: name, created: Date.now() };
       setProfiles([...profiles, newProfile]);
+      setDirtyEntities(prev => new Set([...prev, newProfile.id]));
   };
 
   const handleUpdateProfile = (profileId: string, newName: string) => {
       setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, username: newName } : p));
+      setDirtyEntities(prev => new Set([...prev, profileId]));
   };
 
   const handleUpdateCharacter = (characterId: string, newName: string) => {
       setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, name: newName } : c));
+      setDirtyEntities(prev => new Set([...prev, characterId]));
   };
 
-  // Kimlik Doğrulama Fonksiyonları
+  // Manual Save Handler - Forces immediate Firestore flush
+  const handleManualSave = async () => {
+    if (!currentUser) return;
+    
+    setIsSaving(true);
+    try {
+      // Batch save all data to Firestore
+      await batchSaveGameState(
+        currentUser.uid,
+        characters,
+        items,
+        quests,
+        journalEntries,
+        storyChapters,
+        profiles
+      );
+      
+      setSaveMessage('✓ All data saved successfully!');
+      setTimeout(() => setSaveMessage(null), 3000);
+      setDirtyEntities(new Set());
+    } catch (error) {
+      console.error('Save error:', error);
+      setSaveMessage('✗ Error saving data');
+      setTimeout(() => setSaveMessage(null), 3000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
   const handleRegister = async (email: string, password: string) => {
     setAuthError(null);
     try {
@@ -178,6 +295,10 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     try {
+      if (currentUser) {
+        await setUserOffline(currentUser.uid);
+        await clearActiveCharacter(currentUser.uid);
+      }
       await logoutUser();
       setCurrentProfileId(null);
       setCurrentCharacterId(null);
@@ -261,32 +382,28 @@ const App: React.FC = () => {
           gender: gender || 'Male',
           archetype: archetype || 'Warrior',
           ...INITIAL_CHARACTER_TEMPLATE,
-          ...fullDetails, // Spread properties like backstory, stats, skills
+          ...fullDetails,
           gold: fullDetails?.startingGold || 0,
           lastPlayed: Date.now()
       };
       setCharacters([...characters, newChar]);
+      setDirtyEntities(prev => new Set([...prev, charId]));
 
       // 2. Inventory
       if (fullDetails?.inventory) {
-          const newItems: InventoryItem[] = fullDetails.inventory.map(i => ({
+          const itemsWithId = fullDetails.inventory.map(i => ({
               id: uniqueId(),
-              characterId: charId, // Implicit prop handled by filter later if strict typing allowed it
+              characterId: charId,
               name: i.name,
               type: i.type as any,
               description: i.description,
               quantity: i.quantity,
               equipped: false
           }));
-          // Hack: we store characterId on items implicitly even if interface doesn't strictly enforce it in some views
-          // In a real app we would update the type definition or use a relational ID.
-          // For now, let's append them to global items list with a hidden property if needed, 
-          // or rely on the fact that we filter items by checking a property.
-          // NOTE: The `InventoryItem` type in `types.ts` doesn't have `characterId`, 
-          // but we use `getCharacterItems` filtering by it. 
-          // We must ensure the object saved has it.
-          const itemsWithId = newItems.map(i => ({...i, characterId: charId}));
           setItems(prev => [...prev, ...itemsWithId as any]);
+          itemsWithId.forEach(item => {
+            setDirtyEntities(prev => new Set([...prev, item.id]));
+          });
       }
 
       // 3. Quests
@@ -303,14 +420,13 @@ const App: React.FC = () => {
               createdAt: Date.now()
           }));
           setQuests(prev => [...prev, ...newQuests]);
+          newQuests.forEach(quest => {
+            setDirtyEntities(prev => new Set([...prev, quest.id]));
+          });
       }
 
       // 4. Journal
       if (fullDetails?.journalEntries) {
-          // Note: JournalEntry in types doesn't have characterId, assuming global for simplicity or needs update
-          // If the app architecture implies journal is per character (which it should), we need to handle that filter.
-          // Currently Journal component takes `entries` prop. 
-          // Let's add characterId to the saved object effectively.
           const newEntries = fullDetails.journalEntries.map(e => ({
               id: uniqueId(),
               characterId: charId,
@@ -319,6 +435,9 @@ const App: React.FC = () => {
               content: e.content
           }));
           setJournalEntries(prev => [...prev, ...newEntries as any]);
+          newEntries.forEach(entry => {
+            setDirtyEntities(prev => new Set([...prev, entry.id]));
+          });
       }
 
       // 5. Story
@@ -333,15 +452,20 @@ const App: React.FC = () => {
               createdAt: Date.now()
           };
           setStoryChapters(prev => [...prev, chapter]);
+          setDirtyEntities(prev => new Set([...prev, chapter.id]));
       }
   };
 
   const updateCharacter = (field: keyof Character, value: any) => {
       setCharacters(prev => prev.map(c => c.id === currentCharacterId ? { ...c, [field]: value } : c));
+      if (currentCharacterId) {
+        setDirtyEntities(prev => new Set([...prev, currentCharacterId]));
+      }
   };
 
   const updateStoryChapter = (updatedChapter: StoryChapter) => {
       setStoryChapters(prev => prev.map(c => c.id === updatedChapter.id ? updatedChapter : c));
+      setDirtyEntities(prev => new Set([...prev, updatedChapter.id]));
   };
   
   // Helper to get active data
@@ -352,6 +476,9 @@ const App: React.FC = () => {
       const others = items.filter((i: any) => i.characterId !== currentCharacterId);
       const taggedItems = newCharItems.map(i => ({ ...i, characterId: currentCharacterId }));
       setItems([...others, ...taggedItems]);
+      taggedItems.forEach(item => {
+        setDirtyEntities(prev => new Set([...prev, item.id]));
+      });
   };
 
   const getCharacterQuests = () => quests.filter(q => q.characterId === currentCharacterId);
@@ -359,16 +486,21 @@ const App: React.FC = () => {
       const others = quests.filter(q => q.characterId !== currentCharacterId);
       const tagged = newQuests.map(q => ({ ...q, characterId: currentCharacterId }));
       setQuests([...others, ...tagged]);
+      tagged.forEach(quest => {
+        setDirtyEntities(prev => new Set([...prev, quest.id]));
+      });
   };
 
   const getCharacterStory = () => storyChapters.filter(s => s.characterId === currentCharacterId);
   
-  // Cast generic entries to include characterId check
   const getCharacterJournal = () => journalEntries.filter((j: any) => j.characterId === currentCharacterId);
   const setCharacterJournal = (newEntries: JournalEntry[]) => {
       const others = journalEntries.filter((j: any) => j.characterId !== currentCharacterId);
       const tagged = newEntries.map(e => ({ ...e, characterId: currentCharacterId }));
       setJournalEntries([...others, ...tagged]);
+      tagged.forEach(entry => {
+        setDirtyEntities(prev => new Set([...prev, entry.id]));
+      });
   };
 
   // AI Game Master Integration
@@ -382,11 +514,12 @@ const App: React.FC = () => {
               characterId: currentCharacterId,
               title: updates.narrative.title,
               content: updates.narrative.content,
-              date: "4E 201", // TODO: dynamic date
+              date: "4E 201",
               summary: updates.narrative.title,
               createdAt: Date.now()
           };
           setStoryChapters(prev => [...prev, chapter]);
+          setDirtyEntities(prev => new Set([...prev, chapter.id]));
       }
 
       // 2. New Quests
@@ -402,6 +535,9 @@ const App: React.FC = () => {
               createdAt: Date.now()
           }));
           setQuests(prev => [...prev, ...addedQuests]);
+          addedQuests.forEach(quest => {
+            setDirtyEntities(prev => new Set([...prev, quest.id]));
+          });
       }
 
       // 3. Update Quests
@@ -410,6 +546,7 @@ const App: React.FC = () => {
               if (q.characterId !== currentCharacterId) return q;
               const update = updates.updateQuests?.find(u => u.title.toLowerCase() === q.title.toLowerCase());
               if (update) {
+                  setDirtyEntities(prev => new Set([...prev, q.id]));
                   return { ...q, status: update.status };
               }
               return q;
@@ -420,20 +557,24 @@ const App: React.FC = () => {
       if (updates.newItems) {
            const addedItems = updates.newItems.map(i => ({
                id: uniqueId(),
-               characterId: currentCharacterId, // Implicit prop
+               characterId: currentCharacterId,
                name: i.name,
-               type: i.type as any, // unsafe cast for simplicity
+               type: i.type as any,
                description: i.description,
                quantity: i.quantity,
                equipped: false
            }));
            setItems(prev => [...prev, ...addedItems]);
+           addedItems.forEach(item => {
+             setDirtyEntities(prev => new Set([...prev, item.id]));
+           });
       }
 
       // 5. Stats
       if (updates.statUpdates) {
           setCharacters(prev => prev.map(c => {
               if (c.id !== currentCharacterId) return c;
+              setDirtyEntities(prev => new Set([...prev, c.id]));
               return {
                   ...c,
                   stats: { ...c.stats, ...updates.statUpdates }
@@ -445,19 +586,20 @@ const App: React.FC = () => {
       if (updates.goldChange) {
          setCharacters(prev => prev.map(c => {
               if (c.id !== currentCharacterId) return c;
+              setDirtyEntities(prev => new Set([...prev, c.id]));
               return { ...c, gold: (c.gold || 0) + (updates.goldChange || 0) };
          }));
       }
 
-      // 7. Auto-Journal (Optional: Log the event)
+      // 7. Auto-Journal
       const entry: JournalEntry = {
           id: uniqueId(),
           date: "4E 201",
           title: updates.narrative?.title || "Event",
           content: `The Game Master decreed: ${updates.narrative?.title}`
       };
-      // implicit characterId handling via casting
-      setJournalEntries(prev => [...prev, { ...entry, characterId: currentCharacterId } as any]); 
+      setJournalEntries(prev => [...prev, { ...entry, characterId: currentCharacterId } as any]);
+      setDirtyEntities(prev => new Set([...prev, entry.id]));
   };
 
   const getAIContext = () => {
@@ -479,7 +621,12 @@ const App: React.FC = () => {
             onCreateProfile={handleCreateProfile}
             onCreateCharacter={handleCreateCharacter}
             onSelectProfile={(p) => setCurrentProfileId(p.id)}
-            onSelectCharacter={(cid) => setCurrentCharacterId(cid)}
+            onSelectCharacter={async (cid) => {
+              setCurrentCharacterId(cid);
+              if (currentUser) {
+                await setActiveCharacter(currentUser.uid, cid);
+              }
+            }}
             onLogout={handleLogout}
             onUpdateProfile={handleUpdateProfile}
             onUpdateCharacter={handleUpdateCharacter}
@@ -524,6 +671,16 @@ const App: React.FC = () => {
               <div className="h-6 w-px bg-gray-700 mx-2 hidden md:block"></div>
               
               <button 
+                onClick={handleManualSave}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-3 py-2 text-skyrim-gold hover:text-white hover:bg-skyrim-gold/10 rounded text-sm transition-colors disabled:opacity-50"
+                title="Save All Data"
+              >
+                  <Save size={16} />
+                  <span className="hidden lg:inline">{isSaving ? 'Saving...' : 'Save'}</span>
+              </button>
+
+              <button 
                 onClick={() => setCurrentCharacterId(null)}
                 className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded text-sm transition-colors"
                 title="Switch Character"
@@ -545,6 +702,17 @@ const App: React.FC = () => {
           </div>
         </div>
       </nav>
+
+      {/* Save Message */}
+      {saveMessage && (
+        <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg text-sm font-bold z-50 transition-all ${
+          saveMessage.includes('✓') 
+            ? 'bg-green-900/80 text-green-200 border border-green-700' 
+            : 'bg-red-900/80 text-red-200 border border-red-700'
+        }`}>
+          {saveMessage}
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="pt-24 px-4 min-h-screen pb-20">

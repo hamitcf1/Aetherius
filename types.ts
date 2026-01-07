@@ -83,6 +83,7 @@ export interface Character {
 
 export interface InventoryItem {
   id: string;
+  characterId: string;
   name: string;
   type: 'weapon' | 'apparel' | 'potion' | 'ingredient' | 'misc' | 'key';
   description: string;
@@ -122,6 +123,7 @@ export interface StoryChapter {
 
 export interface JournalEntry {
   id: string;
+  characterId: string;
   date: string;
   title: string;
   content: string;
