@@ -94,13 +94,15 @@ const App: React.FC = () => {
       
       if (user) {
         try {
-          // Initialize Firestore
-          initializeFirestoreDb();
+          // Initialize Firestore (must happen before any queries)
+          console.log('Initializing Firestore for user:', user.uid);
+          await initializeFirestoreDb();
 
           // Set user online status in Realtime DB
           await setUserOnline(user.uid);
 
-          // Load all data from Firestore
+          // Load all data from Firestore in parallel
+          console.log('Loading user data from Firestore...');
           const [userProfiles, userCharacters, userItems, userQuests, userEntries, userChapters] = await Promise.all([
             loadUserProfiles(user.uid),
             loadCharacters(user.uid),
@@ -110,6 +112,7 @@ const App: React.FC = () => {
             loadStoryChapters(user.uid)
           ]);
 
+          console.log('Data loaded successfully:', { userProfiles, userCharacters, userItems });
           setProfiles(userProfiles);
           setCharacters(userCharacters);
           setItems(userItems);
@@ -117,15 +120,20 @@ const App: React.FC = () => {
           setJournalEntries(userEntries);
           setStoryChapters(userChapters);
         } catch (error) {
-          console.error('Error loading user data:', error);
+          console.error('Error initializing or loading user data:', error);
+          setAuthError('Failed to load data from Firestore. Check console for details.');
         } finally {
           setLoading(false);
         }
       } else {
         // User logged out - set offline and clear state
         if (currentUser?.uid) {
-          await setUserOffline(currentUser.uid);
-          await clearActiveCharacter(currentUser.uid);
+          try {
+            await setUserOffline(currentUser.uid);
+            await clearActiveCharacter(currentUser.uid);
+          } catch (error) {
+            console.warn('Error on logout:', error);
+          }
         }
         
         setProfiles([]);

@@ -28,11 +28,13 @@ const getFirebaseApp = () => {
 // Initialize Firestore
 let db: ReturnType<typeof initializeFirestore> | null = null;
 
-export const initializeFirestoreDb = () => {
+export const initializeFirestoreDb = async () => {
+  if (db) return db; // Already initialized
+
   const app = getFirebaseApp();
   if (!app) {
-    console.warn('Firebase app not initialized');
-    return null;
+    console.error('Firebase app not initialized');
+    throw new Error('Firebase app not initialized');
   }
 
   try {
@@ -41,24 +43,27 @@ export const initializeFirestoreDb = () => {
     });
 
     // Enable offline persistence
-    enableIndexedDbPersistence(db).catch((err) => {
+    try {
+      await enableIndexedDbPersistence(db);
+    } catch (err: any) {
       if (err.code === 'failed-precondition') {
         console.warn('Multiple tabs open, persistence disabled');
       } else if (err.code === 'unimplemented') {
         console.warn('Browser does not support persistence');
       }
-    });
+    }
 
+    console.log('Firestore initialized successfully');
     return db;
   } catch (error) {
     console.error('Failed to initialize Firestore:', error);
-    return null;
+    throw error;
   }
 };
 
-export const getDb = () => {
+export const getDb = (): ReturnType<typeof initializeFirestore> => {
   if (!db) {
-    db = initializeFirestoreDb();
+    throw new Error('Firestore not initialized. Call initializeFirestoreDb() first.');
   }
   return db;
 };
@@ -66,43 +71,53 @@ export const getDb = () => {
 // ===== CHARACTERS =====
 
 export const saveCharacter = async (uid: string, character: Character): Promise<void> => {
-  const db = getDb();
-  if (!db) throw new Error('Firestore not initialized');
-
-  const docRef = doc(db, 'users', uid, 'characters', character.id);
-  await setDoc(docRef, {
-    ...character,
-    lastPlayed: Date.now(),
-  }, { merge: true });
+  try {
+    const db = getDb();
+    const docRef = doc(db, 'users', uid, 'characters', character.id);
+    await setDoc(docRef, {
+      ...character,
+      lastPlayed: Date.now(),
+    }, { merge: true });
+  } catch (error) {
+    console.error('Error saving character:', error);
+    throw error;
+  }
 };
 
 export const loadCharacter = async (uid: string, characterId: string): Promise<Character | null> => {
-  const db = getDb();
-  if (!db) throw new Error('Firestore not initialized');
-
-  const docRef = doc(db, 'users', uid, 'characters', characterId);
-  const snapshot = await getDoc(docRef);
-  
-  return snapshot.exists() ? (snapshot.data() as Character) : null;
+  try {
+    const db = getDb();
+    const docRef = doc(db, 'users', uid, 'characters', characterId);
+    const snapshot = await getDoc(docRef);
+    return snapshot.exists() ? (snapshot.data() as Character) : null;
+  } catch (error) {
+    console.error('Error loading character:', error);
+    throw error;
+  }
 };
 
 export const loadCharacters = async (uid: string): Promise<Character[]> => {
-  const db = getDb();
-  if (!db) throw new Error('Firestore not initialized');
-
-  const collRef = collection(db, 'users', uid, 'characters') as CollectionReference<Character>;
-  const q = query(collRef, orderBy('lastPlayed', 'desc'));
-  
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => doc.data());
+  try {
+    const db = getDb();
+    const collRef = collection(db, 'users', uid, 'characters') as CollectionReference<Character>;
+    const q = query(collRef, orderBy('lastPlayed', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data());
+  } catch (error) {
+    console.error('Error loading characters:', error);
+    throw error;
+  }
 };
 
 export const deleteCharacter = async (uid: string, characterId: string): Promise<void> => {
-  const db = getDb();
-  if (!db) throw new Error('Firestore not initialized');
-
-  const docRef = doc(db, 'users', uid, 'characters', characterId);
-  await deleteDoc(docRef);
+  try {
+    const db = getDb();
+    const docRef = doc(db, 'users', uid, 'characters', characterId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    console.error('Error deleting character:', error);
+    throw error;
+  }
 };
 
 // ===== INVENTORY ITEMS =====

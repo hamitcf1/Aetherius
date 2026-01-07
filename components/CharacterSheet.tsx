@@ -83,7 +83,6 @@ const StatBar: React.FC<{
     <div className="flex-1 group">
         <div className="flex justify-between text-xs uppercase mb-1 text-gray-400 font-bold">
             <span className="flex items-center gap-1 group-hover:text-skyrim-gold transition-colors">{icon} {label}</span>
-            <span className="group-hover:text-white transition-colors">{value}</span>
         </div>
         <div className="relative h-2 bg-black rounded-full overflow-hidden border border-transparent group-hover:border-gray-800 transition-colors">
             <div 
@@ -98,7 +97,7 @@ const StatBar: React.FC<{
               max="1000" 
               value={value} 
               onChange={(e) => onChange(parseInt(e.target.value))}
-              className="flex-1 opacity-0 group-hover:opacity-100 h-1 appearance-none bg-gray-700 rounded transition-opacity"
+              className="flex-1 h-1 appearance-none bg-gray-700 rounded"
           />
           <input
               type="number"
