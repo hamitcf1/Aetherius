@@ -305,7 +305,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                 
                 <div className="bg-black/20 p-3 rounded">
                     <div className="space-y-2">
-                        {quest.objectives.map(obj => (
+                        {(quest.objectives ?? []).map(obj => (
                             <div key={obj.id} className="flex items-start gap-3 group">
                                 <button onClick={() => toggleObjective(quest.id, obj.id)} className="mt-1 text-skyrim-gold hover:text-white">
                                     {obj.completed ? <CheckSquare size={16} /> : <Square size={16} />}
