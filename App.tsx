@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     INITIAL_CHARACTER_TEMPLATE, Character, CustomQuest, JournalEntry, UserProfile, InventoryItem, StoryChapter, GameStateUpdate, GeneratedCharacterData 
 } from './types';
@@ -64,15 +64,23 @@ const App: React.FC = () => {
   const [currentCharacterId, setCurrentCharacterId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(TABS.CHARACTER);
 
+  const dataUnsubRef = useRef<() => void>();
+
   // Firebase Authentication Listener
   useEffect(() => {
     const unsubscribe = onAuthChange((user) => {
       setCurrentUser(user);
       setLoading(false);
       
+      // Yeni kullanıcı için önce önceki listener'ı kapat
+      if (dataUnsubRef.current) {
+        dataUnsubRef.current();
+        dataUnsubRef.current = undefined;
+      }
+
       if (user) {
         // Kullanıcı giriş yaptı, verilerini Firebase'den yükle
-        subscribeToUserData(user.uid, (data) => {
+        const unsub = subscribeToUserData(user.uid, (data) => {
           if (data) {
             setProfiles(data.profiles || []);
             setCharacters(data.characters || []);
@@ -83,6 +91,7 @@ const App: React.FC = () => {
           }
           setDataLoaded(true);
         });
+        dataUnsubRef.current = unsub;
       } else {
         // Kullanıcı çıkış yaptı, local state'i temizle
         setProfiles([]);
@@ -93,16 +102,19 @@ const App: React.FC = () => {
         setStoryChapters([]);
         setCurrentProfileId(null);
         setCurrentCharacterId(null);
+        setDataLoaded(false);
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Firebase'e veri kaydetme
+  // Firebase'e veri kaydetme (hash kontrolü ile döngüyü önle)
+  const lastSavedHash = useRef<string>('');
+
   useEffect(() => {
     if (!currentUser || !dataLoaded) return;
-    
+
     const gameState: AppGameState = {
       profiles,
       characters,
@@ -111,8 +123,11 @@ const App: React.FC = () => {
       journalEntries,
       storyChapters
     };
-    
+    const hash = JSON.stringify(gameState);
+    if (hash === lastSavedHash.current) return; // değişiklik yok
+
     updateUserData(currentUser.uid, gameState);
+    lastSavedHash.current = hash;
   }, [profiles, characters, items, quests, journalEntries, storyChapters, currentUser, dataLoaded]);
 
   // Actions
