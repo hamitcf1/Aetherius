@@ -82,12 +82,13 @@ const App: React.FC = () => {
         // Kullanıcı giriş yaptı, verilerini Firebase'den yükle
         const unsub = subscribeToUserData(user.uid, (data) => {
           if (data) {
-            setProfiles(data.profiles || []);
-            setCharacters(data.characters || []);
-            setItems(data.items || []);
-            setQuests(data.quests || []);
-            setJournalEntries(data.journalEntries || []);
-            setStoryChapters(data.storyChapters || []);
+            const toArray = (x:any)=> Array.isArray(x)? x : Object.values(x||{});
+            setProfiles(toArray(data.profiles));
+            setCharacters(toArray(data.characters));
+            setItems(toArray(data.items));
+            setQuests(toArray(data.quests));
+            setJournalEntries(toArray(data.journalEntries));
+            setStoryChapters(toArray(data.storyChapters));
           }
           setDataLoaded(true);
         });
