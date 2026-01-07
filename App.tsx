@@ -57,6 +57,7 @@ const App: React.FC = () => {
   const [quests, setQuests] = useState<CustomQuest[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [storyChapters, setStoryChapters] = useState<StoryChapter[]>([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   // Session State
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
@@ -80,6 +81,7 @@ const App: React.FC = () => {
             setJournalEntries(data.journalEntries || []);
             setStoryChapters(data.storyChapters || []);
           }
+          setDataLoaded(true);
         });
       } else {
         // Kullanıcı çıkış yaptı, local state'i temizle
@@ -99,7 +101,7 @@ const App: React.FC = () => {
 
   // Firebase'e veri kaydetme
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !dataLoaded) return;
     
     const gameState: AppGameState = {
       profiles,
@@ -111,7 +113,7 @@ const App: React.FC = () => {
     };
     
     updateUserData(currentUser.uid, gameState);
-  }, [profiles, characters, items, quests, journalEntries, storyChapters, currentUser]);
+  }, [profiles, characters, items, quests, journalEntries, storyChapters, currentUser, dataLoaded]);
 
   // Actions
   const handleCreateProfile = (name: string) => {
