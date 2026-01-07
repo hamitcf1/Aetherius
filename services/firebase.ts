@@ -61,7 +61,8 @@ export const getUserData = (userId: string) => {
 
 export const updateUserData = async (userId: string, data: any) => {
   try {
-    await set(ref(database, `users/${userId}`), data);
+    const sanitized = JSON.parse(JSON.stringify(data)); // strip undefined (Realtime DB disallows)
+    await set(ref(database, `users/${userId}`), sanitized);
   } catch (e) {
     console.error('Failed to save user data', e);
   }
