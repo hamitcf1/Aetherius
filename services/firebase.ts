@@ -9,8 +9,8 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   applyActionCode,
-  verifyPasswordResetCode,
-  confirmPasswordReset,
+  verifyPasswordResetCode as firebaseVerifyPasswordResetCode,
+  confirmPasswordReset as firebaseConfirmPasswordReset,
   updateProfile,
   updateEmail,
   updatePassword,
@@ -128,9 +128,9 @@ export const sendPasswordReset = async (email: string) => {
   }
 };
 
-export const verifyPasswordResetCode = async (oobCode: string) => {
+export const checkPasswordResetCode = async (oobCode: string) => {
   try {
-    const email = await verifyPasswordResetCode(auth, oobCode);
+    const email = await firebaseVerifyPasswordResetCode(auth, oobCode);
     return { success: true, email };
   } catch (error) {
     console.error("Error verifying password reset code:", error);
@@ -138,9 +138,9 @@ export const verifyPasswordResetCode = async (oobCode: string) => {
   }
 };
 
-export const confirmPasswordReset = async (oobCode: string, newPassword: string) => {
+export const applyPasswordReset = async (oobCode: string, newPassword: string) => {
   try {
-    await confirmPasswordReset(auth, oobCode, newPassword);
+    await firebaseConfirmPasswordReset(auth, oobCode, newPassword);
     return { success: true };
   } catch (error) {
     console.error("Error confirming password reset:", error);
