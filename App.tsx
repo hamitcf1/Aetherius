@@ -9,8 +9,18 @@ import { Inventory } from './components/Inventory';
 import { StoryLog } from './components/StoryLog';
 import { AIScribe } from './components/AIScribe';
 import { CharacterSelect } from './components/CharacterSelect';
-import { User, Scroll, BookOpen, Skull, Package, Feather, LogOut, Users } from 'lucide-react';
+import { User, Scroll, BookOpen, Skull, Package, Feather, LogOut, Users, Loader } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { 
+  auth, 
+  database,
+  onAuthChange, 
+  registerUser, 
+  loginUser, 
+  logoutUser,
+  subscribeToUserData,
+  updateUserData
+} from './services/firebase';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -22,7 +32,24 @@ const TABS = {
   JOURNAL: 'journal'
 };
 
+interface AppGameState {
+  profiles: UserProfile[];
+  characters: Character[];
+  items: InventoryItem[];
+  quests: CustomQuest[];
+  journalEntries: JournalEntry[];
+  storyChapters: StoryChapter[];
+}
+
 const App: React.FC = () => {
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
   // Global State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -36,33 +63,126 @@ const App: React.FC = () => {
   const [currentCharacterId, setCurrentCharacterId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(TABS.CHARACTER);
 
-  // Load Data
+  // Firebase Authentication Listener
   useEffect(() => {
-    const load = (key: string, setter: any) => {
-        const data = localStorage.getItem(`skyrim-${key}`);
-        if (data) setter(JSON.parse(data));
-    };
-    load('profiles', setProfiles);
-    load('characters', setCharacters);
-    load('items', setItems);
-    load('quests', setQuests);
-    load('journal', setJournalEntries);
-    load('story', setStoryChapters);
+    const unsubscribe = onAuthChange((user) => {
+      setCurrentUser(user);
+      setLoading(false);
+      
+      if (user) {
+        // Kullanıcı giriş yaptı, verilerini Firebase'den yükle
+        subscribeToUserData(user.uid, (data) => {
+          if (data) {
+            setProfiles(data.profiles || []);
+            setCharacters(data.characters || []);
+            setItems(data.items || []);
+            setQuests(data.quests || []);
+            setJournalEntries(data.journalEntries || []);
+            setStoryChapters(data.storyChapters || []);
+          }
+        });
+      } else {
+        // Kullanıcı çıkış yaptı, local state'i temizle
+        setProfiles([]);
+        setCharacters([]);
+        setItems([]);
+        setQuests([]);
+        setJournalEntries([]);
+        setStoryChapters([]);
+        setCurrentProfileId(null);
+        setCurrentCharacterId(null);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  // Save Data
-  useEffect(() => localStorage.setItem('skyrim-profiles', JSON.stringify(profiles)), [profiles]);
-  useEffect(() => localStorage.setItem('skyrim-characters', JSON.stringify(characters)), [characters]);
-  useEffect(() => localStorage.setItem('skyrim-items', JSON.stringify(items)), [items]);
-  useEffect(() => localStorage.setItem('skyrim-quests', JSON.stringify(quests)), [quests]);
-  useEffect(() => localStorage.setItem('skyrim-journal', JSON.stringify(journalEntries)), [journalEntries]);
-  useEffect(() => localStorage.setItem('skyrim-story', JSON.stringify(storyChapters)), [storyChapters]);
+  // Firebase'e veri kaydetme
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const gameState: AppGameState = {
+      profiles,
+      characters,
+      items,
+      quests,
+      journalEntries,
+      storyChapters
+    };
+    
+    updateUserData(currentUser.uid, gameState);
+  }, [profiles, characters, items, quests, journalEntries, storyChapters, currentUser]);
 
   // Actions
   const handleCreateProfile = (name: string) => {
       const newProfile: UserProfile = { id: uniqueId(), username: name, created: Date.now() };
       setProfiles([...profiles, newProfile]);
   };
+
+  // Loading Screen
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-skyrim-dark flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader className="animate-spin text-skyrim-gold" size={48} />
+          <p className="text-skyrim-text">Yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Login Screen
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-skyrim-dark flex items-center justify-center p-4">
+        <div className="bg-skyrim-paper rounded-lg shadow-2xl p-8 max-w-md w-full border border-skyrim-gold/30">
+          <h1 className="text-4xl font-serif font-bold text-skyrim-gold text-center mb-8 tracking-widest">SKYRIM</h1>
+          <p className="text-skyrim-text text-center mb-6">Aetherius'a Hoş Geldiniz</p>
+          
+          {authError && (
+            <div className="bg-red-900/30 border border-red-700 rounded p-4 mb-4 text-red-200 text-sm">
+              {authError}
+            </div>
+          )}
+          
+          <div className="space-y-4">
+            <input 
+              type="email"
+              placeholder="E-posta"
+              className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
+            />
+            <input 
+              type="password"
+              placeholder="Şifre"
+              className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+            />
+            
+            <button 
+              onClick={() => handleLogin(loginEmail, loginPassword)}
+              className="w-full bg-skyrim-gold text-skyrim-dark font-bold py-2 rounded hover:bg-yellow-400 transition-colors"
+            >
+              Giriş Yap
+            </button>
+            
+            <button 
+              onClick={() => handleRegister(loginEmail, loginPassword)}
+              className="w-full bg-skyrim-gold/20 text-skyrim-gold font-bold py-2 rounded border border-skyrim-gold hover:bg-skyrim-gold/30 transition-colors"
+            >
+              Kayıt Ol
+            </button>
+          </div>
+          
+          <p className="text-xs text-gray-500 text-center mt-6">
+            Demo amaçlı test e-postaları: test@example.com
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const handleCreateCharacter = (profileId: string, name: string, archetype: string, race: string, gender: string, fullDetails?: GeneratedCharacterData) => {
       const charId = uniqueId();
@@ -285,6 +405,65 @@ const App: React.FC = () => {
     });
   };
 
+  // Kimlik Doğrulama Fonksiyonları
+  const handleRegister = async (email: string, password: string) => {
+    setAuthError(null);
+    try {
+      if (!email || !password) {
+        setAuthError('E-posta ve şifre gereklidir');
+        return;
+      }
+      if (password.length < 6) {
+        setAuthError('Şifre en az 6 karakter olmalıdır');
+        return;
+      }
+      await registerUser(email, password);
+      setLoginEmail('');
+      setLoginPassword('');
+      setAuthError(null);
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        setAuthError('Bu e-posta zaten kullanımda');
+      } else if (error.code === 'auth/invalid-email') {
+        setAuthError('Geçersiz e-posta adresi');
+      } else {
+        setAuthError('Kayıt başarısız oldu: ' + error.message);
+      }
+    }
+  };
+
+  const handleLogin = async (email: string, password: string) => {
+    setAuthError(null);
+    try {
+      if (!email || !password) {
+        setAuthError('E-posta ve şifre gereklidir');
+        return;
+      }
+      await loginUser(email, password);
+      setLoginEmail('');
+      setLoginPassword('');
+      setAuthError(null);
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found') {
+        setAuthError('Bu e-posta için kullanıcı bulunamadı');
+      } else if (error.code === 'auth/wrong-password') {
+        setAuthError('Yanlış şifre');
+      } else {
+        setAuthError('Giriş başarısız: ' + error.message);
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      setCurrentProfileId(null);
+      setCurrentCharacterId(null);
+    } catch (error) {
+      setAuthError('Çıkış yapılamadı');
+    }
+  };
+
   // Render Logic
   if (!currentProfileId || !currentCharacterId) {
       return (
@@ -345,12 +524,12 @@ const App: React.FC = () => {
               </button>
 
               <button 
-                onClick={() => { setCurrentCharacterId(null); setCurrentProfileId(null); }}
+                onClick={handleLogout}
                 className="flex items-center gap-2 px-3 py-2 text-red-400 hover:text-red-200 hover:bg-red-900/20 rounded text-sm transition-colors"
-                title="Log Out"
+                title="Çıkış Yap"
               >
                   <LogOut size={16} />
-                  <span className="hidden lg:inline">Log Out</span>
+                  <span className="hidden lg:inline">Çıkış</span>
               </button>
 
             </div>
