@@ -59,8 +59,12 @@ export const getUserData = (userId: string) => {
   return get(ref(database, `users/${userId}`));
 };
 
-export const updateUserData = (userId: string, data: any) => {
-  return update(ref(database, `users/${userId}`), data);
+export const updateUserData = async (userId: string, data: any) => {
+  try {
+    await set(ref(database, `users/${userId}`), data);
+  } catch (e) {
+    console.error('Failed to save user data', e);
+  }
 };
 
 export const subscribeToUserData = (userId: string, callback: (data: any) => void) => {
