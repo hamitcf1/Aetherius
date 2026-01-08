@@ -496,25 +496,50 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
 
   return (
       <div className="max-w-4xl mx-auto pb-24">
-      <div className="flex justify-end gap-2 mb-2">
-        {!character.profileImage && (
-          <button 
-              onClick={handleGenerateProfileImage} 
-              disabled={isGeneratingProfileImage}
-              className="flex items-center gap-2 px-4 py-2 bg-skyrim-dark border border-skyrim-accent text-skyrim-accent hover:bg-skyrim-accent hover:text-white rounded transition-colors text-sm font-bold disabled:opacity-50"
-          >
-              {isGeneratingProfileImage ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
-              {isGeneratingProfileImage ? 'Generating...' : 'Generate Profile Photo'}
-          </button>
-        )}
-        <button 
-            onClick={handleExportPDF} 
-            disabled={isExporting}
-            className="flex items-center gap-2 px-4 py-2 bg-skyrim-dark border border-skyrim-gold text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark rounded transition-colors text-sm font-bold disabled:opacity-50"
-        >
-            <Download size={16} /> {isExporting ? 'Generating...' : 'Export Full Record'}
-        </button>
-      </div>
+            <div className="flex flex-col sm:flex-row justify-end gap-2 mb-2">
+                {!character.profileImage && (
+                    <button 
+                            onClick={handleGenerateProfileImage} 
+                            disabled={isGeneratingProfileImage}
+                            className="flex items-center gap-2 px-4 py-2 bg-skyrim-dark border border-skyrim-accent text-skyrim-accent hover:bg-skyrim-accent hover:text-white rounded transition-colors text-sm font-bold disabled:opacity-50"
+                    >
+                            {isGeneratingProfileImage ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
+                            {isGeneratingProfileImage ? 'Generating...' : 'Generate Profile Photo'}
+                    </button>
+                )}
+                <button
+                    onClick={() => {
+                        // Generate prompt from character description
+                        const prompt = `${character.name}, a ${character.gender} ${character.race} ${character.archetype}. ${character.identity} ${character.psychology} ${character.magicApproach}`;
+                        window.prompt('Copy this prompt for AI image generation:', prompt);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-skyrim-dark border border-blue-700 text-blue-400 hover:bg-blue-900 hover:text-white rounded transition-colors text-sm font-bold"
+                >
+                    <Sparkles size={16} /> Create Image Prompt
+                </button>
+                <label className="flex items-center gap-2 px-4 py-2 bg-skyrim-dark border border-green-700 text-green-400 hover:bg-green-900 hover:text-white rounded transition-colors text-sm font-bold cursor-pointer">
+                    <ImageIcon size={16} /> Upload Photo
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                                if (typeof ev.target?.result === 'string') {
+                                    updateCharacter('profileImage', ev.target.result);
+                                }
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    }} />
+                </label>
+                <button 
+                        onClick={handleExportPDF} 
+                        disabled={isExporting}
+                        className="flex items-center gap-2 px-4 py-2 bg-skyrim-dark border border-skyrim-gold text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark rounded transition-colors text-sm font-bold disabled:opacity-50"
+                >
+                        <Download size={16} /> {isExporting ? 'Generating...' : 'Export Full Record'}
+                </button>
+            </div>
 
       <div id="character-sheet-content" className="p-4 bg-skyrim-dark"> 
           <div className="mb-8 p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center relative overflow-hidden">
