@@ -681,7 +681,7 @@ const App: React.FC = () => {
                 <Skull size={24} />
                 <span className="hidden md:inline">Skyrim Aetherius</span>
               </div>
-              <div className="flex items-center gap-2 overflow-x-auto">
+              <div className="flex items-center gap-2 overflow-x-auto relative">
                 {[
                     { id: TABS.CHARACTER, icon: User, label: 'Hero' },
                     { id: TABS.INVENTORY, icon: Package, label: 'Items' },
@@ -702,9 +702,9 @@ const App: React.FC = () => {
                       <span className="hidden md:inline">{tab.label}</span>
                   </button>
                 ))}
+                {/* Actions button inline with tabs */}
+                <ActionBarToggle />
               </div>
-              {/* Action Bar Toggle */}
-              <ActionBarToggle />
             </div>
           </div>
           <ActionBar />

@@ -16,13 +16,42 @@ const ActionBar: React.FC = () => {
     handleUploadPhoto
   } = useAppContext();
   const [open, setOpen] = useState(false);
+  // Ref for the button to align dropdown
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  // Position state for dropdown
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+
+  const handleToggle = () => {
+    setOpen((o) => {
+      if (!o && buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        setDropdownStyle({
+          position: 'absolute',
+          left: rect.left,
+          top: rect.bottom + 8,
+          zIndex: 100,
+          minWidth: 220,
+        });
+      }
+      return !o;
+    });
+  };
+
   return (
-    <div className="fixed top-16 right-4 z-50">
-      <button onClick={() => setOpen(o => !o)} className="bg-skyrim-gold text-skyrim-dark px-3 py-2 rounded shadow-lg font-bold flex items-center gap-2">
+    <>
+      <button
+        ref={buttonRef}
+        onClick={handleToggle}
+        className="bg-skyrim-gold text-skyrim-dark px-3 py-2 rounded shadow-lg font-bold flex items-center gap-2"
+        style={{ marginLeft: 8 }}
+      >
         <Plus size={16} /> Actions
       </button>
       {open && (
-        <div className="mt-2 bg-skyrim-paper border border-skyrim-gold rounded-lg shadow-2xl p-4 flex flex-col gap-3 min-w-[220px] animate-in fade-in slide-in-from-top-2">
+        <div
+          className="bg-skyrim-paper border border-skyrim-gold rounded-lg shadow-2xl p-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2"
+          style={dropdownStyle}
+        >
           <button onClick={handleManualSave} disabled={isSaving} className="flex items-center gap-2 px-3 py-2 bg-skyrim-gold text-skyrim-dark rounded font-bold disabled:opacity-50">
             <Save size={16} /> {isSaving ? 'Saving...' : 'Save'}
           </button>
@@ -48,9 +77,9 @@ const ActionBar: React.FC = () => {
           </button>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
-export const ActionBarToggle = () => null; // Placeholder for nav
+export const ActionBarToggle = ActionBar;
 export default ActionBar;
