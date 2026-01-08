@@ -540,8 +540,6 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                 >
                         <Download size={16} /> {isExporting ? 'Generating...' : 'Export Full Record'}
                 </button>
-            </div>
-
       <div id="character-sheet-content" className="p-4 bg-skyrim-dark"> 
           <div className="mb-8 p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center relative overflow-hidden">
             {character.profileImage && (
