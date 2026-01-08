@@ -142,7 +142,7 @@ const StatBar: React.FC<{
                 <style>{`
                     @keyframes skyrim-bar-glow-anim {
                         0% { box-shadow: none; }
-                        50% { box-shadow: 0 0 96px 32px rgba(255,255,255,0.18); }
+                        50% { box-shadow: 0 0 12px 6px rgba(255,255,255,0.18); }
                         100% { box-shadow: none; }
                     }
                 `}</style>
