@@ -668,7 +668,6 @@ const App: React.FC = () => {
               <Skull size={24} />
               <span className="hidden md:inline">Skyrim Aetherius</span>
             </div>
-            
             <div className="flex items-center gap-2 overflow-x-auto">
               {[
                   { id: TABS.CHARACTER, icon: User, label: 'Hero' },
@@ -690,40 +689,12 @@ const App: React.FC = () => {
                     <span className="hidden md:inline">{tab.label}</span>
                 </button>
               ))}
-
-              <div className="h-6 w-px bg-gray-700 mx-2 hidden md:block"></div>
-              
-              <button 
-                onClick={handleManualSave}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-3 py-2 text-skyrim-gold hover:text-white hover:bg-skyrim-gold/10 rounded text-sm transition-colors disabled:opacity-50"
-                title="Save All Data"
-              >
-                  <Save size={16} />
-                  <span className="hidden lg:inline">{isSaving ? 'Saving...' : 'Save'}</span>
-              </button>
-
-              <button 
-                onClick={() => setCurrentCharacterId(null)}
-                className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded text-sm transition-colors"
-                title="Switch Character"
-              >
-                  <Users size={16} />
-                  <span className="hidden lg:inline">Switch</span>
-              </button>
-
-              <button 
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-2 text-red-400 hover:text-red-200 hover:bg-red-900/20 rounded text-sm transition-colors"
-                title="Çıkış Yap"
-              >
-                  <LogOut size={16} />
-                  <span className="hidden lg:inline">Çıkış</span>
-              </button>
-
             </div>
+            {/* Action Bar Toggle */}
+            <ActionBarToggle />
           </div>
         </div>
+        <ActionBar />
       </nav>
 
       {/* Save Message */}

@@ -496,7 +496,8 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
 
   return (
       <div className="max-w-4xl mx-auto pb-24">
-            <div className="flex flex-col sm:flex-row justify-end gap-2 mb-2">
+            {/* ActionBar is now global, so this is removed from here. */}
+            <div></div>
                 {!character.profileImage && (
                     <button 
                             onClick={handleGenerateProfileImage} 
