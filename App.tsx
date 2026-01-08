@@ -4,6 +4,7 @@ import {
 } from './types';
 import { CharacterSheet } from './components/CharacterSheet';
 import ActionBar, { ActionBarToggle } from './components/ActionBar';
+import { AppContext } from './AppContext';
 import { QuestLog } from './components/QuestLog';
 import { Journal } from './components/Journal';
 import { Inventory } from './components/Inventory';
@@ -659,101 +660,113 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-skyrim-dark text-skyrim-text font-sans selection:bg-skyrim-gold selection:text-skyrim-dark">
-      
-      {/* Navigation Header */}
-      <nav className="fixed top-0 left-0 right-0 bg-skyrim-paper/95 backdrop-blur-md border-b border-skyrim-gold/30 z-40 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2 text-skyrim-gold font-serif font-bold text-xl tracking-widest uppercase cursor-pointer" onClick={() => setCurrentCharacterId(null)}>
-              <Skull size={24} />
-              <span className="hidden md:inline">Skyrim Aetherius</span>
+    <AppContext.Provider value={{
+      handleManualSave,
+      isSaving,
+      handleLogout,
+      setCurrentCharacterId,
+      handleExportPDF: () => {}, // TODO: Implement export
+      isExporting: false, // TODO: Implement export state
+      handleGenerateProfileImage: () => {}, // TODO: Implement profile image generation
+      isGeneratingProfileImage: false, // TODO: Implement profile image state
+      handleCreateImagePrompt: () => {}, // TODO: Implement image prompt
+      handleUploadPhoto: () => {}, // TODO: Implement upload
+    }}>
+      <div className="min-h-screen bg-skyrim-dark text-skyrim-text font-sans selection:bg-skyrim-gold selection:text-skyrim-dark">
+        {/* Navigation Header */}
+        <nav className="fixed top-0 left-0 right-0 bg-skyrim-paper/95 backdrop-blur-md border-b border-skyrim-gold/30 z-40 shadow-2xl">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center gap-2 text-skyrim-gold font-serif font-bold text-xl tracking-widest uppercase cursor-pointer" onClick={() => setCurrentCharacterId(null)}>
+                <Skull size={24} />
+                <span className="hidden md:inline">Skyrim Aetherius</span>
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto">
+                {[
+                    { id: TABS.CHARACTER, icon: User, label: 'Hero' },
+                    { id: TABS.INVENTORY, icon: Package, label: 'Items' },
+                    { id: TABS.QUESTS, icon: Scroll, label: 'Quests' },
+                    { id: TABS.STORY, icon: Feather, label: 'Story' },
+                    { id: TABS.JOURNAL, icon: BookOpen, label: 'Journal' },
+                ].map(tab => (
+                  <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded transition-all duration-300 text-sm md:text-base ${
+                      activeTab === tab.id 
+                          ? 'bg-skyrim-gold text-skyrim-dark font-bold' 
+                          : 'text-gray-400 hover:text-skyrim-gold hover:bg-white/5'
+                      }`}
+                  >
+                      <tab.icon size={16} />
+                      <span className="hidden md:inline">{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+              {/* Action Bar Toggle */}
+              <ActionBarToggle />
             </div>
-            <div className="flex items-center gap-2 overflow-x-auto">
-              {[
-                  { id: TABS.CHARACTER, icon: User, label: 'Hero' },
-                  { id: TABS.INVENTORY, icon: Package, label: 'Items' },
-                  { id: TABS.QUESTS, icon: Scroll, label: 'Quests' },
-                  { id: TABS.STORY, icon: Feather, label: 'Story' },
-                  { id: TABS.JOURNAL, icon: BookOpen, label: 'Journal' },
-              ].map(tab => (
-                <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded transition-all duration-300 text-sm md:text-base ${
-                    activeTab === tab.id 
-                        ? 'bg-skyrim-gold text-skyrim-dark font-bold' 
-                        : 'text-gray-400 hover:text-skyrim-gold hover:bg-white/5'
-                    }`}
-                >
-                    <tab.icon size={16} />
-                    <span className="hidden md:inline">{tab.label}</span>
-                </button>
-              ))}
-            </div>
-            {/* Action Bar Toggle */}
-            <ActionBarToggle />
           </div>
-        </div>
-        <ActionBar />
-      </nav>
+          <ActionBar />
+        </nav>
 
-      {/* Save Message */}
-      {saveMessage && (
-        <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg text-sm font-bold z-50 transition-all ${
-          saveMessage.includes('✓') 
-            ? 'bg-green-900/80 text-green-200 border border-green-700' 
-            : 'bg-red-900/80 text-red-200 border border-red-700'
-        }`}>
-          {saveMessage}
-        </div>
-      )}
+        {/* Save Message */}
+        {saveMessage && (
+          <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg text-sm font-bold z-50 transition-all ${
+            saveMessage.includes('✓') 
+              ? 'bg-green-900/80 text-green-200 border border-green-700' 
+              : 'bg-red-900/80 text-red-200 border border-red-700'
+          }`}>
+            {saveMessage}
+          </div>
+        )}
 
-      {/* Main Content Area */}
-      <main className="pt-24 px-2 sm:px-4 min-h-screen pb-20">
-        <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {activeTab === TABS.CHARACTER && activeCharacter && (
-            <CharacterSheet 
-              character={activeCharacter} 
-              updateCharacter={updateCharacter} 
-              inventory={getCharacterItems()}
-              quests={getCharacterQuests()}
-              journal={getCharacterJournal()}
-              story={getCharacterStory()}
-            />
-          )}
-          {activeTab === TABS.INVENTORY && activeCharacter && (
-            <Inventory 
-                items={getCharacterItems()} 
-                setItems={setCharacterItems} 
-                gold={activeCharacter.gold || 0} 
-                setGold={(amt) => updateCharacter('gold', amt)}
-            />
-          )}
-          {activeTab === TABS.QUESTS && (
-            <QuestLog quests={getCharacterQuests()} setQuests={setCharacterQuests} />
-          )}
-          {activeTab === TABS.STORY && (
-            <StoryLog 
-              chapters={getCharacterStory()} 
-              onUpdateChapter={updateStoryChapter}
-              onAddChapter={(chapter) => setStoryChapters(prev => [...prev, chapter])}
-              character={activeCharacter}
-              quests={getCharacterQuests()}
-              journal={getCharacterJournal()}
-              items={getCharacterItems()}
-            />
-          )}
-          {activeTab === TABS.JOURNAL && (
-            <Journal entries={getCharacterJournal()} setEntries={setCharacterJournal} />
-          )}
-        </div>
-      </main>
+        {/* Main Content Area */}
+        <main className="pt-24 px-2 sm:px-4 min-h-screen pb-20">
+          <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {activeTab === TABS.CHARACTER && activeCharacter && (
+              <CharacterSheet 
+                character={activeCharacter} 
+                updateCharacter={updateCharacter} 
+                inventory={getCharacterItems()}
+                quests={getCharacterQuests()}
+                journal={getCharacterJournal()}
+                story={getCharacterStory()}
+              />
+            )}
+            {activeTab === TABS.INVENTORY && activeCharacter && (
+              <Inventory 
+                  items={getCharacterItems()} 
+                  setItems={setCharacterItems} 
+                  gold={activeCharacter.gold || 0} 
+                  setGold={(amt) => updateCharacter('gold', amt)}
+              />
+            )}
+            {activeTab === TABS.QUESTS && (
+              <QuestLog quests={getCharacterQuests()} setQuests={setCharacterQuests} />
+            )}
+            {activeTab === TABS.STORY && (
+              <StoryLog 
+                chapters={getCharacterStory()} 
+                onUpdateChapter={updateStoryChapter}
+                onAddChapter={(chapter) => setStoryChapters(prev => [...prev, chapter])}
+                character={activeCharacter}
+                quests={getCharacterQuests()}
+                journal={getCharacterJournal()}
+                items={getCharacterItems()}
+              />
+            )}
+            {activeTab === TABS.JOURNAL && (
+              <Journal entries={getCharacterJournal()} setEntries={setCharacterJournal} />
+            )}
+          </div>
+        </main>
 
-      {/* AI Game Master */}
-      <AIScribe contextData={getAIContext()} onUpdateState={handleGameUpdate} />
+        {/* AI Game Master */}
+        <AIScribe contextData={getAIContext()} onUpdateState={handleGameUpdate} />
 
-    </div>
+      </div>
+    </AppContext.Provider>
   );
 };
 
