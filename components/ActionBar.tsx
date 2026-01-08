@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, User } from 'lucide-react';
 import { useAppContext } from '../AppContext';
 
@@ -18,39 +19,91 @@ const ActionBar: React.FC = () => {
   const [open, setOpen] = useState(false);
   // Ref for the button to align dropdown
   const buttonRef = React.useRef<HTMLButtonElement>(null);
-  // Position state for dropdown
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const [dropdownPos, setDropdownPos] = useState<{left: number, top: number, width: number}>({left: 0, top: 0, width: 220});
+
+  const updateDropdownPos = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPos({
+        left: rect.left,
+        top: rect.bottom + window.scrollY + 4,
+        width: rect.width
+      });
+    }
+  };
 
   const handleToggle = () => {
     setOpen((o) => {
-      if (!o && buttonRef.current) {
-        const rect = buttonRef.current.getBoundingClientRect();
-        setDropdownStyle({
-          position: 'absolute',
-          left: rect.left,
-          top: rect.bottom + 8,
-          zIndex: 100,
-          minWidth: 220,
-        });
+      if (!o) {
+        updateDropdownPos();
+        window.addEventListener('scroll', updateDropdownPos);
+        window.addEventListener('resize', updateDropdownPos);
+      } else {
+        window.removeEventListener('scroll', updateDropdownPos);
+        window.removeEventListener('resize', updateDropdownPos);
       }
       return !o;
     });
   };
+
+  // Clean up listeners if component unmounts while open
+  React.useEffect(() => {
+    return () => {
+      window.removeEventListener('scroll', updateDropdownPos);
+      window.removeEventListener('resize', updateDropdownPos);
+    };
+  }, []);
 
   return (
     <>
       <button
         ref={buttonRef}
         onClick={handleToggle}
-        className="bg-skyrim-gold text-skyrim-dark px-3 py-2 rounded shadow-lg font-bold flex items-center gap-2"
-        style={{ marginLeft: 8 }}
+        className="bg-skyrim-gold text-skyrim-dark px-3 py-2 rounded shadow-lg font-bold flex items-center gap-2 relative overflow-hidden"
+        style={{ marginLeft: 8, width: 110 }}
+        aria-label={open ? 'Kapat' : 'Aç'}
       >
-        <Plus size={16} /> Actions
+        <span style={{ position: 'relative', width: 20, height: 20, display: 'inline-block' }}>
+          <Plus
+            size={16}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              opacity: open ? 0 : 1,
+              transform: open ? 'rotate(90deg) scale(0.7)' : 'rotate(0deg) scale(1)',
+              transition: 'opacity 0.2s, transform 0.2s'
+            }}
+          />
+          <svg
+            viewBox="0 0 24 24"
+            width={16}
+            height={16}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              opacity: open ? 1 : 0,
+              transform: open ? 'rotate(0deg) scale(1)' : 'rotate(-90deg) scale(0.7)',
+              transition: 'opacity 0.2s, transform 0.2s'
+            }}
+            aria-hidden={!open}
+          >
+            <rect x="5" y="11" width="14" height="2" rx="1" fill="currentColor" />
+          </svg>
+        </span>
+        Actions
       </button>
-      {open && (
+      {open && createPortal(
         <div
           className="bg-skyrim-paper border border-skyrim-gold rounded-lg shadow-2xl p-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2"
-          style={dropdownStyle}
+          style={{
+            position: 'absolute',
+            left: dropdownPos.left,
+            top: dropdownPos.top,
+            minWidth: dropdownPos.width,
+            zIndex: 1000
+          }}
         >
           <button onClick={handleManualSave} disabled={isSaving} className="flex items-center gap-2 px-3 py-2 bg-skyrim-gold text-skyrim-dark rounded font-bold disabled:opacity-50">
             <Save size={16} /> {isSaving ? 'Saving...' : 'Save'}
@@ -75,7 +128,8 @@ const ActionBar: React.FC = () => {
             {isGeneratingProfileImage ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
             {isGeneratingProfileImage ? 'Generating...' : 'Generate Profile Photo'}
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

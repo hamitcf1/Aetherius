@@ -667,9 +667,28 @@ const App: React.FC = () => {
       setCurrentCharacterId,
       handleExportPDF: () => {}, // TODO: Implement export
       isExporting: false, // TODO: Implement export state
-      handleGenerateProfileImage: () => {}, // TODO: Implement profile image generation
-      isGeneratingProfileImage: false, // TODO: Implement profile image state
-      handleCreateImagePrompt: () => {}, // TODO: Implement image prompt
+      handleGenerateProfileImage: async () => {
+        if (!activeCharacter) return;
+        updateCharacter('profileImage', null); // Optionally clear first
+        try {
+          // Optionally set a loading state here if you want to show spinner
+          const imageUrl = await import('./services/geminiService').then(m => m.generateCharacterProfileImage(
+            activeCharacter.name,
+            activeCharacter.race,
+            activeCharacter.gender,
+            activeCharacter.archetype
+          ));
+          if (imageUrl) updateCharacter('profileImage', imageUrl);
+        } catch (e) {
+          alert('Profile image generation failed.');
+        }
+      },
+      isGeneratingProfileImage: false, // (Optional: implement spinner state if needed)
+      handleCreateImagePrompt: () => {
+        if (!activeCharacter) return;
+        const prompt = `${activeCharacter.name}, a ${activeCharacter.gender} ${activeCharacter.race} ${activeCharacter.archetype}. ${activeCharacter.identity} ${activeCharacter.psychology} ${activeCharacter.magicApproach}`;
+        window.prompt('Copy this prompt for AI image generation:', prompt);
+      },
       handleUploadPhoto: () => {}, // TODO: Implement upload
     }}>
       <div className="min-h-screen bg-skyrim-dark text-skyrim-text font-sans selection:bg-skyrim-gold selection:text-skyrim-dark">
@@ -707,7 +726,7 @@ const App: React.FC = () => {
               </div>
             </div>
           </div>
-          <ActionBar />
+          {/* Only one Actions button: ActionBarToggle is inline with tabs, remove default ActionBar here */}
         </nav>
 
         {/* Save Message */}
