@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, User } from 'lucide-react';
+import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, User, Snowflake } from 'lucide-react';
+import SnowEffect from './SnowEffect';
 import { useAppContext } from '../AppContext';
 
 const ActionBar: React.FC = () => {
@@ -17,6 +18,7 @@ const ActionBar: React.FC = () => {
     handleUploadPhoto
   } = useAppContext();
   const [open, setOpen] = useState(false);
+  const [snow, setSnow] = useState(false);
   // Ref for the button to align dropdown
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{left: number, top: number, width: number}>({left: 0, top: 0, width: 220});
@@ -112,7 +114,7 @@ const ActionBar: React.FC = () => {
             <Users size={16} /> Switch
           </button>
           <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 bg-red-700 text-white rounded font-bold">
-            <LogOut size={16} /> Logout
+            <LogOut size={16} /> Exit
           </button>
           <button onClick={handleCreateImagePrompt} className="flex items-center gap-2 px-3 py-2 bg-blue-700 text-white rounded font-bold">
             <Sparkles size={16} /> Create Image Prompt
@@ -128,9 +130,13 @@ const ActionBar: React.FC = () => {
             {isGeneratingProfileImage ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
             {isGeneratingProfileImage ? 'Generating...' : 'Generate Profile Photo'}
           </button>
+          <button onClick={() => setSnow((s) => !s)} className={`flex items-center gap-2 px-3 py-2 rounded font-bold ${snow ? 'bg-blue-200 text-blue-900' : 'bg-blue-900 text-white'}`}>
+            <Snowflake size={16} /> {snow ? 'Disable Snow Effect' : 'Snow Effect'}
+          </button>
         </div>,
         document.body
       )}
+      {snow && <SnowEffect />}
     </>
   );
 };

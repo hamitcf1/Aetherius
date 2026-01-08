@@ -14,14 +14,16 @@ interface StoryLogProps {
 }
 
 export const StoryLog: React.FC<StoryLogProps> = ({ 
-  chapters, 
-  onUpdateChapter,
-  onAddChapter,
-  character,
-  quests = [],
-  journal = [],
-  items = []
+    chapters, 
+    onUpdateChapter,
+    onAddChapter,
+    character,
+    quests = [],
+    journal = [],
+    items = []
 }) => {
+    // Filter out deleted chapters
+    const visibleChapters = chapters.filter(c => !c.deleted);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [creatingChapter, setCreatingChapter] = useState(false);
   const [chapterPrompt, setChapterPrompt] = useState('');
@@ -277,8 +279,8 @@ export const StoryLog: React.FC<StoryLogProps> = ({
           </div>
       )}
 
-      <div className="space-y-12">
-        {sortedChapters.map((chapter) => (
+            <div className="space-y-12">
+                {visibleChapters.map((chapter) => (
           <div key={chapter.id} className="relative pl-8 md:pl-0">
              {/* Timeline Line */}
              <div className="absolute left-0 top-0 bottom-0 w-1 bg-skyrim-border/30 md:left-1/2 md:-ml-0.5"></div>

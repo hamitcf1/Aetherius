@@ -81,32 +81,69 @@ const StatBar: React.FC<{
     onChange: (val: number) => void;
 }> = ({ label, value, color, icon, onChange }) => (
     <div className="flex-1 group">
-        <div className="flex justify-between text-xs uppercase mb-1 text-gray-400 font-bold">
+        <div className="flex justify-between text-xs uppercase mb-1 text-gray-400 font-bold items-center">
             <span className="flex items-center gap-1 group-hover:text-skyrim-gold transition-colors">{icon} {label}</span>
+                        <input
+                                type="number"
+                                min="0"
+                                max="600"
+                                value={value}
+                                onChange={(e) => {
+                                    let v = parseInt(e.target.value) || 0;
+                                    if (v < 0) v = 0;
+                                    if (v > 600) v = 600;
+                                    onChange(v);
+                                }}
+                                className="w-16 bg-black/40 border border-skyrim-border rounded text-gray-300 text-sm px-2 ml-2 focus:outline-none focus:border-skyrim-gold text-right tracking-widest"
+                                style={{ height: 24, letterSpacing: '0.05em' }}
+                        />
         </div>
-        <div className="relative h-2 bg-black rounded-full overflow-hidden border border-transparent group-hover:border-gray-800 transition-colors">
-            <div 
-                className={`absolute top-0 left-0 h-full ${color} transition-all duration-700 ease-out group-hover:brightness-125`} 
-                style={{ width: `${Math.min(value/5, 100)}%` }}
-            ></div>
-        </div>
-        <div className="flex items-center gap-2 mt-2">
-          <input 
-              type="range" 
-              min="0" 
-              max="1000" 
-              value={value} 
-              onChange={(e) => onChange(parseInt(e.target.value))}
-              className="flex-1 h-1 appearance-none bg-gray-700 rounded"
-          />
-          <input
-              type="number"
-              min="0"
-              max="1000"
-              value={value}
-              onChange={(e) => onChange(parseInt(e.target.value) || 0)}
-              className="w-16 bg-black/40 border border-skyrim-border rounded text-gray-300 text-xs p-1 focus:outline-none focus:border-skyrim-gold"
-          />
+        <div
+            className="relative h-2 bg-black rounded-full overflow-hidden border border-transparent group-hover:border-gray-800 transition-colors cursor-pointer"
+            onClick={e => {
+                const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const percent = Math.max(0, Math.min(1, x / rect.width));
+                const newValue = Math.round(percent * 600);
+                onChange(newValue);
+            }}
+            onMouseDown={e => {
+                const bar = e.currentTarget as HTMLDivElement;
+                function onMove(ev: MouseEvent) {
+                    const rect = bar.getBoundingClientRect();
+                    const x = ev.clientX - rect.left;
+                    const percent = Math.max(0, Math.min(1, x / rect.width));
+                    const newValue = Math.round(percent * 600);
+                    onChange(newValue);
+                }
+                function onUp() {
+                    window.removeEventListener('mousemove', onMove);
+                    window.removeEventListener('mouseup', onUp);
+                }
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+            }}
+        >
+                        <div 
+                                className={`absolute top-0 left-0 h-full ${color} transition-all duration-700 ease-out group-hover:brightness-125`} 
+                                style={{ 
+                                    width: `${Math.max(0, Math.min(value / 6, 100))}%`,
+                                    boxShadow: `0 0 16px 4px ${
+                                        color === 'bg-red-700' ? 'rgba(255,40,40,0.5)' :
+                                        color === 'bg-blue-600' ? 'rgba(80,180,255,0.5)' :
+                                        color === 'bg-green-600' ? 'rgba(80,255,120,0.5)' :
+                                        'rgba(255,255,255,0.3)'
+                                    }`,
+                                    animation: 'skyrim-glow 2s ease-in-out infinite',
+                                }}
+                        ></div>
+                        <style>{`
+                            @keyframes skyrim-glow {
+                                0% { box-shadow: 0 0 8px 2px rgba(255,255,255,0.2); }
+                                50% { box-shadow: 0 0 24px 8px rgba(255,255,255,0.7); }
+                                100% { box-shadow: 0 0 8px 2px rgba(255,255,255,0.2); }
+                            }
+                        `}</style>
         </div>
     </div>
 );
