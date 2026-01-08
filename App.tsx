@@ -3,6 +3,7 @@ import {
     INITIAL_CHARACTER_TEMPLATE, Character, CustomQuest, JournalEntry, UserProfile, InventoryItem, StoryChapter, GameStateUpdate, GeneratedCharacterData 
 } from './types';
 import { CharacterSheet } from './components/CharacterSheet';
+import ActionBar, { ActionBarToggle } from './components/ActionBar';
 import { QuestLog } from './components/QuestLog';
 import { Journal } from './components/Journal';
 import { Inventory } from './components/Inventory';
