@@ -71,13 +71,13 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
   };
 
   return (
-    <div className="max-w-4xl mx-auto pb-24">
-      <div className="mb-8 p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center">
+    <div className="max-w-4xl mx-auto pb-24 px-2 sm:px-4">
+    <div className="mb-8 p-4 sm:p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center">
         <h1 className="text-4xl font-serif text-skyrim-gold mb-2">Inventory</h1>
         <p className="text-gray-500 font-sans text-sm">Your burdens and your treasures.</p>
       </div>
 
-      <div className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4 bg-black/40 p-4 rounded border border-skyrim-border">
+    <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-black/40 p-4 rounded border border-skyrim-border">
           <div className="flex items-center gap-3">
               <div className="p-3 bg-yellow-900/30 rounded-full border border-yellow-700 text-yellow-500">
                   <Coins size={24} />
@@ -111,7 +111,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
                      ))}
                  </select>
              </div>
-             <div className="flex flex-col md:flex-row gap-4">
+             <div className="flex flex-col sm:flex-row gap-4">
                  <div className="flex-1 w-full">
                      <label className="text-xs text-gray-500 uppercase">Item Name</label>
                      <input className="w-full bg-black/40 border border-skyrim-border p-2 rounded text-gray-200" value={newName} onChange={e => setNewName(e.target.value)} />
@@ -138,21 +138,75 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
          </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {items.map(item => (
-            <div key={item.id} className="bg-skyrim-paper/60 border border-skyrim-border p-4 rounded flex items-center gap-4 hover:border-skyrim-gold/50 transition-colors">
-                <div className={`p-3 rounded-full bg-black/40 text-skyrim-gold border border-skyrim-border`}>
-                    {getIcon(item.type)}
-                </div>
-                <div className="flex-1">
-                    <h3 className="text-skyrim-gold font-serif">{item.name} <span className="text-xs text-gray-500 ml-2">x{item.quantity}</span></h3>
-                    <p className="text-sm text-gray-400">{item.description}</p>
-                </div>
-                <button onClick={() => removeItem(item.id)} className="text-gray-600 hover:text-red-500">
-                    <Trash2 size={16} />
-                </button>
-            </div>
-        ))}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {items.map((item, idx) => {
+                        const [editMode, setEditMode] = useState(false);
+                        const [editName, setEditName] = useState(item.name);
+                        const [editDesc, setEditDesc] = useState(item.description);
+                        const [editQty, setEditQty] = useState(item.quantity);
+                        const handleSave = () => {
+                                const updated = { ...item, name: editName, description: editDesc, quantity: editQty };
+                                setItems([
+                                    ...items.slice(0, idx),
+                                    updated,
+                                    ...items.slice(idx + 1)
+                                ]);
+                                setEditMode(false);
+                        };
+                        const handleQuickAdd = () => {
+                                const updated = { ...item, quantity: item.quantity + 1 };
+                                setItems([
+                                    ...items.slice(0, idx),
+                                    updated,
+                                    ...items.slice(idx + 1)
+                                ]);
+                        };
+                        const handleQuickRemove = () => {
+                                if (item.quantity > 1) {
+                                    const updated = { ...item, quantity: item.quantity - 1 };
+                                    setItems([
+                                        ...items.slice(0, idx),
+                                        updated,
+                                        ...items.slice(idx + 1)
+                                    ]);
+                                } else {
+                                    removeItem(item.id);
+                                }
+                        };
+                        return (
+                            <div key={item.id} className="bg-skyrim-paper/60 border border-skyrim-border p-4 rounded flex items-center gap-4 hover:border-skyrim-gold/50 transition-colors">
+                                <div className={`p-3 rounded-full bg-black/40 text-skyrim-gold border border-skyrim-border`}>
+                                        {getIcon(item.type)}
+                                </div>
+                                <div className="flex-1">
+                                    {editMode ? (
+                                        <>
+                                            <input className="w-full bg-black/40 border border-skyrim-border p-1 rounded text-skyrim-gold font-serif mb-1" value={editName} onChange={e => setEditName(e.target.value)} />
+                                            <input className="w-20 bg-black/40 border border-skyrim-border p-1 rounded text-gray-200 mb-1" type="number" min={1} value={editQty} onChange={e => setEditQty(Number(e.target.value))} />
+                                            <input className="w-full bg-black/40 border border-skyrim-border p-1 rounded text-gray-200" value={editDesc} onChange={e => setEditDesc(e.target.value)} />
+                                            <div className="flex gap-2 mt-2">
+                                                <button onClick={handleSave} className="px-2 py-1 bg-skyrim-gold text-skyrim-dark rounded text-xs">Save</button>
+                                                <button onClick={() => setEditMode(false)} className="px-2 py-1 bg-gray-600 text-white rounded text-xs">Cancel</button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <h3 className="text-skyrim-gold font-serif">{item.name} <span className="text-xs text-gray-500 ml-2">x{item.quantity}</span></h3>
+                                            <p className="text-sm text-gray-400">{item.description}</p>
+                                            <div className="flex gap-2 mt-2">
+                                                <button onClick={() => setEditMode(true)} className="px-2 py-1 bg-skyrim-gold/20 text-skyrim-gold rounded text-xs">Edit</button>
+                                                <button onClick={handleQuickAdd} className="px-2 py-1 bg-green-700/60 text-white rounded text-xs">+1</button>
+                                                <button onClick={handleQuickRemove} className="px-2 py-1 bg-red-700/60 text-white rounded text-xs">-1</button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                                <button onClick={() => removeItem(item.id)} className="text-gray-600 hover:text-red-500">
+                                        <Trash2 size={16} />
+                                </button>
+                            </div>
+                        );
+                })}
         {items.length === 0 && (
             <div className="col-span-full text-center py-12 text-gray-600 italic font-serif">
                 Your pockets are empty.

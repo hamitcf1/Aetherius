@@ -723,7 +723,7 @@ const App: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="pt-24 px-4 min-h-screen pb-20">
+      <main className="pt-24 px-2 sm:px-4 min-h-screen pb-20">
         <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
           {activeTab === TABS.CHARACTER && activeCharacter && (
             <CharacterSheet 

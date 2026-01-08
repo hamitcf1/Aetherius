@@ -186,15 +186,15 @@ export const StoryLog: React.FC<StoryLogProps> = ({
   const sortedChapters = [...chapters].sort((a, b) => b.createdAt - a.createdAt);
 
   return (
-    <div className="max-w-4xl mx-auto pb-24">
-      <div className="mb-8 p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center">
+    <div className="max-w-4xl mx-auto pb-24 px-2 sm:px-4">
+    <div className="mb-8 p-4 sm:p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center">
         <h1 className="text-4xl font-serif text-skyrim-gold mb-2">The Chronicle</h1>
         <p className="text-gray-500 font-sans text-sm">The unfolding saga of your journey.</p>
       </div>
 
       {/* Chapter Creation Section */}
       {!creatingChapter ? (
-          <div className="mb-8 flex gap-3">
+          <div className="mb-8 flex flex-col sm:flex-row gap-3">
               <button 
                   onClick={() => setCreatingChapter(true)}
                   className="flex-1 py-3 bg-skyrim-accent hover:bg-skyrim-accent/80 text-white font-bold rounded flex items-center justify-center gap-2 border border-skyrim-border transition-colors"
@@ -210,7 +210,7 @@ export const StoryLog: React.FC<StoryLogProps> = ({
               </button>
           </div>
       ) : (
-          <div className="mb-8 p-6 bg-black/40 border border-skyrim-border rounded-lg">
+          <div className="mb-8 p-4 sm:p-6 bg-black/40 border border-skyrim-border rounded-lg">
               <h3 className="text-xl font-serif text-skyrim-gold mb-4">New Chapter</h3>
               
               <div className="mb-4">
@@ -234,7 +234,7 @@ export const StoryLog: React.FC<StoryLogProps> = ({
                   />
               </div>
 
-              <div className="mb-4 p-4 bg-black/30 border border-gray-700 rounded">
+              <div className="mb-4 p-2 sm:p-4 bg-black/30 border border-gray-700 rounded">
                   <p className="text-xs text-gray-400 mb-3 uppercase tracking-wider font-bold">Or Generate with AI</p>
                   <div className="flex gap-2">
                       <input 
@@ -254,7 +254,7 @@ export const StoryLog: React.FC<StoryLogProps> = ({
                   </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                   <button 
                       onClick={handleCreateChapter}
                       disabled={!chapterTitle.trim() || !chapterContent.trim()}
@@ -293,7 +293,22 @@ export const StoryLog: React.FC<StoryLogProps> = ({
                              <span>{chapter.date}</span>
                          </div>
                      </div>
-                     <Scroll className="text-skyrim-gold/20" size={40} />
+                     <div className="flex items-center gap-2">
+                       <Scroll className="text-skyrim-gold/20" size={40} />
+                       <button onClick={() => {
+                         if (window.confirm('Delete this entry?')) {
+                           const updated = sortedChapters.filter(c => c.id !== chapter.id);
+                           onUpdateChapter && onUpdateChapter({ ...chapter, deleted: true });
+                           // Remove from parent state if possible
+                           if (typeof window !== 'undefined') {
+                             // Forcibly update parent if possible
+                             if (typeof window.setStoryChapters === 'function') {
+                               window.setStoryChapters(updated);
+                             }
+                           }
+                         }
+                       }} className="ml-2 text-red-500 hover:text-white text-xs border border-red-500 rounded px-2 py-1">Delete</button>
+                     </div>
                  </div>
                  
                  {chapter.imageUrl ? (
