@@ -68,6 +68,7 @@ const App: React.FC = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [loginUsername, setLoginUsername] = useState('');
 
   // Global State (in-memory)
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -253,11 +254,11 @@ const App: React.FC = () => {
       setIsSaving(false);
     }
   };
-  const handleRegister = async (email: string, password: string) => {
+  const handleRegister = async (email: string, password: string, username: string) => {
     setAuthError(null);
     try {
-      if (!email || !password) {
-        setAuthError('E-posta ve şifre gereklidir');
+      if (!email || !password || !username) {
+        setAuthError('E-posta, şifre ve kullanıcı adı gereklidir');
         return;
       }
       if (password.length < 6) {
@@ -265,8 +266,15 @@ const App: React.FC = () => {
         return;
       }
       await registerUser(email, password);
+      // Kullanıcı profili oluştur
+      if (currentUser) {
+        const newProfile: UserProfile = { id: uniqueId(), username, created: Date.now() };
+        setProfiles([...profiles, newProfile]);
+        setDirtyEntities(prev => new Set([...prev, newProfile.id]));
+      }
       setLoginEmail('');
       setLoginPassword('');
+      setLoginUsername('');
       setAuthError(null);
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
@@ -341,6 +349,13 @@ const App: React.FC = () => {
           
           <div className="space-y-4">
             <input 
+              type="text"
+              placeholder="Kullanıcı Adı"
+              className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+              value={loginUsername}
+              onChange={(e) => setLoginUsername(e.target.value)}
+            />
+            <input 
               type="email"
               placeholder="E-posta"
               className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
@@ -363,7 +378,7 @@ const App: React.FC = () => {
             </button>
             
             <button 
-              onClick={() => handleRegister(loginEmail, loginPassword)}
+              onClick={() => handleRegister(loginEmail, loginPassword, loginUsername)}
               className="w-full bg-skyrim-gold/20 text-skyrim-gold font-bold py-2 rounded border border-skyrim-gold hover:bg-skyrim-gold/30 transition-colors"
             >
               Kayıt Ol

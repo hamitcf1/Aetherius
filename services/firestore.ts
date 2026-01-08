@@ -352,40 +352,50 @@ export const batchSaveGameState = async (
 
   const batch = writeBatch(db);
 
+  // Helper to remove undefined fields
+  function removeUndefined(obj: any) {
+    if (!obj || typeof obj !== 'object') return obj;
+    const clean: any = Array.isArray(obj) ? [] : {};
+    Object.entries(obj).forEach(([k, v]) => {
+      if (v !== undefined) clean[k] = v;
+    });
+    return clean;
+  }
+
   // Save characters
   characters.forEach(char => {
     const docRef = doc(db, 'users', uid, 'characters', char.id);
-    batch.set(docRef, { ...char, lastPlayed: Date.now() }, { merge: true });
+    batch.set(docRef, removeUndefined({ ...char, lastPlayed: Date.now() }), { merge: true });
   });
 
   // Save items
   items.forEach(item => {
     const docRef = doc(db, 'users', uid, 'items', item.id);
-    batch.set(docRef, item, { merge: true });
+    batch.set(docRef, removeUndefined(item), { merge: true });
   });
 
   // Save quests
   quests.forEach(quest => {
     const docRef = doc(db, 'users', uid, 'quests', quest.id);
-    batch.set(docRef, quest, { merge: true });
+    batch.set(docRef, removeUndefined(quest), { merge: true });
   });
 
   // Save journal entries
   journalEntries.forEach(entry => {
     const docRef = doc(db, 'users', uid, 'journalEntries', entry.id);
-    batch.set(docRef, entry, { merge: true });
+    batch.set(docRef, removeUndefined(entry), { merge: true });
   });
 
   // Save story chapters
   storyChapters.forEach(chapter => {
     const docRef = doc(db, 'users', uid, 'storyChapters', chapter.id);
-    batch.set(docRef, chapter, { merge: true });
+    batch.set(docRef, removeUndefined(chapter), { merge: true });
   });
 
   // Save profiles
   profiles.forEach(profile => {
     const docRef = doc(db, 'users', uid, 'profiles', profile.id);
-    batch.set(docRef, profile, { merge: true });
+    batch.set(docRef, removeUndefined(profile), { merge: true });
   });
 
   await batch.commit();
