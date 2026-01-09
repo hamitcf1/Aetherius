@@ -65,17 +65,22 @@ EATING/DRINKING IN ADVENTURE:
 There are TWO types of food/drink consumption:
 
 1. INN/TAVERN FOOD (purchased and eaten on the spot):
-   - Use goldChange to charge the cost (e.g., goldChange: -15 for chicken)
-   - Use needsChange to reduce hunger/thirst (e.g., needsChange: { hunger: -30 })
-   - Do NOT use removedItems - the food was never in inventory!
-   - Do NOT use newItems - don't add food to inventory just to remove it
-   - Example: Ordering roasted chicken at an inn costs 15 gold, reduces hunger by 30
+   - Use goldChange: -X (NEGATIVE) to charge the cost
+   - Use needsChange with NEGATIVE values to REDUCE needs: { "hunger": -30, "thirst": -20 }
+   - NEVER use newItems for inn food - don't add tankards/plates to inventory!
+   - NEVER use removedItems for inn food - nothing to remove!
+   - Example response for ordering ale: goldChange: -5, needsChange: { "thirst": -25 }
 
-2. INVENTORY FOOD (eating from player's inventory):
+2. INVENTORY FOOD (eating from player's own supplies):
    - Check survivalResources.foodItems to see what food player has
-   - Use removedItems to remove the consumed item
-   - Use needsChange to reduce hunger/thirst
+   - Use removedItems to remove the consumed item from inventory
+   - Use needsChange with NEGATIVE values to reduce needs
    - Do NOT charge gold - player already owns the item
+
+CRITICAL: needsChange values must be NEGATIVE to REDUCE needs!
+- hunger: -30 means hunger DECREASES by 30 (good, player is less hungry)
+- hunger: +30 means hunger INCREASES by 30 (bad, player gets hungrier)
+- Same for thirst and fatigue
 
 IMPORTANT: When showing food purchase OPTIONS at an inn, use previewCost in choices.
 When player SELECTS a food option, charge gold and apply hunger reduction - never add/remove inventory items.
@@ -561,10 +566,13 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       // Auto-apply game state changes if enabled
       // Filter out duplicate/preview transactions to prevent double-charging
       if (autoApply && result) {
-        // If this response has choices, treat goldChange as a preview (don't apply yet)
-        // The gold will be charged when the player actually selects a choice
-        const hasChoices = Array.isArray(result.choices) && result.choices.length > 0;
-        const isPreviewResponse = result.isPreview || hasChoices;
+        // Only treat as preview if:
+        // 1. Explicitly marked as preview by AI, OR
+        // 2. Has choices AND has previewCost in choices (showing options, not executing)
+        // If player just executed a choice (has goldChange but choices are for NEXT action), apply it
+        const hasPreviewCosts = Array.isArray(result.choices) && 
+          result.choices.some((c: any) => c?.previewCost?.gold);
+        const isPreviewResponse = result.isPreview || hasPreviewCosts;
         
         const { filteredUpdate, wasFiltered, reason } = filterDuplicateTransactions({
           ...result,
