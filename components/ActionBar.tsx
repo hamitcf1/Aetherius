@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, User, Snowflake } from 'lucide-react';
 import SnowEffect from './SnowEffect';
 import { useAppContext } from '../AppContext';
+import { PREFERRED_AI_MODELS } from '../services/geminiService';
 
 const ActionBar: React.FC = () => {
   const {
@@ -15,7 +16,9 @@ const ActionBar: React.FC = () => {
     handleGenerateProfileImage,
     isGeneratingProfileImage,
     handleCreateImagePrompt,
-    handleUploadPhoto
+    handleUploadPhoto,
+    aiModel,
+    setAiModel
   } = useAppContext();
   const [open, setOpen] = useState(false);
   const [snow, setSnow] = useState(false);
@@ -107,6 +110,25 @@ const ActionBar: React.FC = () => {
             zIndex: 1000
           }}
         >
+          {typeof setAiModel === 'function' && (
+            <div className="flex flex-col gap-1">
+              <div className="text-xs text-gray-500 font-bold">AI Model</div>
+              <select
+                value={aiModel || 'gemini-2.0-flash'}
+                onChange={(e) => setAiModel(e.target.value)}
+                className="w-full bg-black/20 border border-skyrim-border text-gray-200 px-2 py-2 rounded focus:border-skyrim-gold focus:outline-none"
+              >
+                {PREFERRED_AI_MODELS.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+              <div className="text-[10px] text-gray-500">
+                Gemma models use <span className="font-mono">VITE_GEMMA_API_KEY</span> (recommended) or <span className="font-mono">GEMMA_API_KEY</span>/<span className="font-mono">gemma_api_key</span>.
+              </div>
+            </div>
+          )}
           <button onClick={handleManualSave} disabled={isSaving} className="flex items-center gap-2 px-3 py-2 bg-skyrim-gold text-skyrim-dark rounded font-bold disabled:opacity-50">
             <Save size={16} /> {isSaving ? 'Saving...' : 'Save'}
           </button>

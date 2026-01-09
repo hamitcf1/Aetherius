@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Character, InventoryItem, CustomQuest, JournalEntry, StoryChapter, GameStateUpdate } from '../types';
 import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp } from 'lucide-react';
+import type { PreferredAIModel } from '../services/geminiService';
 
 interface ChatMessage {
   id: string;
@@ -12,6 +13,7 @@ interface ChatMessage {
 
 interface AdventureChatProps {
   userId?: string | null;
+  model?: PreferredAIModel | string;
   character: Character | null;
   inventory: InventoryItem[];
   quests: CustomQuest[];
@@ -46,6 +48,7 @@ Only include fields that changed. The narrative field is always required.`;
 
 export const AdventureChat: React.FC<AdventureChatProps> = ({
   userId,
+  model,
   character,
   inventory,
   quests,
@@ -170,7 +173,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     try {
       const { generateAdventureResponse } = await import('../services/geminiService');
       const context = buildContext();
-      const result = await generateAdventureResponse(input.trim(), context, SYSTEM_PROMPT);
+      const result = await generateAdventureResponse(input.trim(), context, SYSTEM_PROMPT, { model });
       
       const gmMessage: ChatMessage = {
         id: Math.random().toString(36).substr(2, 9),

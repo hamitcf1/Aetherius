@@ -2,20 +2,73 @@
 import { GoogleGenAI } from "@google/genai";
 import { GameStateUpdate, GeneratedCharacterData } from "../types";
 
-const apiKey = process.env.API_KEY || '';
-let ai: GoogleGenAI | null = null;
+export type PreferredAIModel =
+  | 'gemini-2.0-flash'
+  | 'gemma-3-27b-it'
+  | 'gemma-3-4b-it';
 
-if (apiKey) {
-  ai = new GoogleGenAI({ apiKey });
-}
+export const PREFERRED_AI_MODELS: Array<{ id: PreferredAIModel; label: string }> = [
+  { id: 'gemini-2.0-flash', label: 'Gemini Flash (latest)' },
+  { id: 'gemma-3-27b-it', label: 'Gemma 3 27B' },
+  { id: 'gemma-3-4b-it', label: 'Gemma 3 4B' },
+];
+
+const viteEnv: any = (import.meta as any).env || {};
+
+const getGeminiApiKey = () =>
+  viteEnv.VITE_API_KEY ||
+  viteEnv.VITE_GEMINI_API_KEY ||
+  // These are injected by Vite `define` in vite.config.ts
+  process.env.API_KEY ||
+  process.env.GEMINI_API_KEY ||
+  '';
+
+const getGemmaApiKey = () =>
+  viteEnv.VITE_GEMMA_API_KEY ||
+  // These are injected by Vite `define` in vite.config.ts
+  process.env.GEMMA_API_KEY ||
+  process.env.gemma_api_key ||
+  '';
+
+let aiGemini: GoogleGenAI | null = null;
+let aiGemma: GoogleGenAI | null = null;
+
+const isGemmaModel = (modelId: string) => modelId.toLowerCase().startsWith('gemma');
+
+const getClientForModel = (modelId: string): GoogleGenAI => {
+  if (isGemmaModel(modelId)) {
+    const key = getGemmaApiKey();
+    if (!key) throw new Error('GEMMA_API_KEY not found.');
+    aiGemma ??= new GoogleGenAI({ apiKey: key });
+    return aiGemma;
+  }
+
+  const key = getGeminiApiKey();
+  if (!key) throw new Error('API_KEY/GEMINI_API_KEY not found.');
+  aiGemini ??= new GoogleGenAI({ apiKey: key });
+  return aiGemini;
+};
+
+const isQuotaError = (error: any): boolean => {
+  const msg = String(error?.message || '');
+  const status = String(error?.status || '');
+  const raw = String(error?.toString?.() || '');
+  return (
+    msg.includes('429') ||
+    msg.toLowerCase().includes('quota') ||
+    msg.includes('RESOURCE_EXHAUSTED') ||
+    status === '429' ||
+    raw.includes('RESOURCE_EXHAUSTED')
+  );
+};
 
 export const generateGameMasterResponse = async (
   playerInput: string,
-  context: string
+  context: string,
+  options?: { model?: string }
 ): Promise<GameStateUpdate> => {
-  if (!ai) {
-    throw new Error("API Key not found.");
-  }
+  const selectedModel = options?.model || 'gemini-3-flash-preview';
+  const ai = getClientForModel(selectedModel);
 
   try {
     const model = ai.models;
@@ -48,7 +101,7 @@ export const generateGameMasterResponse = async (
     `;
 
     const response = await model.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: selectedModel,
       contents: fullPrompt,
       config: {
         responseMimeType: 'application/json'
@@ -64,6 +117,15 @@ export const generateGameMasterResponse = async (
     }
   } catch (error) {
     console.error("Gemini API Error:", error);
+    if (isQuotaError(error)) {
+      return {
+        narrative: {
+          title: "Quota Exceeded",
+          content:
+            "*The threads of Aetherius tighten...* (API quota exceeded. Open Actions → AI Model and switch to a Gemma model if you have a Gemma key configured.)"
+        }
+      };
+    }
     return { narrative: { title: "Connection Lost", content: "The connection to Aetherius is severed." } };
   }
 };
@@ -72,11 +134,11 @@ export const generateGameMasterResponse = async (
 export const generateAdventureResponse = async (
   playerInput: string,
   context: string,
-  systemPrompt: string
+  systemPrompt: string,
+  options?: { model?: PreferredAIModel | string }
 ): Promise<GameStateUpdate> => {
-  if (!ai) {
-    throw new Error("API Key not found.");
-  }
+  const selectedModel = options?.model || 'gemini-2.0-flash';
+  const ai = getClientForModel(String(selectedModel));
 
   try {
     const fullPrompt = `${systemPrompt}
@@ -91,7 +153,7 @@ export const generateAdventureResponse = async (
   The "narrative" field MUST be an object: { "title": "...", "content": "..." }.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: String(selectedModel),
       contents: fullPrompt,
       config: {
         responseMimeType: 'application/json'
@@ -114,11 +176,27 @@ export const generateAdventureResponse = async (
     }
   } catch (error) {
     console.error("Adventure API Error:", error);
+    if (isQuotaError(error)) {
+      return {
+        narrative: {
+          title: 'Quota Exceeded',
+          content:
+            '*The connection to Aetherius is sealed by unseen limits...* (API quota exceeded. Switch AI Model to a Gemma model, or wait and retry.)',
+        },
+      };
+    }
     return { narrative: { title: 'A Dragon Break', content: '*A dragon break disrupts the flow of time...* (API Error)' } };
   }
 };
 
 export const generateLoreImage = async (prompt: string): Promise<string | null> => {
+  const ai = (() => {
+    try {
+      return getClientForModel('gemini-2.5-flash-image');
+    } catch {
+      return null;
+    }
+  })();
   if (!ai) return null;
   try {
     const response = await ai.models.generateContent({
@@ -154,7 +232,12 @@ export const generateCharacterProfile = async (
     prompt: string, 
     mode: 'random' | 'chat_result' | 'text_import' = 'random'
 ): Promise<GeneratedCharacterData | null> => {
-    if (!ai) return null;
+    let ai: GoogleGenAI;
+    try {
+      ai = getClientForModel('gemini-3-flash-preview');
+    } catch {
+      return null;
+    }
 
     const baseSchema = `
     {
@@ -257,7 +340,7 @@ export const generateCharacterProfile = async (
 };
 
 export const chatWithScribe = async (history: {role: 'user' | 'model', parts: [{ text: string }]}[], message: string) => {
-    if (!ai) throw new Error("No API Key");
+  const ai = getClientForModel('gemini-3-flash-preview');
     
     const chat = ai.chats.create({
         model: 'gemini-3-flash-preview',
@@ -277,6 +360,13 @@ export const generateCharacterProfileImage = async (
     gender: string,
     archetype: string
 ): Promise<string | null> => {
+  const ai = (() => {
+    try {
+      return getClientForModel('gemini-2.5-flash-image');
+    } catch {
+      return null;
+    }
+  })();
   if (!ai) return null;
   try {
     const prompt = `A detailed character portrait of a ${gender.toLowerCase()} ${race.split(' ')[0].toLowerCase()} ${archetype.toLowerCase()} named ${characterName} from Skyrim. Fantasy art style, high quality, heroic pose, detailed armor and features, professional fantasy game character design, no text, plain background.`;

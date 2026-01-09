@@ -43,6 +43,7 @@ import {
   setActiveCharacter,
   clearActiveCharacter
 } from './services/realtime';
+import type { PreferredAIModel } from './services/geminiService';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -91,6 +92,28 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState(TABS.CHARACTER);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // AI Model Selection (global)
+  const [aiModel, setAiModel] = useState<PreferredAIModel>('gemini-2.0-flash');
+
+  useEffect(() => {
+    const key = currentUser?.uid ? `aetherius:aiModel:${currentUser.uid}` : 'aetherius:aiModel';
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) setAiModel(raw as PreferredAIModel);
+    } catch {
+      // ignore
+    }
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
+    const key = currentUser?.uid ? `aetherius:aiModel:${currentUser.uid}` : 'aetherius:aiModel';
+    try {
+      localStorage.setItem(key, aiModel);
+    } catch {
+      // ignore
+    }
+  }, [aiModel, currentUser?.uid]);
 
   // Firebase Authentication Listener + Firestore Data Loading
   useEffect(() => {
@@ -668,6 +691,8 @@ const App: React.FC = () => {
       isSaving,
       handleLogout,
       setCurrentCharacterId,
+      aiModel,
+      setAiModel,
       handleExportPDF: () => {}, // TODO: Implement export
       isExporting: false, // TODO: Implement export state
       handleGenerateProfileImage: async () => {
@@ -785,6 +810,7 @@ const App: React.FC = () => {
             {activeTab === TABS.ADVENTURE && (
               <AdventureChat
                 userId={currentUser?.uid}
+                model={aiModel}
                 character={activeCharacter}
                 inventory={getCharacterItems()}
                 quests={getCharacterQuests()}
@@ -797,7 +823,7 @@ const App: React.FC = () => {
         </main>
 
         {/* AI Game Master */}
-        <AIScribe contextData={getAIContext()} onUpdateState={handleGameUpdate} />
+        <AIScribe contextData={getAIContext()} onUpdateState={handleGameUpdate} model={aiModel} />
 
       </div>
     </AppContext.Provider>

@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { generateGameMasterResponse, generateLoreImage } from '../services/geminiService';
 import { GameStateUpdate } from '../types';
 import { Sparkles, X, Scroll, Loader2, Play, Image as ImageIcon } from 'lucide-react';
+import type { PreferredAIModel } from '../services/geminiService';
 
 interface AIScribeProps {
   contextData: string;
   onUpdateState: (updates: GameStateUpdate) => void;
+  model?: PreferredAIModel | string;
 }
 
-export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState }) => {
+export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, model }) => {
   const [batchInput, setBatchInput] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -81,7 +83,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState }
     setLastResponse(null);
     setGeneratedImage(null);
     try {
-      const updates = await generateGameMasterResponse(prompt, contextData);
+      const updates = await generateGameMasterResponse(prompt, contextData, { model });
       setLastResponse(updates);
     } catch (e) {
       console.error(e);
