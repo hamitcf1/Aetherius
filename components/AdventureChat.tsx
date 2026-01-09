@@ -42,11 +42,15 @@ The character has survival needs tracked on a 0-100 scale:
 - thirst: 0 = hydrated, 100 = dehydrated  
 - fatigue: 0 = rested, 100 = exhausted
 
-TIME & NEEDS PROGRESSION:
-- When time passes naturally (travel, waiting, activities), update needs appropriately
-- Light activity: +5-10 hunger/thirst per hour, +2-5 fatigue
-- Moderate activity (combat, running): +15-20 hunger/thirst, +10-15 fatigue
-- Heavy exertion: +25-30 hunger/thirst, +20-30 fatigue
+TIME & NEEDS PROGRESSION (be conservative!):
+- Dialogue, talking, basic interactions: hunger/thirst/fatigue +0.2 to +1 MAX (very minor)
+- Light activity (walking, shopping, exploring town): hunger/thirst +0.5-2, fatigue +0.3-1.5
+- Moderate activity (hiking, light combat, searching): hunger/thirst +2-4, fatigue +1-3
+- Heavy exertion (intense combat, running, climbing): hunger/thirst +4-8, fatigue +3-6
+- Extended travel (hours of walking): hunger/thirst +6-12, fatigue +5-10
+
+IMPORTANT: Don't add significant hunger/thirst/fatigue for simple conversations or minor actions!
+Only add meaningful need increases for physically demanding activities.
 
 AUTO-CONSUMPTION RULES:
 - When hunger > 70: If player has food items, automatically suggest/consume food
