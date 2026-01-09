@@ -8,7 +8,7 @@ type OnboardingStep = {
 export function OnboardingModal(props: {
   open: boolean;
   onComplete: () => void;
-}): JSX.Element | null {
+}): React.JSX.Element | null {
   const { open, onComplete } = props;
   const [stepIndex, setStepIndex] = useState(0);
 
