@@ -10,8 +10,9 @@ import { Journal } from './components/Journal';
 import { Inventory } from './components/Inventory';
 import { StoryLog } from './components/StoryLog';
 import { AIScribe } from './components/AIScribe';
+import { AdventureChat } from './components/AdventureChat';
 import { CharacterSelect } from './components/CharacterSelect';
-import { User, Scroll, BookOpen, Skull, Package, Feather, LogOut, Users, Loader, Save } from 'lucide-react';
+import { User, Scroll, BookOpen, Skull, Package, Feather, LogOut, Users, Loader, Save, Swords } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   auth,
@@ -50,7 +51,8 @@ const TABS = {
   INVENTORY: 'inventory',
   QUESTS: 'quests',
   STORY: 'story',
-  JOURNAL: 'journal'
+  JOURNAL: 'journal',
+  ADVENTURE: 'adventure'
 };
 
 interface AppGameState {
@@ -618,12 +620,13 @@ const App: React.FC = () => {
 
       // 7. Auto-Journal
       const entry: JournalEntry = {
-          id: uniqueId(),
-          date: "4E 201",
-          title: updates.narrative?.title || "Event",
-          content: `The Game Master decreed: ${updates.narrative?.title}`
+        id: uniqueId(),
+        characterId: currentCharacterId,
+        date: "4E 201",
+        title: updates.narrative?.title || "Event",
+        content: `The Game Master decreed: ${updates.narrative?.title}`,
       };
-      setJournalEntries(prev => [...prev, { ...entry, characterId: currentCharacterId } as any]);
+      setJournalEntries(prev => [...prev, entry]);
       setDirtyEntities(prev => new Set([...prev, entry.id]));
   };
 
@@ -707,6 +710,7 @@ const App: React.FC = () => {
                     { id: TABS.QUESTS, icon: Scroll, label: 'Quests' },
                     { id: TABS.STORY, icon: Feather, label: 'Story' },
                     { id: TABS.JOURNAL, icon: BookOpen, label: 'Journal' },
+                    { id: TABS.ADVENTURE, icon: Swords, label: 'Adventure' },
                 ].map(tab => (
                   <button
                       key={tab.id}
@@ -777,6 +781,16 @@ const App: React.FC = () => {
             )}
             {activeTab === TABS.JOURNAL && (
               <Journal entries={getCharacterJournal()} setEntries={setCharacterJournal} />
+            )}
+            {activeTab === TABS.ADVENTURE && (
+              <AdventureChat
+                character={activeCharacter}
+                inventory={getCharacterItems()}
+                quests={getCharacterQuests()}
+                journal={getCharacterJournal()}
+                story={getCharacterStory()}
+                onUpdateState={handleGameUpdate}
+              />
             )}
           </div>
         </main>

@@ -68,6 +68,56 @@ export const generateGameMasterResponse = async (
   }
 };
 
+// Adventure Chat - Text-based RPG responses
+export const generateAdventureResponse = async (
+  playerInput: string,
+  context: string,
+  systemPrompt: string
+): Promise<GameStateUpdate> => {
+  if (!ai) {
+    throw new Error("API Key not found.");
+  }
+
+  try {
+    const fullPrompt = `${systemPrompt}
+
+  CURRENT GAME STATE:
+  ${context}
+
+  PLAYER ACTION:
+  ${playerInput}
+
+  Remember: Return ONLY valid JSON.
+  The "narrative" field MUST be an object: { "title": "...", "content": "..." }.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: fullPrompt,
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const text = response.text || "{}";
+    try {
+      const parsed = JSON.parse(text);
+      if (!parsed?.narrative) {
+        return { narrative: { title: 'Adventure', content: 'The winds carry no response...' } };
+      }
+      if (typeof parsed.narrative === 'string') {
+        return { ...parsed, narrative: { title: 'Adventure', content: parsed.narrative } };
+      }
+      return parsed;
+    } catch (e) {
+      console.error("Failed to parse adventure response:", text);
+      return { narrative: { title: 'Connection Lost', content: '*The connection to Mundus wavers...* Please try again.' } };
+    }
+  } catch (error) {
+    console.error("Adventure API Error:", error);
+    return { narrative: { title: 'A Dragon Break', content: '*A dragon break disrupts the flow of time...* (API Error)' } };
+  }
+};
+
 export const generateLoreImage = async (prompt: string): Promise<string | null> => {
   if (!ai) return null;
   try {
