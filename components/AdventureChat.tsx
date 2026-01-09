@@ -42,12 +42,25 @@ Return ONLY a JSON object:
   "newQuests": [{ "title": "Quest", "description": "...", "location": "...", "dueDate": "...", "objectives": [{ "description": "...", "completed": false }] }],
   "updateQuests": [{ "title": "Quest Title", "status": "completed" }],
   "goldChange": 0,
-  "statUpdates": {}
+  "statUpdates": {},
+  "timeAdvanceMinutes": 0,
+  "needsChange": { "hunger": 0, "thirst": 0, "fatigue": 0 },
+  "choices": [
+    { "label": "Short option shown as a button", "playerText": "Exact text to send as the player's next message" }
+  ]
 }
 
 CONTINUITY:
 - You MUST continue from CURRENT GAME STATE and recent chat. Do NOT restart the adventure unless the player explicitly asks to reset.
 - When the player gains loot, consumes items, crafts, trades, pays bribes, or loses gear, you MUST reflect it via newItems/removedItems and/or goldChange.
+
+PROGRESSION:
+- Advance time with each meaningful action using timeAdvanceMinutes (typically 5–60).
+- Use needsChange when the player rests, eats, drinks, is injured, travels, or exerts themselves.
+
+DIALOGUE OPTIONS:
+- Provide 2–4 clickable choices in "choices" at the end of each GM response when reasonable.
+- Keep labels short. Keep playerText in first-person.
 
 Only include fields that changed. The narrative field is always required.`;
 
@@ -223,13 +236,14 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     return `*You draw a slow breath and feel Skyrim’s cold air bite at your lungs...*\n\n${recap}\n\nThe world hasn’t reset—only turned another page.\n\n*What do you do next?*`;
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || loading || !character) return;
+  const sendPlayerText = async (text: string) => {
+    const trimmed = (text || '').trim();
+    if (!trimmed || loading || !character) return;
 
     const playerMessage: ChatMessage = {
       id: Math.random().toString(36).substr(2, 9),
       role: 'player',
-      content: input.trim(),
+      content: trimmed,
       timestamp: Date.now()
     };
 
@@ -246,7 +260,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     try {
       const { generateAdventureResponse } = await import('../services/geminiService');
       const context = buildContext();
-      const result = await generateAdventureResponse(input.trim(), context, SYSTEM_PROMPT, { model });
+      const result = await generateAdventureResponse(trimmed, context, SYSTEM_PROMPT, { model });
       
       const gmMessage: ChatMessage = {
         id: Math.random().toString(36).substr(2, 9),
@@ -287,6 +301,10 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       setLoading(false);
       inputRef.current?.focus();
     }
+  };
+
+  const handleSend = async () => {
+    await sendPlayerText(input);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -334,8 +352,10 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     if (updates.removedItems?.length) toApply.removedItems = updates.removedItems;
     if (updates.newQuests?.length) toApply.newQuests = updates.newQuests;
     if (updates.updateQuests?.length) toApply.updateQuests = updates.updateQuests;
-    if (updates.goldChange) toApply.goldChange = updates.goldChange;
+    if (typeof updates.goldChange === 'number' && updates.goldChange !== 0) toApply.goldChange = updates.goldChange;
     if (updates.statUpdates && Object.keys(updates.statUpdates).length) toApply.statUpdates = updates.statUpdates;
+    if (typeof updates.timeAdvanceMinutes === 'number' && updates.timeAdvanceMinutes !== 0) toApply.timeAdvanceMinutes = updates.timeAdvanceMinutes;
+    if (updates.needsChange && Object.keys(updates.needsChange).length) toApply.needsChange = updates.needsChange;
     
     if (Object.keys(toApply).length > 0) {
       onUpdateState(toApply);
@@ -441,6 +461,23 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                   }`}>
                     <p className="whitespace-pre-wrap font-serif text-sm leading-relaxed">{msg.content}</p>
                   </div>
+
+                  {/* Clickable dialogue choices */}
+                  {msg.role === 'gm' && Array.isArray(msg.updates?.choices) && (msg.updates?.choices?.length || 0) > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {msg.updates!.choices!.slice(0, 6).map((c, idx) => (
+                        <button
+                          key={`${msg.id}:choice:${idx}`}
+                          onClick={() => sendPlayerText((c?.playerText || c?.label || '').trim())}
+                          disabled={loading}
+                          className="px-3 py-2 bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/40 rounded hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors text-sm font-sans disabled:opacity-50"
+                          title={c?.playerText || c?.label}
+                        >
+                          {c?.label || 'Choose'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   
                   {/* Game state changes indicator */}
                   {msg.role === 'gm' && msg.updates && !autoApply && (
@@ -451,8 +488,11 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                       {msg.updates.newQuests?.length ? (
                         <div className="text-skyrim-gold">+ {msg.updates.newQuests.length} quest(s) started</div>
                       ) : null}
-                      {msg.updates.goldChange ? (
+                      {typeof msg.updates.goldChange === 'number' && msg.updates.goldChange !== 0 ? (
                         <div className="text-yellow-400">{msg.updates.goldChange > 0 ? '+' : ''}{msg.updates.goldChange} gold</div>
+                      ) : null}
+                      {typeof msg.updates.timeAdvanceMinutes === 'number' && msg.updates.timeAdvanceMinutes !== 0 ? (
+                        <div className="text-gray-300">⏳ {msg.updates.timeAdvanceMinutes > 0 ? '+' : ''}{msg.updates.timeAdvanceMinutes} min</div>
                       ) : null}
                       <button
                         onClick={() => applyUpdates(msg.updates!)}

@@ -48,6 +48,52 @@ import type { PreferredAIModel } from './services/geminiService';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
+const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+
+// Tunable passive need rates (per in-game minute). Lower = slower.
+// Example: hungerPerMinute = 1/180 means +1 hunger every 180 minutes (~3 hours).
+const NEED_RATES = {
+  hungerPerMinute: 1 / 180,
+  thirstPerMinute: 1 / 120,
+  fatiguePerMinute: 1 / 90,
+} as const;
+
+const calcNeedFromTime = (minutes: number, perMinute: number) => {
+  if (!Number.isFinite(minutes) || minutes <= 0) return 0;
+  const raw = minutes * perMinute;
+  // Keep it readable and stable.
+  return Math.round(raw * 10) / 10;
+};
+
+const addMinutesToTime = (time: { day: number; hour: number; minute: number }, minutesToAdd: number) => {
+  const safe = {
+    day: Math.max(1, Number(time?.day || 1)),
+    hour: clamp(Number(time?.hour || 0), 0, 23),
+    minute: clamp(Number(time?.minute || 0), 0, 59)
+  };
+  const total = safe.hour * 60 + safe.minute + Math.trunc(minutesToAdd || 0);
+  let dayDelta = Math.floor(total / (24 * 60));
+  let remainder = total % (24 * 60);
+  if (remainder < 0) {
+    remainder += 24 * 60;
+    dayDelta -= 1;
+  }
+  const hour = Math.floor(remainder / 60);
+  const minute = remainder % 60;
+  return {
+    day: Math.max(1, safe.day + dayDelta),
+    hour,
+    minute,
+  };
+};
+
+const formatTime = (time: { day: number; hour: number; minute: number }) => {
+  const d = Math.max(1, Number(time?.day || 1));
+  const h = clamp(Number(time?.hour || 0), 0, 23);
+  const m = clamp(Number(time?.minute || 0), 0, 59);
+  return `Day ${d}, ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
 const TABS = {
   CHARACTER: 'character',
   INVENTORY: 'inventory',
@@ -143,7 +189,30 @@ const App: React.FC = () => {
 
           console.log('Data loaded successfully:', { userProfiles, userCharacters, userItems });
           setProfiles(userProfiles);
-          setCharacters(userCharacters);
+
+          // Normalize older saves to include new survival/time fields
+          const normalizedCharacters = (userCharacters || []).map((c: any) => {
+            const time = c?.time && typeof c.time === 'object' ? c.time : INITIAL_CHARACTER_TEMPLATE.time;
+            const needs = c?.needs && typeof c.needs === 'object' ? c.needs : INITIAL_CHARACTER_TEMPLATE.needs;
+            const next: Character = {
+              ...c,
+              time: {
+                day: Math.max(1, Number(time?.day || 1)),
+                hour: clamp(Number(time?.hour || 0), 0, 23),
+                minute: clamp(Number(time?.minute || 0), 0, 59),
+              },
+              needs: {
+                hunger: clamp(Number(needs?.hunger ?? 0), 0, 100),
+                thirst: clamp(Number(needs?.thirst ?? 0), 0, 100),
+                fatigue: clamp(Number(needs?.fatigue ?? 0), 0, 100),
+              },
+            };
+            if (!c?.time || !c?.needs) {
+              setDirtyEntities(prev => new Set([...prev, next.id]));
+            }
+            return next;
+          });
+          setCharacters(normalizedCharacters);
           setItems(userItems);
           setQuests(userQuests);
           setJournalEntries(userEntries);
@@ -518,6 +587,90 @@ const App: React.FC = () => {
       setStoryChapters(prev => prev.map(c => c.id === updatedChapter.id ? updatedChapter : c));
       setDirtyEntities(prev => new Set([...prev, updatedChapter.id]));
   };
+
+  // Progression Actions (MVP)
+  const handleRest = () => {
+    if (!currentCharacterId || !activeCharacter) return;
+    // Rest advances time and reduces fatigue.
+    handleGameUpdate({ timeAdvanceMinutes: 8 * 60, needsChange: { fatigue: -40 } });
+  };
+
+  const pickConsumable = (kind: 'food' | 'drink'): InventoryItem | null => {
+    if (!currentCharacterId) return null;
+    const inv = items
+      .filter(i => i.characterId === currentCharacterId)
+      .filter(i => (i.quantity || 0) > 0);
+
+    const foodKeywords = [
+      'bread', 'apple', 'cheese', 'meat', 'stew', 'soup', 'potato', 'carrot',
+      'salmon', 'leek', 'cabbage', 'sweetroll', 'pie', 'ration', 'food', 'meal'
+    ];
+    const drinkKeywords = [
+      'water', 'ale', 'mead', 'wine', 'milk', 'drink', 'juice', 'tea'
+    ];
+
+    const keywords = kind === 'food' ? foodKeywords : drinkKeywords;
+
+    const score = (it: InventoryItem) => {
+      const name = String(it.name || '').toLowerCase();
+      let s = 0;
+      if (!name) return -999;
+
+      // Prefer plausible consumable types.
+      if (it.type === 'ingredient') s += 3;
+      if (it.type === 'misc') s += 2;
+      if (it.type === 'potion') s += kind === 'drink' ? 1 : -2;
+
+      for (const k of keywords) {
+        if (name.includes(k)) s += 5;
+      }
+
+      // Avoid health/magicka/stamina potions being treated as "Drink".
+      if (kind === 'drink' && name.includes('potion')) {
+        if (name.includes('health') || name.includes('magicka') || name.includes('stamina')) s -= 4;
+      }
+      return s;
+    };
+
+    let best: InventoryItem | null = null;
+    let bestScore = 0;
+    for (const it of inv) {
+      const s = score(it);
+      if (s > bestScore) {
+        bestScore = s;
+        best = it;
+      }
+    }
+    return best;
+  };
+
+  const handleEat = () => {
+    if (!currentCharacterId || !activeCharacter) return;
+    const food = pickConsumable('food');
+    if (!food) {
+      alert('No food found in your inventory. Add a food item (e.g., Bread, Apple, Stew) to use Eat.');
+      return;
+    }
+    handleGameUpdate({
+      timeAdvanceMinutes: 10,
+      needsChange: { hunger: -25 },
+      removedItems: [{ name: food.name, quantity: 1 }]
+    });
+  };
+
+  const handleDrink = () => {
+    if (!currentCharacterId || !activeCharacter) return;
+    const drink = pickConsumable('drink');
+    if (!drink) {
+      alert('No drink found in your inventory. Add a drink item (e.g., Water, Mead, Wine) to use Drink.');
+      return;
+    }
+    handleGameUpdate({
+      timeAdvanceMinutes: 5,
+      needsChange: { thirst: -25 },
+      removedItems: [{ name: drink.name, quantity: 1 }]
+    });
+  };
   
   // Helper to get active data
   const activeCharacter = characters.find(c => c.id === currentCharacterId);
@@ -566,9 +719,52 @@ const App: React.FC = () => {
           (updates?.removedItems && updates.removedItems.length) ||
           updates?.statUpdates ||
           typeof updates?.goldChange === 'number' ||
-          typeof updates?.xpChange === 'number'
+          typeof updates?.xpChange === 'number' ||
+          typeof updates?.timeAdvanceMinutes === 'number' ||
+          (updates?.needsChange && Object.keys(updates.needsChange).length)
       );
       if (!hasAnyUpdate) return;
+
+      // 0. Time & Needs (progression)
+      const timeAdvance = Math.trunc(Number(updates.timeAdvanceMinutes || 0));
+      const explicitNeedsChange = updates.needsChange || {};
+
+      if (timeAdvance !== 0 || (explicitNeedsChange && Object.keys(explicitNeedsChange).length)) {
+        setCharacters(prev => prev.map(c => {
+          if (c.id !== currentCharacterId) return c;
+
+          const currentTime = (c as any).time || INITIAL_CHARACTER_TEMPLATE.time;
+          const currentNeeds = (c as any).needs || INITIAL_CHARACTER_TEMPLATE.needs;
+
+          const nextTime = timeAdvance !== 0 ? addMinutesToTime(currentTime, timeAdvance) : currentTime;
+
+          // Passive needs increase from time passing
+          const hungerFromTime = calcNeedFromTime(timeAdvance, NEED_RATES.hungerPerMinute);
+          const thirstFromTime = calcNeedFromTime(timeAdvance, NEED_RATES.thirstPerMinute);
+          const fatigueFromTime = calcNeedFromTime(timeAdvance, NEED_RATES.fatiguePerMinute);
+
+          const nextNeeds = {
+            hunger: clamp(
+              Number(currentNeeds.hunger || 0) + hungerFromTime + Number((explicitNeedsChange as any).hunger || 0),
+              0,
+              100
+            ),
+            thirst: clamp(
+              Number(currentNeeds.thirst || 0) + thirstFromTime + Number((explicitNeedsChange as any).thirst || 0),
+              0,
+              100
+            ),
+            fatigue: clamp(
+              Number(currentNeeds.fatigue || 0) + fatigueFromTime + Number((explicitNeedsChange as any).fatigue || 0),
+              0,
+              100
+            ),
+          };
+
+          setDirtyEntities(d => new Set([...d, c.id]));
+          return { ...c, time: nextTime, needs: nextNeeds };
+        }));
+      }
 
       // 1. Narrative -> Story Chapter
       if (updates.narrative) {
@@ -712,12 +908,21 @@ const App: React.FC = () => {
       }
 
       // 6. Gold
-      if (updates.goldChange) {
+      if (typeof updates.goldChange === 'number' && updates.goldChange !== 0) {
          setCharacters(prev => prev.map(c => {
               if (c.id !== currentCharacterId) return c;
               setDirtyEntities(prev => new Set([...prev, c.id]));
               return { ...c, gold: (c.gold || 0) + (updates.goldChange || 0) };
          }));
+      }
+
+      // 6b. XP
+      if (typeof updates.xpChange === 'number' && updates.xpChange !== 0) {
+        setCharacters(prev => prev.map(c => {
+          if (c.id !== currentCharacterId) return c;
+          setDirtyEntities(prev => new Set([...prev, c.id]));
+          return { ...c, experience: (c.experience || 0) + (updates.xpChange || 0) };
+        }));
       }
 
       // 7. Auto-Journal
@@ -726,8 +931,11 @@ const App: React.FC = () => {
         (updates.newQuests?.length ? 'New Quest' : undefined) ||
         (updates.updateQuests?.length ? 'Quest Update' : undefined) ||
         (updates.newItems?.length || updates.removedItems?.length ? 'Supplies & Spoils' : undefined) ||
-        (updates.goldChange ? 'Coin & Debts' : undefined) ||
+        (typeof updates.goldChange === 'number' && updates.goldChange !== 0 ? 'Coin & Debts' : undefined) ||
+        (typeof updates.xpChange === 'number' && updates.xpChange !== 0 ? 'Lessons Learned' : undefined) ||
         (updates.statUpdates ? 'Condition' : undefined) ||
+        (typeof updates.timeAdvanceMinutes === 'number' && updates.timeAdvanceMinutes !== 0 ? 'Time Passes' : undefined) ||
+        (updates.needsChange ? 'Survival' : undefined) ||
         'Field Notes';
 
       const lines: string[] = [];
@@ -738,6 +946,27 @@ const App: React.FC = () => {
 
       const changes: string[] = [];
 
+      if (typeof updates.timeAdvanceMinutes === 'number' && updates.timeAdvanceMinutes !== 0) {
+        const mins = Math.abs(Math.trunc(updates.timeAdvanceMinutes));
+        const hrs = Math.floor(mins / 60);
+        const rem = mins % 60;
+        const dur = hrs > 0 ? `${hrs}h${rem ? ` ${rem}m` : ''}` : `${rem}m`;
+        changes.push(`Time passed: ${dur}.`);
+
+        // Use the *new* time if we can derive it, otherwise a best-effort.
+        const nextTime = addMinutesToTime((activeCharacter as any).time || INITIAL_CHARACTER_TEMPLATE.time, updates.timeAdvanceMinutes);
+        changes.push(`It is now ${formatTime(nextTime)}.`);
+
+        const hungerInc = calcNeedFromTime(updates.timeAdvanceMinutes, NEED_RATES.hungerPerMinute);
+        const thirstInc = calcNeedFromTime(updates.timeAdvanceMinutes, NEED_RATES.thirstPerMinute);
+        const fatigueInc = calcNeedFromTime(updates.timeAdvanceMinutes, NEED_RATES.fatiguePerMinute);
+        const parts: string[] = [];
+        if (hungerInc) parts.push(`hunger +${hungerInc}`);
+        if (thirstInc) parts.push(`thirst +${thirstInc}`);
+        if (fatigueInc) parts.push(`fatigue +${fatigueInc}`);
+        if (parts.length) changes.push(`As the minutes wore on, I felt it: ${parts.join(', ')}.`);
+      }
+
       if (typeof updates.goldChange === 'number' && updates.goldChange !== 0) {
         if (updates.goldChange > 0) changes.push(`I gained ${updates.goldChange} gold.`);
         else changes.push(`I spent ${Math.abs(updates.goldChange)} gold.`);
@@ -745,6 +974,17 @@ const App: React.FC = () => {
       if (typeof updates.xpChange === 'number' && updates.xpChange !== 0) {
         if (updates.xpChange > 0) changes.push(`I gained ${updates.xpChange} experience.`);
         else changes.push(`I lost ${Math.abs(updates.xpChange)} experience.`);
+      }
+
+      if (updates.needsChange && Object.keys(updates.needsChange).length) {
+        const parts: string[] = [];
+        const h = Number((updates.needsChange as any).hunger || 0);
+        const t = Number((updates.needsChange as any).thirst || 0);
+        const f = Number((updates.needsChange as any).fatigue || 0);
+        if (h) parts.push(`hunger ${h > 0 ? `+${h}` : `${h}`}`);
+        if (t) parts.push(`thirst ${t > 0 ? `+${t}` : `${t}`}`);
+        if (f) parts.push(`fatigue ${f > 0 ? `+${f}` : `${f}`}`);
+        if (parts.length) changes.push(`My body felt it: ${parts.join(', ')}.`);
       }
 
       if (updates.statUpdates && Object.keys(updates.statUpdates).length) {
@@ -853,6 +1093,9 @@ const App: React.FC = () => {
       isSaving,
       handleLogout,
       setCurrentCharacterId,
+      handleRest,
+      handleEat,
+      handleDrink,
       aiModel,
       setAiModel,
       handleExportPDF: () => {}, // TODO: Implement export

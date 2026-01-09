@@ -171,6 +171,11 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [isGeneratingProfileImage, setIsGeneratingProfileImage] = useState(false);
 
+    const time = (character as any).time || { day: 1, hour: 8, minute: 0 };
+    const needs = (character as any).needs || { hunger: 0, thirst: 0, fatigue: 0 };
+    const fmtTime = `Day ${Math.max(1, Number(time.day || 1))}, ${String(Math.max(0, Math.min(23, Number(time.hour || 0)))).padStart(2, '0')}:${String(Math.max(0, Math.min(59, Number(time.minute || 0)))).padStart(2, '0')}`;
+    const clampNeed = (n: any) => Math.max(0, Math.min(100, Number(n || 0)));
+
   const addMilestone = () => {
       if (!newMilestone.trim()) return;
       const milestone: Milestone = {
@@ -604,6 +609,39 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                 onChange={(v) => updateCharacter('stats', { ...character.stats, stamina: v })}
               />
           </div>
+
+                    <div className="mb-6 p-4 bg-black/40 rounded border border-skyrim-border">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div>
+                                <div className="text-xs uppercase tracking-widest text-gray-400 font-bold">In-Game Time</div>
+                                <div className="text-skyrim-gold font-serif text-lg">{fmtTime}</div>
+                            </div>
+                            <div className="text-xs text-gray-500 font-sans">
+                                Hunger / Thirst / Fatigue (0 = good, 100 = bad)
+                            </div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {([
+                                { key: 'hunger', label: 'Hunger', value: clampNeed(needs.hunger) },
+                                { key: 'thirst', label: 'Thirst', value: clampNeed(needs.thirst) },
+                                { key: 'fatigue', label: 'Fatigue', value: clampNeed(needs.fatigue) },
+                            ] as const).map(n => (
+                                <div key={n.key} className="bg-black/30 border border-skyrim-border/60 rounded p-3">
+                                    <div className="flex items-center justify-between text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">
+                                        <span>{n.label}</span>
+                                        <span className="text-gray-300">{n.value}</span>
+                                    </div>
+                                    <div className="h-2 bg-black rounded-full overflow-hidden border border-gray-800">
+                                        <div
+                                            className="h-full bg-skyrim-gold/70"
+                                            style={{ width: `${Math.max(0, Math.min(100, n.value))}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
 
           <Section title="Identity & Psychology" icon={<User />} defaultOpen={true}>
              <div className="mb-4">

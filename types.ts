@@ -11,6 +11,18 @@ export interface Stats {
   stamina: number;
 }
 
+export interface GameTime {
+  day: number;
+  hour: number;
+  minute: number;
+}
+
+export interface SurvivalNeeds {
+  hunger: number; // 0 = satisfied, 100 = starving
+  thirst: number; // 0 = hydrated, 100 = dehydrated
+  fatigue: number; // 0 = rested, 100 = exhausted
+}
+
 export interface Skill {
   name: string;
   level: number;
@@ -49,6 +61,10 @@ export interface Character {
   // Stats
   stats: Stats;
   skills: Skill[];
+
+  // Survival & Time
+  time: GameTime;
+  needs: SurvivalNeeds;
 
   // Identity & Psychology
   identity: string;
@@ -172,6 +188,10 @@ export const INITIAL_CHARACTER_TEMPLATE: Omit<Character, 'id' | 'profileId' | 'n
   perks: [],
   stats: DEFAULT_STATS,
   skills: SKYRIM_SKILLS,
+
+  time: { day: 1, hour: 8, minute: 0 },
+  needs: { hunger: 0, thirst: 0, fatigue: 0 },
+
   identity: "",
   psychology: "",
   breakingPoint: "",
@@ -220,4 +240,11 @@ export interface GameStateUpdate {
   statUpdates?: Partial<Stats>;
   goldChange?: number;
   xpChange?: number;
+
+  // Progression / survival
+  timeAdvanceMinutes?: number;
+  needsChange?: Partial<SurvivalNeeds>;
+
+  // Dialogue choices to present as clickable options
+  choices?: Array<{ label: string; playerText: string }>;
 }

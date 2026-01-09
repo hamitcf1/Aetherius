@@ -17,6 +17,9 @@ const ActionBar: React.FC = () => {
     isGeneratingProfileImage,
     handleCreateImagePrompt,
     handleUploadPhoto,
+    handleRest,
+    handleEat,
+    handleDrink,
     aiModel,
     setAiModel
   } = useAppContext();
@@ -154,6 +157,27 @@ const ActionBar: React.FC = () => {
           <button onClick={handleExportPDF} disabled={isExporting} className="flex items-center gap-2 px-3 py-2 bg-skyrim-gold text-skyrim-dark rounded font-bold disabled:opacity-50">
             <Download size={16} /> {isExporting ? 'Generating...' : 'Export Full Record'}
           </button>
+
+          {(typeof handleRest === 'function' || typeof handleEat === 'function' || typeof handleDrink === 'function') && (
+            <div className="border-t border-skyrim-border/60 pt-3 flex flex-col gap-2">
+              <div className="text-xs text-gray-500 font-bold">Survival</div>
+              {typeof handleRest === 'function' && (
+                <button onClick={handleRest} className="flex items-center gap-2 px-3 py-2 bg-skyrim-dark text-skyrim-gold rounded font-bold">
+                  Rest (8h)
+                </button>
+              )}
+              {typeof handleEat === 'function' && (
+                <button onClick={handleEat} className="flex items-center gap-2 px-3 py-2 bg-skyrim-dark text-skyrim-gold rounded font-bold">
+                  Eat
+                </button>
+              )}
+              {typeof handleDrink === 'function' && (
+                <button onClick={handleDrink} className="flex items-center gap-2 px-3 py-2 bg-skyrim-dark text-skyrim-gold rounded font-bold">
+                  Drink
+                </button>
+              )}
+            </div>
+          )}
           <button onClick={handleGenerateProfileImage} disabled={isGeneratingProfileImage} className="flex items-center gap-2 px-3 py-2 bg-skyrim-accent text-white rounded font-bold disabled:opacity-50">
             {isGeneratingProfileImage ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
             {isGeneratingProfileImage ? 'Generating...' : 'Generate Profile Photo'}
