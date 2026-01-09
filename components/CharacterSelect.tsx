@@ -29,8 +29,8 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
 }) => {
   const modelOptions: Array<{ id: string; label: string }> = [
     { id: 'gemini-2.0-flash', label: 'Gemini Flash (Latest)' },
-    { id: 'gemma-3-27b-it', label: 'Gemma 3 27B' },
-    { id: 'gemma-3-4b-it', label: 'Gemma 3 4B' },
+    { id: 'gemma-3-27b', label: 'Gemma 3 27B' },
+    { id: 'gemma-3-4b', label: 'Gemma 3 4B' },
   ];
 
   const selectedModel = aiModel || 'gemini-2.0-flash';
