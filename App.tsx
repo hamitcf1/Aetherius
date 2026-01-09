@@ -12,6 +12,7 @@ import { StoryLog } from './components/StoryLog';
 import { AIScribe } from './components/AIScribe';
 import { AdventureChat } from './components/AdventureChat';
 import { CharacterSelect } from './components/CharacterSelect';
+import { OnboardingModal } from './components/OnboardingModal';
 import { User, Scroll, BookOpen, Skull, Package, Feather, LogOut, Users, Loader, Save, Swords } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -29,6 +30,8 @@ import {
   loadJournalEntries,
   loadStoryChapters,
   loadUserProfiles,
+  loadUserSettings,
+  saveUserSettings,
   saveCharacter,
   saveInventoryItem,
   deleteInventoryItem,
@@ -45,6 +48,7 @@ import {
   clearActiveCharacter
 } from './services/realtime';
 import type { PreferredAIModel } from './services/geminiService';
+import type { UserSettings } from './services/firestore';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -130,6 +134,10 @@ const App: React.FC = () => {
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [storyChapters, setStoryChapters] = useState<StoryChapter[]>([]);
 
+  // Onboarding (shown to new users)
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+
   // Dirty state tracking for debounced saves
   const [dirtyEntities, setDirtyEntities] = useState<Set<string>>(new Set());
 
@@ -178,17 +186,33 @@ const App: React.FC = () => {
 
           // Load all data from Firestore in parallel
           console.log('Loading user data from Firestore...');
-          const [userProfiles, userCharacters, userItems, userQuests, userEntries, userChapters] = await Promise.all([
+          const [userProfiles, userCharacters, userItems, userQuests, userEntries, userChapters, settings] = await Promise.all([
             loadUserProfiles(user.uid),
             loadCharacters(user.uid),
             loadInventoryItems(user.uid),
             loadQuests(user.uid),
             loadJournalEntries(user.uid),
-            loadStoryChapters(user.uid)
+            loadStoryChapters(user.uid),
+            loadUserSettings(user.uid)
           ]);
 
           console.log('Data loaded successfully:', { userProfiles, userCharacters, userItems });
           setProfiles(userProfiles);
+
+          // Decide whether to show onboarding for this user.
+          try {
+            const key = `aetherius:onboardingCompleted:${user.uid}`;
+            const localDone = localStorage.getItem(key) === '1';
+            const remoteDone = settings?.onboardingCompleted === true;
+            const isNewAccount = (userProfiles?.length || 0) === 0 && (userCharacters?.length || 0) === 0;
+            setUserSettings(settings);
+            setOnboardingOpen(isNewAccount && !localDone && !remoteDone);
+          } catch {
+            const remoteDone = settings?.onboardingCompleted === true;
+            const isNewAccount = (userProfiles?.length || 0) === 0 && (userCharacters?.length || 0) === 0;
+            setUserSettings(settings);
+            setOnboardingOpen(isNewAccount && !remoteDone);
+          }
 
           // Normalize older saves to include new survival/time fields
           const normalizedCharacters = (userCharacters || []).map((c: any) => {
@@ -242,12 +266,43 @@ const App: React.FC = () => {
         setStoryChapters([]);
         setCurrentProfileId(null);
         setCurrentCharacterId(null);
+        setUserSettings(null);
+        setOnboardingOpen(false);
         setLoading(false);
       }
     });
 
     return () => unsubscribe();
   }, []);
+
+  const completeOnboarding = async () => {
+    if (!currentUser?.uid) {
+      setOnboardingOpen(false);
+      return;
+    }
+
+    const uid = currentUser.uid as string;
+    setOnboardingOpen(false);
+
+    try {
+      localStorage.setItem(`aetherius:onboardingCompleted:${uid}`, '1');
+    } catch {
+      // ignore
+    }
+
+    const next: UserSettings = {
+      ...(userSettings || {}),
+      onboardingCompleted: true,
+      onboardingVersion: userSettings?.onboardingVersion ?? 1,
+      createdAt: userSettings?.createdAt,
+    };
+    setUserSettings(next);
+    try {
+      await saveUserSettings(uid, next);
+    } catch (e) {
+      console.warn('Failed to persist onboarding completion:', e);
+    }
+  };
 
   // Debounced Firestore saves for dirty entities
   useEffect(() => {
@@ -1068,22 +1123,25 @@ const App: React.FC = () => {
   // Render Logic
   if (!currentProfileId || !currentCharacterId) {
       return (
-        <CharacterSelect 
-            profiles={profiles}
-            characters={characters}
-            onCreateProfile={handleCreateProfile}
-            onCreateCharacter={handleCreateCharacter}
-            onSelectProfile={(p) => setCurrentProfileId(p.id)}
-            onSelectCharacter={async (cid) => {
-              setCurrentCharacterId(cid);
-              if (currentUser) {
-                await setActiveCharacter(currentUser.uid, cid);
-              }
-            }}
-            onLogout={handleLogout}
-            onUpdateProfile={handleUpdateProfile}
-            onUpdateCharacter={handleUpdateCharacter}
-        />
+        <>
+          <CharacterSelect 
+              profiles={profiles}
+              characters={characters}
+              onCreateProfile={handleCreateProfile}
+              onCreateCharacter={handleCreateCharacter}
+              onSelectProfile={(p) => setCurrentProfileId(p.id)}
+              onSelectCharacter={async (cid) => {
+                setCurrentCharacterId(cid);
+                if (currentUser) {
+                  await setActiveCharacter(currentUser.uid, cid);
+                }
+              }}
+              onLogout={handleLogout}
+              onUpdateProfile={handleUpdateProfile}
+              onUpdateCharacter={handleUpdateCharacter}
+          />
+          <OnboardingModal open={onboardingOpen} onComplete={completeOnboarding} />
+        </>
       );
   }
 
@@ -1125,6 +1183,7 @@ const App: React.FC = () => {
       handleUploadPhoto: () => {}, // TODO: Implement upload
     }}>
       <div className="min-h-screen bg-skyrim-dark text-skyrim-text font-sans selection:bg-skyrim-gold selection:text-skyrim-dark">
+        <OnboardingModal open={onboardingOpen} onComplete={completeOnboarding} />
         {/* Navigation Header */}
         <nav className="fixed top-0 left-0 right-0 bg-skyrim-paper/95 backdrop-blur-md border-b border-skyrim-gold/30 z-40 shadow-2xl">
           <div className="max-w-7xl mx-auto px-4">

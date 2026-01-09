@@ -2,222 +2,243 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Skyrim Aetherius - Interactive Roleplay Campaign Manager
+# Skyrim Aetherius
 
-A sophisticated web application for creating, managing, and developing Skyrim Elder Scrolls roleplay characters with AI-powered storytelling, character generation, and game state management.
+Skyrim Aetherius is a web app for running a Skyrim-flavored roleplay campaign like a game: you create characters, track inventory and quests, write story/journal entries, and use an AI GM to generate narrative + structured game-state updates.
 
-## 🎮 Features
+This README is both a player tutorial and a developer/operator guide.
 
-### Character Creation & Management
-- **Multiple Creation Methods**
-  - Manual creation with customizable stats and attributes
-  - AI-powered random generation for instant characters
-  - Interactive Scribe Chat for guided character creation
-  - Text import to convert existing character sheets
-  
-- **Editable Character Details**
-  - Rename characters and profiles at any time
-  - Manage character stats: Health, Magicka, Stamina (slider + numeric input)
-  - Track 18 unique Skyrim skills with individual levels
-  - Define psychological traits: identity, psychology, moral code
-  - Manage perks and milestones
-  - Auto-generated profile photos for each race
+## Table of contents
 
-### Inventory System
-- Track weapons, armor, potions, ingredients, and miscellaneous items
-- Manage equipped items
-- Track character wealth (gold)
-- Organize items by type
+- What this app is
+- How to play (player tutorial)
+- Progression system (time + hunger/thirst/fatigue)
+- AI models + keys
+- Data + saving model (Firestore + Realtime)
+- Local development
+- Firebase setup (required)
+- Deployment (Netlify)
+- Do / Don’t (important)
+- Troubleshooting
 
-### Quest Management
-- Create custom quests with objectives and tracking
-- Track quest status: active, completed, failed
-- Set quest locations and due dates
-- Link quests to character progression
+## What this app is
 
-### Story & Narrative
-- **Create Chapters Manually** - Write your own story entries
-- **AI-Powered Chapter Generation** - Describe what happens, AI generates context-aware narrative
-- **Story Finalization** - Export complete chronicle as PDF
-- **Memory Visualization** - Generate AI art to visualize story scenes
-- **Context-Aware Storytelling** - AI considers character stats, quests, and items when generating chapters
+- A single-page app (React + TypeScript + Vite)
+- Skyrim-themed character sheet + story/journal/quest/inventory tracking
+- AI-assisted gameplay: the GM returns a JSON “update” object that can add items, start quests, advance time, etc.
 
-### Journal & Personal Notes
-- Track character thoughts and experiences
-- Organize entries by date and title
-- Personal narrative development
+## How to play (player tutorial)
 
-### Game Master Integration
-- AI Game Master responses to character actions
-- Dynamic game state updates based on narrative
-- Automatic quest and item management via AI
+### 1) Log in and create a profile
 
-### Data Management
-- **Automatic Cloud Sync** - Firebase integration for automatic saving
-- **Manual Save Button** - Explicitly save all data to database
-- **User Profiles** - Support multiple character profiles per user
-- **Data Persistence** - All changes saved to Firebase Realtime Database
+1. Register or log in
+2. Create a Profile (this is “your” account-space)
+3. Create or select a Character under that profile
 
-## 🚀 Getting Started
+### 2) Understand the tabs
+
+- **Hero**: your character sheet (stats, skills, perks/milestones, rules/constraints, and now in-game time + survival needs)
+- **Items**: inventory, quantities, equipped state, gold
+- **Quests**: quests with location + objectives; supports bulk objective editing
+- **Story**: narrative chapters (manual or AI-generated)
+- **Journal**: first-person diary entries (auto-generated notes are also first-person)
+- **Adventure**: AI-driven “play” loop (chat). This is the closest thing to the game.
+
+### 3) Adventure mode (recommended gameplay loop)
+
+1. Open **Adventure**
+2. Write your action in first-person (example: “I follow the footsteps toward the river and keep low.”)
+3. The GM responds with narrative and may include:
+   - new items gained/lost
+   - quest updates
+   - gold/XP changes
+   - time advancement and survival needs changes
+   - clickable dialogue/action choices (buttons)
+
+If “Auto-apply game changes” is ON, the GM updates will apply automatically.
+If it’s OFF, you can manually “Apply Changes” per message.
+
+## Progression system (time + hunger/thirst/fatigue)
+
+### What exists today
+
+- Each character has:
+  - `time`: day/hour/minute
+  - `needs`: hunger/thirst/fatigue (0 good → 100 bad)
+
+You can view these in **Hero**.
+
+### Rest / Eat / Drink
+
+Open **Actions** → **Survival**:
+
+- **Rest (8h)**: advances time and reduces fatigue
+- **Eat**: reduces hunger and consumes a matching “food-like” inventory item
+- **Drink**: reduces thirst and consumes a matching “drink-like” inventory item
+
+Important: Eat/Drink use a simple heuristic (keywords + item type). If you want perfect matching, keep your inventory names clear (e.g., “Bread”, “Apple”, “Stew”, “Water”, “Mead”, “Wine”).
+
+### Tuning how fast needs rise
+
+Passive needs increase when time passes.
+You can tune the rates in `NEED_RATES` in `App.tsx`.
+
+## AI models + keys
+
+### Switching models
+
+Open **Actions** → **AI Model**.
+
+The app supports:
+
+- Gemini Flash (`gemini-2.0-flash`)
+- Gemma 3 27B (`gemma-3-27b-it`)
+- Gemma 3 4B (`gemma-3-4b-it`)
+
+### Required environment variables (AI)
+
+Gemini key (pick one):
+
+- `VITE_GEMINI_API_KEY` (recommended)
+- `VITE_API_KEY`
+- `GEMINI_API_KEY` (supported via Vite define)
+- `API_KEY` (supported via Vite define)
+
+Gemma key (pick one):
+
+- `VITE_GEMMA_API_KEY` (recommended)
+- `GEMMA_API_KEY` (supported via Vite define)
+- `gemma_api_key` (supported via Vite define / Netlify)
+
+Notes:
+
+- Some models (Gemma) do not support JSON response mode; the app retries without it.
+- The app also extracts JSON from plain text responses as a fallback.
+
+## Data + saving model
+
+This project uses a hybrid Firebase approach:
+
+- **Firestore (primary persistence)**
+  - Characters, inventory items, quests, journal entries, story chapters, profiles
+  - Adventure chat messages are stored per user + character
+  - Offline persistence is enabled when supported
+
+- **Realtime Database (ephemeral/live state only)**
+  - Presence (online/offline)
+  - Active character session
+  - (Optional) AI generation state
+
+Saving:
+
+- Auto-save: debounced “dirty entity” writes to Firestore
+- Manual save: Actions → Save forces a batch save
+
+## Local development
 
 ### Prerequisites
-- Node.js 16+ 
-- npm or yarn
-- Firebase account
-- Google Gemini API key
 
-### Installation
+- Node.js (recommended: current LTS)
+
+### Install + run
 
 ```bash
-# Clone repository
-git clone <repository-url>
-cd Aetherius
-
-# Install dependencies
 npm install
-
-# Create .env file with credentials
-# See .env.local.example for all required variables
-
-# Start development server
 npm run dev
-
-# Build for production
-npm run build
 ```
 
-### Usage
+### Build
 
-1. **Register/Login** - Create account or log in with email
-2. **Select Profile** - Choose or create a user profile
-3. **Create Character** - Generate character using one of four methods
-4. **Develop Character** - Edit stats, skills, psychology, and backstory
-5. **Manage Inventory** - Add items and track equipment
-6. **Create Quests** - Set up character objectives and missions
-7. **Write Story** - Create chapters or let AI generate narrative
-8. **Save Progress** - Click "Save" button or rely on auto-save
-
-## 📖 Tabs Overview
-
-### Hero Tab
-- Main character sheet with all attributes
-- View and edit stats with dual controls (slider + numeric)
-- Manage skills, perks, and milestones
-- Set psychological traits and roleplay constraints
-- Generate profile photo
-- Export full record as PDF
-
-### Items Tab
-- Inventory management with categorization
-- Track equipped items
-- Manage character wealth
-- Add/remove items from inventory
-
-### Quests Tab
-- Active quest tracking
-- Create new quests with objectives
-- Update quest status
-- Manage quest locations and deadlines
-
-### Story Tab
-- Timeline view of all chapters
-- Create new chapters (manual or AI-generated)
-- Visualize story scenes with AI-generated images
-- Export complete story as PDF
-
-### Journal Tab
-- Personal diary entries
-- Track character thoughts and experiences
-- Date-organized narrative
-
-## 🤖 AI Integration
-
-### Character Generation
-Uses Gemini API to generate:
-- Unique character profiles based on descriptions
-- Stat distributions balanced to gameplay
-- Starting inventory appropriate to class
-- Opening story chapters
-
-### Story Generation
-- Context-aware chapter generation considering:
-  - Current character stats
-  - Active quests
-  - Recent journal entries
-  - Inventory items
-- Maintains narrative continuity
-
-### Image Generation
-- Character profile portraits for each race
-- Story scene visualizations
-- Fantasy art style Skyrim-themed imagery
-
-## 🔐 Authentication
-
-- Firebase Authentication with email/password
-- Secure user account management
-- Per-user data isolation
-- Cloud persistence with real-time sync
-
-## 🔧 Technical Stack
-
-- **Frontend**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **Backend**: Firebase (Realtime Database + Authentication)
-- **AI**: Google Gemini API
-- **PDF Export**: jsPDF + html2canvas
-- **Icons**: Lucide React
-
-## ⚙️ Configuration
-
-### Firebase Setup
-1. Create Firebase project at console.firebase.google.com
-2. Enable Realtime Database
-3. Set up Authentication with email/password
-4. Copy credentials to environment variables
-
-### Gemini API Setup
-1. Get API key from Google AI Studio (ai.google.dev)
-2. Enable Generative AI API
-3. Set quota limits appropriate for your usage
-
-## 🚀 Deployment
-
-### Build for Production
 ```bash
 npm run build
 ```
 
-### Deploy to Netlify
-```bash
-npm run build
-# Deploy dist/ folder to Netlify
-```
+## Firebase setup (required)
 
-## 📈 Performance Notes
+### 1) Create a Firebase project
 
-- Large PDF exports may take 5-10 seconds
-- Image generation is rate-limited by Gemini API
-- Auto-save triggers on state changes (debounced)
-- Lazy loading of jsPDF for smaller initial bundle
+In Firebase Console:
 
-## 🐛 Known Issues & Limitations
+1. Create a project
+2. Enable **Authentication** → Email/Password
+3. Create a **Firestore** database
+4. Create a **Realtime Database** (for presence/session)
 
-- Gemini free tier has rate limits (429 quota errors)
-- Large character imports may timeout
-- PDF export size grows with story length
-- Image generation requires quota availability
+### 2) Configure environment variables (Firebase)
 
-## 💬 Support & Contributing
+Set these for Vite (local `.env` or Netlify environment variables):
 
-For issues or questions:
-1. Check console for error messages
-2. Verify Firebase configuration
-3. Check API quota limits
-4. Review browser compatibility
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_DATABASE_URL` (Realtime DB URL)
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
 
-## 📄 License
+### 3) Security rules
+
+Use the rules in FIREBASE_SECURITY_RULES.md:
+
+- Firestore: per-user read/write under `users/{uid}/...`
+- Realtime DB: presence + sessions + aiState restricted to the authenticated user
+
+## Deployment (Netlify)
+
+This repo includes a Netlify config in `netlify.toml`.
+
+Recommended:
+
+1. Create a Netlify site connected to the repo
+2. Set build command: `npm run build`
+3. Set publish directory: `dist`
+4. Add environment variables (Firebase + AI keys)
+5. Deploy
+
+SPA routing is handled via redirects.
+
+## Do / Don’t
+
+### Do
+
+- Do write player actions in first-person for best immersion
+- Do keep inventory item names clear if you want Eat/Drink to work reliably
+- Do review the game-state updates when Auto-apply is off
+- Do keep Firestore rules strict (per-user)
+- Do use a separate Gemma key if you want to avoid Gemini quota issues
+
+### Don’t
+
+- Don’t paste API keys or secrets into the AI prompts/chat
+- Don’t loosen security rules beyond `users/{uid}` scoping
+- Don’t treat the AI output as canon without review—use it as a GM assistant
+- Don’t manually edit Firestore documents unless you understand the schema
+- Don’t rely on Realtime Database for persistence (Firestore is the source of truth)
+
+## Troubleshooting
+
+### “Quota exceeded” in AI
+
+- Switch model in Actions → AI Model
+- Ensure the correct key is set (`VITE_GEMINI_API_KEY` / `VITE_GEMMA_API_KEY`)
+
+### Firestore permission errors
+
+- Confirm authentication is enabled
+- Confirm Firestore security rules match FIREBASE_SECURITY_RULES.md
+
+### Eat/Drink says “No food/drink found”
+
+- Add an item named like “Bread”, “Apple”, “Stew”, “Water”, “Mead”, etc.
+- Or rename your existing items to include those keywords
+
+### Multi-tab persistence warnings
+
+Firestore offline persistence may disable itself if multiple tabs are open. This is expected.
+
+---
+
+License: this project is marked `private` in package.json.
 
 Project developed for Skyrim roleplay community.
 

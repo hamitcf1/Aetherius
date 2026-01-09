@@ -344,6 +344,43 @@ export const deleteUserProfile = async (uid: string, profileId: string): Promise
   await deleteDoc(docRef);
 };
 
+// ===== USER SETTINGS =====
+
+export interface UserSettings {
+  onboardingCompleted?: boolean;
+  onboardingVersion?: number;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+const userSettingsDocRef = (uid: string) => {
+  const db = getDb();
+  return doc(db, 'users', uid, 'meta', 'app');
+};
+
+export const loadUserSettings = async (uid: string): Promise<UserSettings | null> => {
+  const db = getDb();
+  if (!db) throw new Error('Firestore not initialized');
+
+  const snapshot = await getDoc(userSettingsDocRef(uid));
+  return snapshot.exists() ? (snapshot.data() as UserSettings) : null;
+};
+
+export const saveUserSettings = async (uid: string, settings: UserSettings): Promise<void> => {
+  const db = getDb();
+  if (!db) throw new Error('Firestore not initialized');
+
+  const now = Date.now();
+  const next: UserSettings = {
+    onboardingVersion: settings.onboardingVersion ?? 1,
+    onboardingCompleted: settings.onboardingCompleted ?? false,
+    createdAt: settings.createdAt ?? now,
+    updatedAt: now,
+  };
+
+  await setDoc(userSettingsDocRef(uid), next, { merge: true });
+};
+
 // ===== BATCH OPERATIONS =====
 
 export const batchSaveGameState = async (
