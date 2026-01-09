@@ -66,6 +66,17 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
 
   const storageKey = character ? `aetherius:adventureChat:${character.id}` : '';
 
+  const hasEstablishedState = Boolean(
+    character &&
+      (
+        (story?.length || 0) > 0 ||
+        (journal?.length || 0) > 0 ||
+        (quests?.length || 0) > 0 ||
+        (inventory?.length || 0) > 0 ||
+        Boolean((character.identity || '').trim())
+      )
+  );
+
   useEffect(() => {
     if (!character) return;
 
@@ -391,12 +402,14 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[400px] text-gray-500">
             <Scroll size={48} className="mb-4 opacity-50" />
-            <p className="text-center mb-4">Your adventure awaits...</p>
+            <p className="text-center mb-4">
+              {hasEstablishedState ? 'Continue where you left off...' : 'Your adventure awaits...'}
+            </p>
             <button
               onClick={startNewAdventure}
               className="px-4 py-2 bg-skyrim-gold text-skyrim-dark font-bold rounded hover:bg-skyrim-goldHover transition-colors"
             >
-              Begin Your Journey
+              {hasEstablishedState ? 'Continue Adventure' : 'Begin Your Journey'}
             </button>
           </div>
         ) : (
