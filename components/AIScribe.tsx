@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { generateGameMasterResponse, generateLoreImage } from '../services/geminiService';
 import { GameStateUpdate } from '../types';
-import { useAppContext } from '../AppContext';
 import { Sparkles, X, Scroll, Loader2, Play, Image as ImageIcon } from 'lucide-react';
 
 interface AIScribeProps {
@@ -10,9 +9,6 @@ interface AIScribeProps {
 }
 
 export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState }) => {
-  const appCtx = useAppContext();
-  const aiModel: string = appCtx?.aiModel || 'gemini-2.0-flash';
-
   const [batchInput, setBatchInput] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -85,7 +81,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState }
     setLastResponse(null);
     setGeneratedImage(null);
     try {
-      const updates = await generateGameMasterResponse(prompt, contextData, aiModel);
+      const updates = await generateGameMasterResponse(prompt, contextData);
       setLastResponse(updates);
     } catch (e) {
       console.error(e);

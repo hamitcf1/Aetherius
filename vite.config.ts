@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  const geminiApiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || '';
   
   return {
     plugins: [
@@ -31,8 +32,8 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
     },
     define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+      'process.env.API_KEY': JSON.stringify(geminiApiKey),
+      'process.env.GEMINI_API_KEY': JSON.stringify(geminiApiKey)
     },
     server: {
       port: 3000,

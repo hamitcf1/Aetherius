@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { StoryChapter, Character, CustomQuest, JournalEntry, InventoryItem } from '../types';
 import { Scroll, Calendar, Image as ImageIcon, Loader2, Plus, Download, Send } from 'lucide-react';
 import { generateLoreImage, generateGameMasterResponse } from '../services/geminiService';
-import { useAppContext } from '../AppContext';
 
 interface StoryLogProps {
   chapters: StoryChapter[];
@@ -23,9 +22,6 @@ export const StoryLog: React.FC<StoryLogProps> = ({
     journal = [],
     items = []
 }) => {
-    const appCtx = useAppContext();
-    const aiModel: string = appCtx?.aiModel || 'gemini-2.0-flash';
-
     // Filter out deleted chapters
     const visibleChapters = chapters.filter(c => !c.deleted);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -79,7 +75,7 @@ export const StoryLog: React.FC<StoryLogProps> = ({
               inventory: items.slice(0, 5)
           });
 
-          const update = await generateGameMasterResponse(chapterPrompt, context, aiModel);
+          const update = await generateGameMasterResponse(chapterPrompt, context);
           
           if (update.narrative) {
               const newChapter: StoryChapter = {

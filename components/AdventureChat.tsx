@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Character, InventoryItem, CustomQuest, JournalEntry, StoryChapter, GameStateUpdate } from '../types';
 import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp } from 'lucide-react';
-import { useAppContext } from '../AppContext';
 
 interface ChatMessage {
   id: string;
@@ -54,22 +53,11 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   story,
   onUpdateState
 }) => {
-  const appCtx = useAppContext();
-  const selectedModel: string = appCtx?.aiModel || 'gemini-2.0-flash';
-  const setSelectedModel: ((m: string) => void) | undefined = appCtx?.setAiModel;
-
-  const modelOptions: Array<{ id: string; label: string }> = [
-    { id: 'gemini-2.0-flash', label: 'Gemini Flash (Latest)' },
-    { id: 'gemma-3-27b', label: 'Gemma 3 27B' },
-    { id: 'gemma-3-4b', label: 'Gemma 3 4B' },
-  ];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [autoApply, setAutoApply] = useState(true);
-  const [quotaRetrySeconds, setQuotaRetrySeconds] = useState<number | null>(null);
-  const [quotaModelHint, setQuotaModelHint] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -159,31 +147,6 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     });
   };
 
-  const parseRetrySecondsFromText = (text: string): number | null => {
-    const m1 = text.match(/~\s*(\d+)s\b/i);
-    if (m1?.[1]) return Math.max(0, parseInt(m1[1], 10));
-    const m2 = text.match(/retry\s+in\s+([0-9]+)s\b/i);
-    if (m2?.[1]) return Math.max(0, parseInt(m2[1], 10));
-    return null;
-  };
-
-  const parseModelFromQuotaText = (text: string): string | null => {
-    const m = text.match(/model:\s*([^\.\n]+)\b/i);
-    return m?.[1]?.trim() || null;
-  };
-
-  useEffect(() => {
-    if (!quotaRetrySeconds || quotaRetrySeconds <= 0) return;
-    const timer = window.setInterval(() => {
-      setQuotaRetrySeconds(prev => {
-        if (!prev) return prev;
-        const next = prev - 1;
-        return next <= 0 ? null : next;
-      });
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [quotaRetrySeconds]);
-
   const handleSend = async () => {
     if (!input.trim() || loading || !character) return;
 
@@ -207,7 +170,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     try {
       const { generateAdventureResponse } = await import('../services/geminiService');
       const context = buildContext();
-      const result = await generateAdventureResponse(input.trim(), context, SYSTEM_PROMPT, selectedModel);
+      const result = await generateAdventureResponse(input.trim(), context, SYSTEM_PROMPT);
       
       const gmMessage: ChatMessage = {
         id: Math.random().toString(36).substr(2, 9),
@@ -218,14 +181,6 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       };
 
       setMessages(prev => [...prev, gmMessage]);
-
-      // Quota UX: auto-open settings + show countdown when the API signals quota exhaustion
-      if (result?.narrative?.title?.toLowerCase() === 'quota exceeded' || /quota exceeded/i.test(gmMessage.content)) {
-        const retrySeconds = parseRetrySecondsFromText(gmMessage.content);
-        setQuotaRetrySeconds(retrySeconds);
-        setQuotaModelHint(parseModelFromQuotaText(gmMessage.content));
-        setShowSettings(true);
-      }
 
       if (userId) {
         void import('../services/firestore')
@@ -360,22 +315,6 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       {/* Settings Panel */}
       {showSettings && (
         <div className="mb-4 p-4 bg-black/40 border border-skyrim-border rounded animate-in fade-in">
-          <div className="mb-3">
-            <label className="block text-sm text-gray-300 mb-1">AI Model</label>
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel?.(e.target.value)}
-              disabled={!setSelectedModel}
-              className="w-full bg-black/30 border border-skyrim-border rounded p-2 text-gray-200 focus:border-skyrim-gold focus:outline-none disabled:opacity-50"
-            >
-              {modelOptions.map(opt => (
-                <option key={opt.id} value={opt.id}>{opt.label}</option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              If you hit a 429 quota error, switch models here.
-            </p>
-          </div>
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
@@ -454,31 +393,6 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
 
       {/* Input Area */}
       <div className="bg-skyrim-paper/60 border border-skyrim-border rounded-lg p-3">
-        {(quotaRetrySeconds || quotaModelHint) && (
-          <div className="mb-3 p-3 bg-black/40 border border-skyrim-border rounded">
-            <div className="text-sm text-gray-200 font-serif">
-              <span className="text-skyrim-gold font-bold">Quota hit.</span>{' '}
-              {quotaModelHint ? <span className="text-gray-300">Model: {quotaModelHint}. </span> : null}
-              {quotaRetrySeconds ? <span className="text-gray-300">Retry in ~{quotaRetrySeconds}s. </span> : null}
-              <span className="text-gray-400">Try switching AI Model in Settings.</span>
-            </div>
-            <div className="mt-2 flex gap-2">
-              <button
-                onClick={() => setShowSettings(true)}
-                className="px-3 py-1 bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/50 rounded text-xs hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors"
-              >
-                Open Settings
-              </button>
-              <button
-                onClick={() => { setQuotaRetrySeconds(null); setQuotaModelHint(null); }}
-                className="px-3 py-1 text-gray-400 border border-gray-600 rounded text-xs hover:text-gray-200 hover:border-gray-400 transition-colors"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
-
         <div className="flex gap-3">
           <textarea
             ref={inputRef}

@@ -77,7 +77,7 @@ cd Aetherius
 npm install
 
 # Create .env file with credentials
-# See .env.example for all required variables
+# See .env.local.example for all required variables
 
 # Start development server
 npm run dev

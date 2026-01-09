@@ -6,8 +6,6 @@ import { generateCharacterProfile, chatWithScribe } from '../services/geminiServ
 interface CharacterSelectProps {
   profiles: UserProfile[];
   characters: Character[];
-  aiModel?: string;
-  setAiModel?: (modelId: string) => void;
   onSelectProfile: (profile: UserProfile) => void;
   onSelectCharacter: (characterId: string) => void;
   onCreateProfile: (name: string) => void;
@@ -24,17 +22,9 @@ const ARCHETYPES = [
 ];
 
 export const CharacterSelect: React.FC<CharacterSelectProps> = ({ 
-    profiles, characters, aiModel, setAiModel, onSelectProfile, onSelectCharacter, onCreateProfile, onCreateCharacter, onLogout,
+    profiles, characters, onSelectProfile, onSelectCharacter, onCreateProfile, onCreateCharacter, onLogout,
     onUpdateProfile, onUpdateCharacter
 }) => {
-  const modelOptions: Array<{ id: string; label: string }> = [
-    { id: 'gemini-2.0-flash', label: 'Gemini Flash (Latest)' },
-    { id: 'gemma-3-27b', label: 'Gemma 3 27B' },
-    { id: 'gemma-3-4b', label: 'Gemma 3 4B' },
-  ];
-
-  const selectedModel = aiModel || 'gemini-2.0-flash';
-
   const [view, setView] = useState<'profiles' | 'characters'>('profiles');
   const [creationMode, setCreationMode] = useState<'manual' | 'chat' | 'import'>('manual');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -87,7 +77,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
   const handleRandomizeFull = async () => {
       setIsGenerating(true);
       try {
-        const char = await generateCharacterProfile("Create a completely random character.", 'random', selectedModel);
+          const char = await generateCharacterProfile("Create a completely random character.");
           if (char && selectedProfileId) {
               onCreateCharacter(
                   selectedProfileId, 
@@ -109,7 +99,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
       if (!importText.trim()) return;
       setIsGenerating(true);
       try {
-        const char = await generateCharacterProfile(importText, 'text_import', selectedModel);
+          const char = await generateCharacterProfile(importText, 'text_import');
           if (char && selectedProfileId) {
               onCreateCharacter(
                   selectedProfileId, 
@@ -151,7 +141,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
       setIsChatting(true);
 
       try {
-          const response = await chatWithScribe(historyForApi, userMsg, selectedModel);
+          const response = await chatWithScribe(historyForApi, userMsg);
           
           if (response.includes('[[GENERATE_CHARACTER]]')) {
              // Trigger generation
@@ -166,7 +156,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
              ).join('\n\n');
 
              // Generate
-             const char = await generateCharacterProfile(conversationLog, 'chat_result', selectedModel);
+             const char = await generateCharacterProfile(conversationLog, 'chat_result');
              if (char && selectedProfileId) {
                   onCreateCharacter(
                       selectedProfileId, 
@@ -200,21 +190,6 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
             <h1 className="text-3xl font-serif text-skyrim-gold text-center mb-6 border-b border-skyrim-border pb-4">
                 {view === 'profiles' ? 'Select User Profile' : 'Select Character'}
             </h1>
-
-            <div className="mb-4">
-              <label className="block text-xs uppercase tracking-widest text-gray-500 mb-1">AI Model</label>
-              <select
-                value={selectedModel}
-                onChange={(e) => setAiModel?.(e.target.value)}
-                disabled={!setAiModel}
-                className="w-full bg-black/30 border border-skyrim-border rounded p-2 text-gray-200 focus:border-skyrim-gold focus:outline-none disabled:opacity-50"
-              >
-                {modelOptions.map(opt => (
-                  <option key={opt.id} value={opt.id}>{opt.label}</option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">Switch models if you hit a 429 quota error.</p>
-            </div>
             
             {/* Main Content */}
             <div className="flex-1 overflow-y-auto mb-6 pr-2">
