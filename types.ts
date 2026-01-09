@@ -250,4 +250,24 @@ export interface GameStateUpdate {
 
   // Dialogue choices to present as clickable options
   choices?: Array<{ label: string; playerText: string }>;
+
+  // Character detail updates (hero sheet fields)
+  characterUpdates?: {
+    identity?: string;
+    psychology?: string;
+    breakingPoint?: string;
+    moralCode?: string;
+    allowedActions?: string;
+    forbiddenActions?: string;
+    fears?: string;
+    weaknesses?: string;
+    talents?: string;
+    magicApproach?: string;
+    factionAllegiance?: string;
+    worldview?: string;
+    daedricPerception?: string;
+    forcedBehavior?: string;
+    longTermEvolution?: string;
+    backstory?: string;
+  };
 }

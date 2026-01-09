@@ -480,27 +480,52 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                   )}
                   
                   {/* Game state changes indicator */}
-                  {msg.role === 'gm' && msg.updates && !autoApply && (
-                    <div className="mt-2 p-2 bg-black/40 rounded border border-skyrim-border/50 text-xs">
-                      {msg.updates.newItems?.length ? (
-                        <div className="text-green-400">+ {msg.updates.newItems.length} item(s) found</div>
-                      ) : null}
-                      {msg.updates.newQuests?.length ? (
-                        <div className="text-skyrim-gold">+ {msg.updates.newQuests.length} quest(s) started</div>
-                      ) : null}
-                      {typeof msg.updates.goldChange === 'number' && msg.updates.goldChange !== 0 ? (
-                        <div className="text-yellow-400">{msg.updates.goldChange > 0 ? '+' : ''}{msg.updates.goldChange} gold</div>
-                      ) : null}
-                      {typeof msg.updates.timeAdvanceMinutes === 'number' && msg.updates.timeAdvanceMinutes !== 0 ? (
-                        <div className="text-gray-300">⏳ {msg.updates.timeAdvanceMinutes > 0 ? '+' : ''}{msg.updates.timeAdvanceMinutes} min</div>
-                      ) : null}
-                      <button
-                        onClick={() => applyUpdates(msg.updates!)}
-                        className="mt-1 px-2 py-1 bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/50 rounded text-xs hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors"
-                      >
-                        Apply Changes
-                      </button>
-                    </div>
+                  {msg.role === 'gm' && msg.updates && (
+                    <>
+                      {/* Inline item changes (always show) */}
+                      {(msg.updates.removedItems?.length || msg.updates.newItems?.length || 
+                        (typeof msg.updates.goldChange === 'number' && msg.updates.goldChange !== 0)) && (
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs font-sans">
+                          {msg.updates.removedItems?.map((item, idx) => (
+                            <span key={`removed-${idx}`} className="text-red-400 bg-red-900/20 px-2 py-0.5 rounded border border-red-900/30">
+                              -{item.quantity} {item.name}
+                            </span>
+                          ))}
+                          {msg.updates.newItems?.map((item, idx) => (
+                            <span key={`added-${idx}`} className="text-green-400 bg-green-900/20 px-2 py-0.5 rounded border border-green-900/30">
+                              +{item.quantity} {item.name}
+                            </span>
+                          ))}
+                          {typeof msg.updates.goldChange === 'number' && msg.updates.goldChange !== 0 && (
+                            <span className={`px-2 py-0.5 rounded border ${
+                              msg.updates.goldChange > 0 
+                                ? 'text-yellow-400 bg-yellow-900/20 border-yellow-900/30' 
+                                : 'text-orange-400 bg-orange-900/20 border-orange-900/30'
+                            }`}>
+                              {msg.updates.goldChange > 0 ? '+' : ''}{msg.updates.goldChange} gold
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Full update panel (only when not auto-apply) */}
+                      {!autoApply && (
+                        <div className="mt-2 p-2 bg-black/40 rounded border border-skyrim-border/50 text-xs">
+                          {msg.updates.newQuests?.length ? (
+                            <div className="text-skyrim-gold">+ {msg.updates.newQuests.length} quest(s) started</div>
+                          ) : null}
+                          {typeof msg.updates.timeAdvanceMinutes === 'number' && msg.updates.timeAdvanceMinutes !== 0 ? (
+                            <div className="text-gray-300">⏳ {msg.updates.timeAdvanceMinutes > 0 ? '+' : ''}{msg.updates.timeAdvanceMinutes} min</div>
+                          ) : null}
+                          <button
+                            onClick={() => applyUpdates(msg.updates!)}
+                            className="mt-1 px-2 py-1 bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/50 rounded text-xs hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors"
+                          >
+                            Apply Changes
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

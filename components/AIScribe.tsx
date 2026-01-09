@@ -1,8 +1,19 @@
 import React, { useState } from 'react';
 import { generateGameMasterResponse, generateLoreImage } from '../services/geminiService';
 import { GameStateUpdate } from '../types';
-import { Sparkles, X, Scroll, Loader2, Play, Image as ImageIcon } from 'lucide-react';
+import { Sparkles, X, Scroll, Loader2, Play, Image as ImageIcon, User, Brain, Wand2 } from 'lucide-react';
 import type { PreferredAIModel } from '../services/geminiService';
+
+// Quick prompts for hero detail generation
+const HERO_DETAIL_PROMPTS = [
+  { key: 'all', label: 'Generate All Details', prompt: 'Based on the character\'s name, race, gender, and archetype, generate complete hero details including: identity, psychology, breaking point, moral code, fears, weaknesses, talents, magic approach, faction allegiance, worldview, daedric perception, forced behavior, long-term evolution, and a detailed backstory. Make it lore-appropriate for Skyrim.' },
+  { key: 'backstory', label: 'Backstory', prompt: 'Generate a detailed, immersive backstory for this character based on their race, gender, and archetype. Include childhood, formative events, and what brought them to their current situation in Skyrim.' },
+  { key: 'psychology', label: 'Psychology & Identity', prompt: 'Generate the character\'s core identity, psychology, breaking point, and moral code based on their race and archetype.' },
+  { key: 'fears', label: 'Fears & Weaknesses', prompt: 'Generate appropriate fears and weaknesses for this character based on their race and background.' },
+  { key: 'talents', label: 'Talents & Magic', prompt: 'Generate the character\'s natural talents and their approach to magic based on their race and archetype.' },
+  { key: 'worldview', label: 'Worldview & Factions', prompt: 'Generate the character\'s worldview, faction allegiance, and perception of Daedra based on their race and background.' },
+  { key: 'evolution', label: 'Evolution & Behavior', prompt: 'Generate forced behaviors/rituals and a long-term character evolution arc from level 1-50 for this character.' },
+];
 
 interface AIScribeProps {
   contextData: string;
@@ -18,6 +29,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
   const [imageLoading, setImageLoading] = useState(false);
   const [lastResponse, setLastResponse] = useState<GameStateUpdate | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [mode, setMode] = useState<'action' | 'hero'>('action'); // Mode toggle
 
   const parseBatchInput = (text: string): GameStateUpdate | null => {
     const raw = (text || '').trim();
@@ -157,43 +169,122 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
           </button>
         </div>
 
+        {/* Mode Toggle */}
+        <div className="px-4 pt-4 flex gap-2">
+          <button
+            onClick={() => setMode('action')}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded text-sm font-bold transition-colors ${
+              mode === 'action' 
+                ? 'bg-skyrim-gold text-skyrim-dark' 
+                : 'bg-black/30 text-gray-400 hover:text-gray-200 border border-skyrim-border'
+            }`}
+          >
+            <Sparkles size={16} /> Game Action
+          </button>
+          <button
+            onClick={() => setMode('hero')}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded text-sm font-bold transition-colors ${
+              mode === 'hero' 
+                ? 'bg-skyrim-gold text-skyrim-dark' 
+                : 'bg-black/30 text-gray-400 hover:text-gray-200 border border-skyrim-border'
+            }`}
+          >
+            <User size={16} /> Hero Details
+          </button>
+        </div>
+
         {/* Content */}
         <div className="p-6 overflow-y-auto flex-1 space-y-4">
-          <p className="text-sm text-gray-400 italic">
-            "Describe your action. I will determine the outcome."
-          </p>
-          
-          <div>
-            <label className="block text-skyrim-gold text-sm font-bold mb-2">
-              Your Action
-            </label>
-            <textarea
-              autoCapitalize="none"
-              autoCorrect="off"
-              className="w-full bg-black/30 border border-skyrim-border text-gray-200 p-3 rounded focus:border-skyrim-gold focus:outline-none mb-2 normal-case"
-              rows={3}
-              placeholder="e.g., I search the bandit chest for loot..."
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-            />
-            <textarea
-              autoCapitalize="none"
-              autoCorrect="off"
-              className="w-full bg-black/20 border border-skyrim-border text-gray-300 p-2 rounded focus:border-skyrim-gold focus:outline-none text-xs font-mono normal-case"
-              rows={2}
-              placeholder="Batch add: 1x Iron Sword, 2x Potion of Healing, Quest: The Golden Claw, ..."
-              value={batchInput}
-              onChange={e => setBatchInput(e.target.value)}
-            />
-          </div>
+          {mode === 'action' ? (
+            <>
+              <p className="text-sm text-gray-400 italic">
+                "Describe your action. I will determine the outcome."
+              </p>
+              
+              <div>
+                <label className="block text-skyrim-gold text-sm font-bold mb-2">
+                  Your Action
+                </label>
+                <textarea
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  className="w-full bg-black/30 border border-skyrim-border text-gray-200 p-3 rounded focus:border-skyrim-gold focus:outline-none mb-2 normal-case"
+                  rows={3}
+                  placeholder="e.g., I search the bandit chest for loot..."
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                />
+                <textarea
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  className="w-full bg-black/20 border border-skyrim-border text-gray-300 p-2 rounded focus:border-skyrim-gold focus:outline-none text-xs font-mono normal-case"
+                  rows={2}
+                  placeholder="Batch add: 1x Iron Sword, 2x Potion of Healing, Quest: The Golden Claw, ..."
+                  value={batchInput}
+                  onChange={e => setBatchInput(e.target.value)}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-400 italic">
+                "Let me craft your hero's soul. Choose a quick fill or describe what you want."
+              </p>
+
+              {/* Quick Fill Buttons */}
+              <div className="space-y-2">
+                <label className="block text-skyrim-gold text-sm font-bold">Quick Fill</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {HERO_DETAIL_PROMPTS.map(hp => (
+                    <button
+                      key={hp.key}
+                      onClick={() => setPrompt(hp.prompt)}
+                      disabled={loading}
+                      className={`px-3 py-2 text-xs rounded border transition-colors flex items-center gap-1.5 ${
+                        prompt === hp.prompt 
+                          ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold' 
+                          : 'bg-black/30 border-skyrim-border text-gray-300 hover:border-skyrim-gold/50 hover:text-gray-100'
+                      }`}
+                    >
+                      <Wand2 size={12} />
+                      {hp.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-skyrim-gold text-sm font-bold mb-2">
+                  Custom Request
+                </label>
+                <textarea
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  className="w-full bg-black/30 border border-skyrim-border text-gray-200 p-3 rounded focus:border-skyrim-gold focus:outline-none normal-case text-sm"
+                  rows={3}
+                  placeholder="e.g., Generate a tragic backstory involving the Great War... or, Make my character fear magic due to a childhood accident..."
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                />
+              </div>
+            </>
+          )}
 
           {lastResponse && (
             <div className="bg-black/20 p-4 rounded border border-skyrim-border/50 animate-in fade-in">
-              <h4 className="text-xs uppercase tracking-widest text-skyrim-gold mb-2">Outcome</h4>
-              <h5 className="font-serif text-lg text-white mb-1">{lastResponse.narrative?.title}</h5>
-              <p className="text-gray-300 whitespace-pre-wrap text-sm leading-relaxed font-serif mb-4">
-                {lastResponse.narrative?.content}
-              </p>
+              <h4 className="text-xs uppercase tracking-widest text-skyrim-gold mb-2">
+                {lastResponse.characterUpdates && Object.keys(lastResponse.characterUpdates).length > 0 
+                  ? 'Hero Details Generated' 
+                  : 'Outcome'}
+              </h4>
+              {lastResponse.narrative && (
+                <>
+                  <h5 className="font-serif text-lg text-white mb-1">{lastResponse.narrative?.title}</h5>
+                  <p className="text-gray-300 whitespace-pre-wrap text-sm leading-relaxed font-serif mb-4">
+                    {lastResponse.narrative?.content}
+                  </p>
+                </>
+              )}
               
               {generatedImage && (
                   <div className="mb-4 relative group">
@@ -204,7 +295,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
                   </div>
               )}
 
-              {!generatedImage && (
+              {!generatedImage && lastResponse.narrative && (
                   <button 
                     onClick={handleVisualize} 
                     disabled={imageLoading}
@@ -213,6 +304,23 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
                       {imageLoading ? <Loader2 className="animate-spin" size={12}/> : <ImageIcon size={12}/>}
                       Visualize Scene
                   </button>
+              )}
+
+              {/* Character Updates Preview */}
+              {lastResponse.characterUpdates && Object.keys(lastResponse.characterUpdates).length > 0 && (
+                <div className="space-y-2 mb-3">
+                  <div className="text-xs text-purple-400 flex items-center gap-1">
+                    <Brain size={12} /> Hero details to update:
+                  </div>
+                  <div className="text-xs text-gray-400 bg-black/20 p-2 rounded max-h-32 overflow-y-auto">
+                    {Object.entries(lastResponse.characterUpdates).map(([key, value]) => (
+                      <div key={key} className="mb-1">
+                        <span className="text-gray-300 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                        <span className="text-gray-500 ml-1">{String(value).substring(0, 60)}...</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
               
               {(lastResponse.newItems?.length || 0) > 0 && (

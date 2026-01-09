@@ -120,6 +120,7 @@ export const generateGameMasterResponse = async (
       YOUR TASK:
       1. Write a narrative response (Story Chapter) describing the outcome of the action or filling in the lore details requested.
       2. Determine if the game state changes (new items found, quests started/completed, stats changed).
+      3. If the player asks to fill in, generate, or modify character details (backstory, psychology, fears, talents, etc.), provide those in the characterUpdates field.
       
       OUTPUT FORMAT:
       Return ONLY a JSON object. Do not wrap in markdown code blocks.
@@ -130,10 +131,27 @@ export const generateGameMasterResponse = async (
         "updateQuests": [ { "title": "Existing Quest Name", "status": "completed" } ],
         "newItems": [ { "name": "Item Name", "type": "weapon/potion/etc", "description": "...", "quantity": 1 } ],
         "removedItems": [ { "name": "Item Name", "quantity": 1 } ],
-        "statUpdates": { "health": 90 }
+        "statUpdates": { "health": 90 },
+        "characterUpdates": {
+          "identity": "Who they are at their core...",
+          "psychology": "Mental state and quirks...",
+          "breakingPoint": "What makes them snap...",
+          "moralCode": "Lines they won't cross...",
+          "fears": "Deep fears...",
+          "weaknesses": "Physical or mental flaws...",
+          "talents": "Natural aptitudes...",
+          "magicApproach": "Attitude toward magic...",
+          "factionAllegiance": "Guild/faction loyalties...",
+          "worldview": "How they see Tamriel...",
+          "daedricPerception": "View of Daedra...",
+          "forcedBehavior": "Compulsive behaviors...",
+          "longTermEvolution": "Character arc over time...",
+          "backstory": "Full backstory narrative..."
+        }
       }
       
-      If a field is not needed (e.g., no new items), omit it.
+      If a field is not needed (e.g., no new items, no character updates), omit it.
+      For characterUpdates, only include fields the player asked to generate or modify.
       Keep the tone immersive (Tamrielic).
     `;
 

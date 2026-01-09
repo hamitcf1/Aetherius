@@ -7,10 +7,28 @@
  * Features marked as WIP will show a badge in the UI.
  */
 
+// Admin user IDs (Firebase UIDs) - only these accounts can see admin features
+const ADMIN_UIDS: string[] = [
+  // Add your Firebase UID here, e.g.:
+  // 'abc123xyz456',
+];
+
+// Current user ID - set this from the auth context
+let currentUserId: string | null = null;
+
+export const setCurrentUser = (uid: string | null) => {
+  currentUserId = uid;
+};
+
+export const isAdmin = (): boolean => {
+  return currentUserId !== null && ADMIN_UIDS.includes(currentUserId);
+};
+
 export interface FeatureFlag {
   enabled: boolean;
   wip?: boolean; // Show "Work in Progress" badge
   label?: string; // Display label for WIP badge
+  adminOnly?: boolean; // Only visible to admin accounts
 }
 
 export const FEATURES = {
@@ -48,11 +66,19 @@ export const FEATURES = {
 
   // === EXPERIMENTAL ===
   multiplayerPresence: { enabled: false, wip: true, label: 'Experimental' },
+
+  // === ADMIN ONLY (only visible when logged in as admin) ===
+  debugPanel: { enabled: true, wip: false, adminOnly: true },
+  testFeatures: { enabled: true, wip: false, adminOnly: true },
+  adminTools: { enabled: true, wip: false, adminOnly: true },
 } as const satisfies Record<string, FeatureFlag>;
 
-// Helper to check if a feature is enabled
+// Helper to check if a feature is enabled (respects adminOnly)
 export const isFeatureEnabled = (feature: keyof typeof FEATURES): boolean => {
-  return FEATURES[feature]?.enabled ?? false;
+  const f = FEATURES[feature] as FeatureFlag;
+  if (!f) return false;
+  if (f.adminOnly && !isAdmin()) return false;
+  return f.enabled;
 };
 
 // Helper to check if a feature is WIP

@@ -15,6 +15,7 @@ import { CharacterSelect } from './components/CharacterSelect';
 import { OnboardingModal } from './components/OnboardingModal';
 import { User, Scroll, BookOpen, Skull, Package, Feather, LogOut, Users, Loader, Save, Swords } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { setCurrentUser as setFeatureFlagUser } from './featureFlags';
 import { 
   auth,
   onAuthChange, 
@@ -176,6 +177,8 @@ const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthChange(async (user) => {
       setCurrentUser(user);
+      // Update feature flags with current user for admin checks
+      setFeatureFlagUser(user?.uid || null);
       
       if (user) {
         try {
@@ -916,9 +919,37 @@ const App: React.FC = () => {
           typeof updates?.goldChange === 'number' ||
           typeof updates?.xpChange === 'number' ||
           typeof updates?.timeAdvanceMinutes === 'number' ||
-          (updates?.needsChange && Object.keys(updates.needsChange).length)
+          (updates?.needsChange && Object.keys(updates.needsChange).length) ||
+          (updates?.characterUpdates && Object.keys(updates.characterUpdates).length)
       );
       if (!hasAnyUpdate) return;
+
+      // 0a. Character detail updates (hero sheet fields)
+      if (updates.characterUpdates && Object.keys(updates.characterUpdates).length) {
+        setCharacters(prev => prev.map(c => {
+          if (c.id !== currentCharacterId) return c;
+          const updatedChar = { ...c };
+          const cu = updates.characterUpdates!;
+          if (cu.identity !== undefined) updatedChar.identity = cu.identity;
+          if (cu.psychology !== undefined) updatedChar.psychology = cu.psychology;
+          if (cu.breakingPoint !== undefined) updatedChar.breakingPoint = cu.breakingPoint;
+          if (cu.moralCode !== undefined) updatedChar.moralCode = cu.moralCode;
+          if (cu.allowedActions !== undefined) updatedChar.allowedActions = cu.allowedActions;
+          if (cu.forbiddenActions !== undefined) updatedChar.forbiddenActions = cu.forbiddenActions;
+          if (cu.fears !== undefined) updatedChar.fears = cu.fears;
+          if (cu.weaknesses !== undefined) updatedChar.weaknesses = cu.weaknesses;
+          if (cu.talents !== undefined) updatedChar.talents = cu.talents;
+          if (cu.magicApproach !== undefined) updatedChar.magicApproach = cu.magicApproach;
+          if (cu.factionAllegiance !== undefined) updatedChar.factionAllegiance = cu.factionAllegiance;
+          if (cu.worldview !== undefined) updatedChar.worldview = cu.worldview;
+          if (cu.daedricPerception !== undefined) updatedChar.daedricPerception = cu.daedricPerception;
+          if (cu.forcedBehavior !== undefined) updatedChar.forcedBehavior = cu.forcedBehavior;
+          if (cu.longTermEvolution !== undefined) updatedChar.longTermEvolution = cu.longTermEvolution;
+          if (cu.backstory !== undefined) updatedChar.backstory = cu.backstory;
+          setDirtyEntities(d => new Set([...d, c.id]));
+          return updatedChar;
+        }));
+      }
 
       // 0. Time & Needs (progression)
       const timeAdvance = Math.trunc(Number(updates.timeAdvanceMinutes || 0));
