@@ -92,6 +92,28 @@ const App: React.FC = () => {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // AI model selection (persisted per account when logged in)
+  const [aiModel, setAiModel] = useState<string>('gemini-2.0-flash');
+
+  useEffect(() => {
+    const key = currentUser?.uid ? `aetherius:aiModel:${currentUser.uid}` : 'aetherius:aiModel';
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) setAiModel(saved);
+    } catch {
+      // ignore
+    }
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
+    const key = currentUser?.uid ? `aetherius:aiModel:${currentUser.uid}` : 'aetherius:aiModel';
+    try {
+      localStorage.setItem(key, aiModel);
+    } catch {
+      // ignore
+    }
+  }, [aiModel, currentUser?.uid]);
+
   // Firebase Authentication Listener + Firestore Data Loading
   useEffect(() => {
     const unsubscribe = onAuthChange(async (user) => {
@@ -646,6 +668,8 @@ const App: React.FC = () => {
         <CharacterSelect 
             profiles={profiles}
             characters={characters}
+            aiModel={aiModel}
+            setAiModel={setAiModel}
             onCreateProfile={handleCreateProfile}
             onCreateCharacter={handleCreateCharacter}
             onSelectProfile={(p) => setCurrentProfileId(p.id)}
@@ -664,6 +688,8 @@ const App: React.FC = () => {
 
   return (
     <AppContext.Provider value={{
+      aiModel,
+      setAiModel,
       handleManualSave,
       isSaving,
       handleLogout,

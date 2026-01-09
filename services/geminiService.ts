@@ -9,9 +9,38 @@ if (apiKey) {
   ai = new GoogleGenAI({ apiKey });
 }
 
+const extractRetryAfterSeconds = (error: any): number | null => {
+  const haystack = `${error?.message || ''} ${error?.toString?.() || ''}`;
+
+  // Common format in SDK message: "Please retry in 58.736s."
+  const m1 = haystack.match(/retry in\s+([0-9]+(?:\.[0-9]+)?)s/i);
+  if (m1?.[1]) return Math.max(0, Math.round(parseFloat(m1[1])));
+
+  // Sometimes included as JSON-ish: "retryDelay":"58s" or retryDelay: "58s"
+  const m2 = haystack.match(/retryDelay\"?\s*[:=]\s*\"?([0-9]+)s\"?/i);
+  if (m2?.[1]) return Math.max(0, parseInt(m2[1], 10));
+
+  return null;
+};
+
+const isQuotaExceeded = (error: any): boolean => {
+  const msg = `${error?.message || ''} ${error?.status || ''} ${error?.code || ''}`.toLowerCase();
+  return msg.includes('resource_exhausted') || msg.includes('quota') || msg.includes('429');
+};
+
+const quotaNarrative = (modelId: string, error: any) => {
+  const retryAfter = extractRetryAfterSeconds(error);
+  const retryText = typeof retryAfter === 'number' ? ` Try again in ~${retryAfter}s.` : '';
+  return {
+    title: 'Quota Exceeded',
+    content: `*The aetherial currents are saturated...*\n\nQuota exceeded for model: ${modelId}.${retryText}\n\nTip: switch AI model in Settings (Gemma/Gemini) to continue.`,
+  };
+};
+
 export const generateGameMasterResponse = async (
   playerInput: string,
-  context: string
+  context: string,
+  modelId: string = 'gemini-3-flash-preview'
 ): Promise<GameStateUpdate> => {
   if (!ai) {
     throw new Error("API Key not found.");
@@ -48,7 +77,7 @@ export const generateGameMasterResponse = async (
     `;
 
     const response = await model.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: modelId,
       contents: fullPrompt,
       config: {
         responseMimeType: 'application/json'
@@ -64,6 +93,9 @@ export const generateGameMasterResponse = async (
     }
   } catch (error) {
     console.error("Gemini API Error:", error);
+    if (isQuotaExceeded(error)) {
+      return { narrative: quotaNarrative(modelId, error) };
+    }
     return { narrative: { title: "Connection Lost", content: "The connection to Aetherius is severed." } };
   }
 };
@@ -72,7 +104,8 @@ export const generateGameMasterResponse = async (
 export const generateAdventureResponse = async (
   playerInput: string,
   context: string,
-  systemPrompt: string
+  systemPrompt: string,
+  modelId: string = 'gemini-2.0-flash'
 ): Promise<GameStateUpdate> => {
   if (!ai) {
     throw new Error("API Key not found.");
@@ -91,7 +124,7 @@ export const generateAdventureResponse = async (
   The "narrative" field MUST be an object: { "title": "...", "content": "..." }.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: modelId,
       contents: fullPrompt,
       config: {
         responseMimeType: 'application/json'
@@ -114,6 +147,9 @@ export const generateAdventureResponse = async (
     }
   } catch (error) {
     console.error("Adventure API Error:", error);
+    if (isQuotaExceeded(error)) {
+      return { narrative: quotaNarrative(modelId, error) };
+    }
     return { narrative: { title: 'A Dragon Break', content: '*A dragon break disrupts the flow of time...* (API Error)' } };
   }
 };
@@ -152,7 +188,8 @@ export const generateLoreImage = async (prompt: string): Promise<string | null> 
 
 export const generateCharacterProfile = async (
     prompt: string, 
-    mode: 'random' | 'chat_result' | 'text_import' = 'random'
+  mode: 'random' | 'chat_result' | 'text_import' = 'random',
+  modelId: string = 'gemini-3-flash-preview'
 ): Promise<GeneratedCharacterData | null> => {
     if (!ai) return null;
 
@@ -242,7 +279,7 @@ export const generateCharacterProfile = async (
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+          model: modelId,
             contents: contents,
             config: { responseMimeType: 'application/json' }
         });
@@ -251,16 +288,20 @@ export const generateCharacterProfile = async (
         if (!text) return null;
         return JSON.parse(text) as GeneratedCharacterData;
     } catch (e) {
-        console.error("Character Gen Error", e);
+      console.error("Character Gen Error", e);
         return null;
     }
 };
 
-export const chatWithScribe = async (history: {role: 'user' | 'model', parts: [{ text: string }]}[], message: string) => {
+export const chatWithScribe = async (
+  history: {role: 'user' | 'model', parts: [{ text: string }]}[],
+  message: string,
+  modelId: string = 'gemini-3-flash-preview'
+) => {
     if (!ai) throw new Error("No API Key");
     
     const chat = ai.chats.create({
-        model: 'gemini-3-flash-preview',
+    model: modelId,
         history: history,
         config: {
             systemInstruction: "You are the Character Creation Scribe for a Skyrim RPG app. Your goal is to help the user create a character by asking them questions one by one. \n\nIMPORTANT: You MUST ask for the character's NAME at some point if the user hasn't provided it.\n\nStart by asking about their preferred playstyle or race. Ask 3-4 probing questions about their morality, background, gender, or goals. Keep responses short and immersive. Once you have enough info, or if the user asks to 'finish' or 'generate', output a SPECIAL TOKEN '[[GENERATE_CHARACTER]]' at the end of your message to signal the UI to trigger generation."
