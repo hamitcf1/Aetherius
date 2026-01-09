@@ -34,13 +34,15 @@ const ActionBar: React.FC = () => {
     inventory,
     aiModel,
     setAiModel,
-    characterLevel
+    characterLevel,
+    isAnonymous
   } = useAppContext();
   const [open, setOpen] = useState(false);
   const [snow, setSnow] = useState(false);
   const [snowIntensity, setSnowIntensity] = useState<SnowIntensity>('normal');
   const [showSnowOptions, setShowSnowOptions] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [showLogoutWarning, setShowLogoutWarning] = useState(false);
   // Ref for the button to align dropdown
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{left: number, top: number, width: number}>({left: 0, top: 0, width: 220});
@@ -157,8 +159,17 @@ const ActionBar: React.FC = () => {
           <button onClick={() => setCurrentCharacterId(null)} className="w-full flex items-center gap-2 px-3 py-2 bg-skyrim-dark text-skyrim-gold rounded font-bold">
             <Users size={16} /> Switch
           </button>
-          <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 bg-red-700 text-white rounded font-bold">
-            <LogOut size={16} /> Exit
+          <button 
+            onClick={() => {
+              if (isAnonymous) {
+                setShowLogoutWarning(true);
+              } else {
+                handleLogout();
+              }
+            }} 
+            className="w-full flex items-center gap-2 px-3 py-2 bg-red-700 text-white rounded font-bold"
+          >
+            <LogOut size={16} /> {isAnonymous ? 'Exit (Guest)' : 'Exit'}
           </button>
           <button onClick={handleCreateImagePrompt} className="w-full flex items-center gap-2 px-3 py-2 bg-blue-700 text-white rounded font-bold">
             <Sparkles size={16} /> Create Image Prompt
@@ -312,6 +323,54 @@ const ActionBar: React.FC = () => {
         onSell={handleShopSell}
         characterLevel={characterLevel}
       />
+
+      {/* Guest Logout Warning Modal */}
+      {showLogoutWarning && createPortal(
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[2000] p-4">
+          <div className="bg-skyrim-paper border-2 border-red-600 rounded-lg shadow-2xl p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-900/50 rounded-full flex items-center justify-center">
+                <LogOut size={20} className="text-red-400" />
+              </div>
+              <h3 className="text-xl font-serif text-red-400">Warning: Guest Account</h3>
+            </div>
+            
+            <p className="text-gray-300 mb-4">
+              You are logged in as a <strong className="text-yellow-400">guest</strong>. If you exit now, you will <strong className="text-red-400">permanently lose all your data</strong> including:
+            </p>
+            
+            <ul className="text-gray-400 text-sm mb-6 space-y-1 ml-4">
+              <li>• All characters and their progress</li>
+              <li>• Inventory, gold, and items</li>
+              <li>• Quest logs and journal entries</li>
+              <li>• Story chapters and adventure history</li>
+            </ul>
+
+            <p className="text-yellow-400 text-sm mb-6">
+              💡 Tip: Create an account to save your progress permanently!
+            </p>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLogoutWarning(false)}
+                className="flex-1 px-4 py-2 bg-skyrim-gold text-skyrim-dark font-bold rounded hover:bg-yellow-400 transition-colors"
+              >
+                Stay & Keep Playing
+              </button>
+              <button
+                onClick={() => {
+                  setShowLogoutWarning(false);
+                  handleLogout();
+                }}
+                className="flex-1 px-4 py-2 bg-red-700 text-white font-bold rounded hover:bg-red-600 transition-colors"
+              >
+                Exit Anyway
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 };

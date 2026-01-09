@@ -35,6 +35,66 @@ CORE RULES:
 6. If the player does something impossible or lore-breaking, gently redirect them.
 7. End responses with a clear situation the player can respond to.
 
+=== SURVIVAL NEEDS SYSTEM (IMPORTANT) ===
+
+The character has survival needs tracked on a 0-100 scale:
+- hunger: 0 = satisfied, 100 = starving
+- thirst: 0 = hydrated, 100 = dehydrated  
+- fatigue: 0 = rested, 100 = exhausted
+
+TIME & NEEDS PROGRESSION:
+- When time passes naturally (travel, waiting, activities), update needs appropriately
+- Light activity: +5-10 hunger/thirst per hour, +2-5 fatigue
+- Moderate activity (combat, running): +15-20 hunger/thirst, +10-15 fatigue
+- Heavy exertion: +25-30 hunger/thirst, +20-30 fatigue
+
+AUTO-CONSUMPTION RULES:
+- When hunger > 70: If player has food items, automatically suggest/consume food
+- When thirst > 70: If player has drink items, automatically suggest/consume drinks
+- When fatigue > 80: Warn player about exhaustion, suggest rest
+
+REST HANDLING:
+- Player says "rest", "sleep", "make camp", etc: Handle it IN THE ADVENTURE
+- With bedroll/tent: Good rest, fatigue reduced by 60-80, hunger/thirst +10-20
+- At inn with bed: Excellent rest, fatigue reduced by 80-100, hunger/thirst +5-10
+- Sleeping rough: Poor rest, fatigue reduced by 30-50, hunger/thirst +20-30
+- Use timeAdvanceMinutes to advance 6-8 hours for a full rest
+- Use needsChange to reduce fatigue and apply any hunger/thirst increase
+
+EATING/DRINKING IN ADVENTURE:
+- When player eats food: Remove the item via removedItems, reduce hunger by 20-40
+- When player drinks: Remove the item via removedItems, reduce thirst by 20-40
+- Always narrate the consumption naturally
+
+NEED EFFECTS (Narrate these when high):
+- hunger > 60: Character feels hungry, stomach growls
+- hunger > 80: Weakness from hunger, difficulty concentrating
+- thirst > 60: Throat dry, craving water
+- thirst > 80: Dehydration symptoms, headache
+- fatigue > 60: Yawning, heavy limbs
+- fatigue > 80: Stumbling, blurred vision, penalties to actions
+
+=== EXPERIENCE & LEVELING SYSTEM ===
+
+XP REWARDS (use xpChange field):
+- Minor achievement (good roleplay, clever solution): 5-10 XP
+- Defeating minor enemy: 10-15 XP
+- Defeating challenging enemy: 20-30 XP
+- Completing quest objective: 15-25 XP
+- Completing full quest: 30-50 XP
+- Major story milestone: 50-100 XP
+- Exceptional roleplay or creative solution: 20-40 XP bonus
+
+When to award XP:
+- After combat victories
+- When quest objectives are completed
+- For clever problem-solving
+- For significant character growth moments
+- Do NOT award XP for trivial actions
+
+Level thresholds: 100 XP per level (Level 2 = 100 XP, Level 3 = 200 XP, etc.)
+The game will handle level-ups automatically when XP threshold is reached.
+
 === SIMULATION STATE RULES (CRITICAL) ===
 
 NPC IDENTITY CONSISTENCY:
@@ -301,11 +361,29 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     scrollToBottom();
   }, [messages]);
 
+  // XP threshold for leveling - 100 XP per level
+  const XP_PER_LEVEL = 100;
+  
   const buildContext = () => {
     if (!character) return '';
     
     // Get simulation context if available
     const simulationContext = simulationManagerRef.current?.buildContext() || '';
+    
+    // Calculate XP progress toward next level
+    const currentXP = character.experience || 0;
+    const xpForNextLevel = (character.level || 1) * XP_PER_LEVEL;
+    const xpProgress = currentXP % XP_PER_LEVEL;
+    
+    // Categorize food and drink items in inventory
+    const foodItems = inventory.filter(i => i.type === 'food' && (i.quantity || 0) > 0);
+    const drinkItems = inventory.filter(i => (i.type === 'drink' || i.type === 'potion') && (i.quantity || 0) > 0);
+    const restItems = inventory.filter(i => 
+      i.name.toLowerCase().includes('bedroll') || 
+      i.name.toLowerCase().includes('tent') || 
+      i.name.toLowerCase().includes('camping') ||
+      i.name.toLowerCase().includes('sleeping bag')
+    );
     
     return JSON.stringify({
       character: {
@@ -314,13 +392,24 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         gender: character.gender,
         archetype: character.archetype,
         level: character.level,
+        experience: currentXP,
+        xpToNextLevel: xpForNextLevel,
+        xpProgress: xpProgress,
+        gold: character.gold || 0,
         stats: character.stats,
+        needs: character.needs || { hunger: 0, thirst: 0, fatigue: 0 },
+        time: character.time || { day: 1, hour: 8, minute: 0 },
         identity: character.identity,
         psychology: character.psychology,
         moralCode: character.moralCode,
         allowedActions: character.allowedActions,
         forbiddenActions: character.forbiddenActions,
         skills: character.skills?.slice(0, 6),
+      },
+      survivalResources: {
+        foodItems: foodItems.slice(0, 10).map(i => ({ name: i.name, qty: i.quantity })),
+        drinkItems: drinkItems.slice(0, 10).map(i => ({ name: i.name, qty: i.quantity })),
+        restItems: restItems.slice(0, 5).map(i => ({ name: i.name, qty: i.quantity })),
       },
       inventory: inventory.slice(0, 25).map(i => ({ name: i.name, type: i.type, qty: i.quantity })),
       quests: quests.slice(0, 20).map(q => ({ title: q.title, status: q.status, location: q.location, description: q.description })),
@@ -893,7 +982,8 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                     <>
                       {/* Inline item changes (always show) */}
                       {(msg.updates.removedItems?.length || msg.updates.newItems?.length || 
-                        (typeof msg.updates.goldChange === 'number' && msg.updates.goldChange !== 0)) && (
+                        (typeof msg.updates.goldChange === 'number' && msg.updates.goldChange !== 0) ||
+                        (typeof msg.updates.xpChange === 'number' && msg.updates.xpChange !== 0)) && (
                         <div className="mt-1 flex flex-wrap gap-2 text-xs font-sans">
                           {msg.updates.removedItems?.map((item, idx) => (
                             <span key={`removed-${idx}`} className="text-red-400 bg-red-900/20 px-2 py-0.5 rounded border border-red-900/30">
@@ -912,6 +1002,15 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                                 : 'text-orange-400 bg-orange-900/20 border-orange-900/30'
                             }`}>
                               {msg.updates.goldChange > 0 ? '+' : ''}{msg.updates.goldChange} gold
+                            </span>
+                          )}
+                          {typeof msg.updates.xpChange === 'number' && msg.updates.xpChange !== 0 && (
+                            <span className={`px-2 py-0.5 rounded border ${
+                              msg.updates.xpChange > 0 
+                                ? 'text-purple-400 bg-purple-900/20 border-purple-900/30' 
+                                : 'text-gray-400 bg-gray-900/20 border-gray-900/30'
+                            }`}>
+                              {msg.updates.xpChange > 0 ? '+' : ''}{msg.updates.xpChange} XP ✨
                             </span>
                           )}
                         </div>

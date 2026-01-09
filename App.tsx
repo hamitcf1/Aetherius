@@ -22,6 +22,7 @@ import {
   onAuthChange, 
   registerUser, 
   loginUser, 
+  loginAnonymously,
   logoutUser,
   sendPasswordReset
 } from './services/firebase';
@@ -544,6 +545,16 @@ const App: React.FC = () => {
     }
   };
 
+  const handleGuestLogin = async () => {
+    setAuthError(null);
+    try {
+      await loginAnonymously();
+      setAuthError(null);
+    } catch (error: any) {
+      setAuthError('Guest login failed: ' + error.message);
+    }
+  };
+
   const handleForgotPassword = async (email: string) => {
     setAuthError(null);
     setResetEmailSent(false);
@@ -627,6 +638,22 @@ const App: React.FC = () => {
               >
                 Login
               </button>
+
+              <div className="relative flex items-center my-4">
+                <div className="flex-grow border-t border-gray-600"></div>
+                <span className="flex-shrink mx-3 text-gray-500 text-sm">or</span>
+                <div className="flex-grow border-t border-gray-600"></div>
+              </div>
+
+              <button 
+                onClick={handleGuestLogin}
+                className="w-full bg-gray-700 text-gray-200 font-bold py-2 rounded hover:bg-gray-600 transition-colors border border-gray-600"
+              >
+                🎮 Continue as Guest
+              </button>
+              <p className="text-gray-500 text-xs text-center">
+                Guest data is saved but may be lost if you clear browser data
+              </p>
               
               <div className="text-center space-y-2">
                 <button
@@ -1285,12 +1312,58 @@ const App: React.FC = () => {
          }));
       }
 
-      // 6b. XP
+      // 6b. XP with Level-Up Check
+      const XP_PER_LEVEL = 100;
+      let levelUpInfo: { newLevel: number; charName: string; statBonus: { health: number; magicka: number; stamina: number } } | null = null;
+      
       if (typeof updates.xpChange === 'number' && updates.xpChange !== 0) {
         setCharacters(prev => prev.map(c => {
           if (c.id !== currentCharacterId) return c;
           setDirtyEntities(prev => new Set([...prev, c.id]));
-          return { ...c, experience: (c.experience || 0) + (updates.xpChange || 0) };
+          
+          const newXP = (c.experience || 0) + (updates.xpChange || 0);
+          const currentLevel = c.level || 1;
+          const xpForNextLevel = currentLevel * XP_PER_LEVEL;
+          
+          // Check if we leveled up
+          if (newXP >= xpForNextLevel) {
+            const newLevel = currentLevel + 1;
+            const remainingXP = newXP - xpForNextLevel;
+            
+            // Bonus stats on level up: +10 to health, magicka, or stamina based on archetype
+            const statBonus = { health: 0, magicka: 0, stamina: 0 };
+            const archetype = c.archetype?.toLowerCase() || '';
+            if (archetype.includes('mage') || archetype.includes('wizard') || archetype.includes('sorcerer')) {
+              statBonus.magicka = 10;
+              statBonus.health = 5;
+            } else if (archetype.includes('thief') || archetype.includes('rogue') || archetype.includes('assassin')) {
+              statBonus.stamina = 10;
+              statBonus.health = 5;
+            } else {
+              statBonus.health = 10;
+              statBonus.stamina = 5;
+            }
+            
+            // Store level-up info for journal entry
+            levelUpInfo = { newLevel, charName: c.name, statBonus };
+            
+            // Show level-up message briefly
+            setSaveMessage(`🎉 LEVEL UP! ${c.name} is now level ${newLevel}!`);
+            setTimeout(() => setSaveMessage(null), 4000);
+            
+            return {
+              ...c,
+              level: newLevel,
+              experience: remainingXP,
+              stats: {
+                health: (c.stats?.health || 100) + statBonus.health,
+                magicka: (c.stats?.magicka || 100) + statBonus.magicka,
+                stamina: (c.stats?.stamina || 100) + statBonus.stamina
+              }
+            };
+          }
+          
+          return { ...c, experience: newXP };
         }));
       }
 
@@ -1343,6 +1416,16 @@ const App: React.FC = () => {
       if (typeof updates.xpChange === 'number' && updates.xpChange !== 0) {
         if (updates.xpChange > 0) changes.push(`I gained ${updates.xpChange} experience.`);
         else changes.push(`I lost ${Math.abs(updates.xpChange)} experience.`);
+        
+        // Add level-up entry if it occurred
+        if (levelUpInfo) {
+          changes.push(`🎉 I LEVELED UP! I am now level ${levelUpInfo.newLevel}!`);
+          const bonusParts: string[] = [];
+          if (levelUpInfo.statBonus.health > 0) bonusParts.push(`+${levelUpInfo.statBonus.health} Health`);
+          if (levelUpInfo.statBonus.magicka > 0) bonusParts.push(`+${levelUpInfo.statBonus.magicka} Magicka`);
+          if (levelUpInfo.statBonus.stamina > 0) bonusParts.push(`+${levelUpInfo.statBonus.stamina} Stamina`);
+          if (bonusParts.length) changes.push(`My training has paid off: ${bonusParts.join(', ')}.`);
+        }
       }
 
       if (updates.needsChange && Object.keys(updates.needsChange).length) {
@@ -1466,6 +1549,7 @@ const App: React.FC = () => {
       setCurrentCharacterId,
       aiModel,
       setAiModel,
+      isAnonymous: currentUser?.isAnonymous || false,
       handleExportPDF: () => {}, // TODO: Implement export
       isExporting: false, // TODO: Implement export state
       handleGenerateProfileImage: async () => {

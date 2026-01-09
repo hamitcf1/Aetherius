@@ -5,6 +5,7 @@ import {
   getAuth, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
+  signInAnonymously,
   signOut,
   onAuthStateChanged,
   User,
@@ -47,6 +48,10 @@ export const loginUser = (email: string, password: string) => {
 
 export const logoutUser = () => {
   return signOut(auth);
+};
+
+export const loginAnonymously = () => {
+  return signInAnonymously(auth);
 };
 
 export const onAuthChange = (callback: (user: User | null) => void) => {

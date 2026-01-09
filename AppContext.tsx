@@ -16,6 +16,8 @@ export interface AppContextType {
   isGeneratingProfileImage: boolean;
   handleCreateImagePrompt: () => void;
   handleUploadPhoto: () => void;
+  // Auth
+  isAnonymous: boolean;
   // Survival (now with modals)
   handleRestWithOptions: (options: RestOptions) => void;
   handleEatItem: (item: InventoryItem) => void;
