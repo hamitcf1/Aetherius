@@ -169,11 +169,11 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
       </div>
 
     <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-black/40 p-4 rounded border border-skyrim-border">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-1">
               <div className="p-3 bg-yellow-900/30 rounded-full border border-yellow-700 text-yellow-500">
                   <Coins size={24} />
               </div>
-              <div>
+              <div className="flex-1">
                   <div className="text-xs text-gray-400 uppercase tracking-widest">Gold Septims</div>
                   <input 
                     type="number" 
@@ -181,6 +181,9 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
                     onChange={(e) => setGold(parseInt(e.target.value) || 0)}
                     className="bg-transparent text-2xl font-serif text-yellow-500 w-32 focus:outline-none"
                   />
+                  <div className="text-[10px] text-amber-500 mt-1">
+                    ⚠ Manually adjust only if needed. Shop transactions are automatic.
+                  </div>
               </div>
           </div>
           <button 
@@ -193,6 +196,9 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
 
       {isAdding && (
          <div className="mb-6 bg-skyrim-paper border border-skyrim-gold p-4 rounded flex flex-col gap-4 animate-in fade-in">
+             <div className="bg-amber-900/30 border border-amber-600 rounded px-3 py-2 text-amber-200 text-sm">
+               <strong>⚠ Manual Add:</strong> Only use this if you cannot find the item you want in the shop. Remember to manually deduct the gold cost from yourself.
+             </div>
              <div className="w-full">
                  <label className="text-xs text-gray-500 uppercase">Quick Select</label>
                  <select className="w-full bg-black/40 border border-skyrim-border p-2 rounded text-gray-200 text-sm" onChange={handleQuickSelect} defaultValue={-1}>

@@ -27,6 +27,7 @@ export interface AppContextType {
   inventory: InventoryItem[];
   hasCampingGear: boolean;
   hasBedroll: boolean;
+  characterLevel: number;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);

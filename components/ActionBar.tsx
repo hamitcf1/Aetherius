@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, Snowflake, ShoppingBag, Coins, X } from 'lucide-react';
 import SnowEffect from './SnowEffect';
 import { useAppContext } from '../AppContext';
-import { isFeatureEnabled } from '../featureFlags';
+import { isFeatureEnabled, isFeatureWIP, getFeatureLabel } from '../featureFlags';
 import { PREFERRED_AI_MODELS } from '../services/geminiService';
 import { ShopModal } from './ShopModal';
 
@@ -24,7 +24,8 @@ const ActionBar: React.FC = () => {
     gold,
     inventory,
     aiModel,
-    setAiModel
+    setAiModel,
+    characterLevel
   } = useAppContext();
   const [open, setOpen] = useState(false);
   const [snow, setSnow] = useState(false);
@@ -154,17 +155,47 @@ const ActionBar: React.FC = () => {
           <button onClick={handleCreateImagePrompt} className="flex items-center gap-2 px-3 py-2 bg-blue-700 text-white rounded font-bold">
             <Sparkles size={16} /> Create Image Prompt
           </button>
-          {isFeatureEnabled('photoUpload') && (
-            <label className="flex items-center gap-2 px-3 py-2 bg-green-700 text-white rounded font-bold cursor-pointer">
+          
+          {/* Upload Photo - show as disabled if feature not enabled */}
+          <div className="relative group">
+            <label 
+              className={`flex items-center gap-2 px-3 py-2 rounded font-bold ${
+                isFeatureEnabled('photoUpload') 
+                  ? 'bg-green-700 text-white cursor-pointer hover:bg-green-600' 
+                  : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
+              }`}
+            >
               <ImageIcon size={16} /> Upload Photo
-              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUploadPhoto} />
+              {isFeatureEnabled('photoUpload') && (
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUploadPhoto} />
+              )}
             </label>
-          )}
-          {isFeatureEnabled('exportPDF') && (
-            <button onClick={handleExportPDF} disabled={isExporting} className="flex items-center gap-2 px-3 py-2 bg-skyrim-gold text-skyrim-dark rounded font-bold disabled:opacity-50">
+            {!isFeatureEnabled('photoUpload') && (
+              <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-50 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+                {getFeatureLabel('photoUpload') || 'Work in Progress'}
+              </div>
+            )}
+          </div>
+          
+          {/* Export PDF - show as disabled if feature not enabled */}
+          <div className="relative group">
+            <button 
+              onClick={isFeatureEnabled('exportPDF') ? handleExportPDF : undefined}
+              disabled={!isFeatureEnabled('exportPDF') || isExporting}
+              className={`flex items-center gap-2 px-3 py-2 rounded font-bold ${
+                isFeatureEnabled('exportPDF')
+                  ? 'bg-skyrim-gold text-skyrim-dark hover:bg-yellow-400 disabled:opacity-50'
+                  : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
+              }`}
+            >
               <Download size={16} /> {isExporting ? 'Generating...' : 'Export Full Record'}
             </button>
-          )}
+            {!isFeatureEnabled('exportPDF') && (
+              <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-50 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+                {getFeatureLabel('exportPDF') || 'Work in Progress'}
+              </div>
+            )}
+          </div>
 
           {/* Shop Button */}
           <div className="border-t border-skyrim-border/60 pt-3">
@@ -180,17 +211,46 @@ const ActionBar: React.FC = () => {
             </button>
           </div>
 
-          {isFeatureEnabled('aiProfileImage') && (
-            <button onClick={handleGenerateProfileImage} disabled={isGeneratingProfileImage} className="flex items-center gap-2 px-3 py-2 bg-skyrim-accent text-white rounded font-bold disabled:opacity-50">
+          {/* AI Profile Image - show as disabled if feature not enabled */}
+          <div className="relative group">
+            <button 
+              onClick={isFeatureEnabled('aiProfileImage') ? handleGenerateProfileImage : undefined}
+              disabled={!isFeatureEnabled('aiProfileImage') || isGeneratingProfileImage}
+              className={`flex items-center gap-2 px-3 py-2 rounded font-bold ${
+                isFeatureEnabled('aiProfileImage')
+                  ? 'bg-skyrim-accent text-white hover:bg-purple-700 disabled:opacity-50'
+                  : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
+              }`}
+            >
               {isGeneratingProfileImage ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
               {isGeneratingProfileImage ? 'Generating...' : 'Generate Profile Photo'}
             </button>
-          )}
-          {isFeatureEnabled('snowEffect') && (
-            <button onClick={() => setSnow((s) => !s)} className={`flex items-center gap-2 px-3 py-2 rounded font-bold ${snow ? 'bg-blue-200 text-blue-900' : 'bg-blue-900 text-white'}`}>
+            {!isFeatureEnabled('aiProfileImage') && (
+              <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-50 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+                {getFeatureLabel('aiProfileImage') || 'Work in Progress'}
+              </div>
+            )}
+          </div>
+          
+          {/* Snow Effect - show as disabled if feature not enabled */}
+          <div className="relative group">
+            <button 
+              onClick={isFeatureEnabled('snowEffect') ? () => setSnow((s) => !s) : undefined}
+              disabled={!isFeatureEnabled('snowEffect')}
+              className={`flex items-center gap-2 px-3 py-2 rounded font-bold ${
+                isFeatureEnabled('snowEffect')
+                  ? (snow ? 'bg-blue-200 text-blue-900' : 'bg-blue-900 text-white hover:bg-blue-800')
+                  : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
+              }`}
+            >
               <Snowflake size={16} /> {snow ? 'Disable Snow Effect' : 'Snow Effect'}
             </button>
-          )}
+            {!isFeatureEnabled('snowEffect') && (
+              <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-50 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+                {getFeatureLabel('snowEffect') || 'Work in Progress'}
+              </div>
+            )}
+          </div>
         </div>,
         document.body
       )}
@@ -202,6 +262,7 @@ const ActionBar: React.FC = () => {
         onPurchase={handleShopPurchase}
         inventory={inventory}
         onSell={handleShopSell}
+        characterLevel={characterLevel}
       />
     </>
   );

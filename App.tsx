@@ -1395,6 +1395,7 @@ const App: React.FC = () => {
       inventory: getCharacterItems(),
       hasCampingGear,
       hasBedroll,
+      characterLevel: activeCharacter?.level || 1,
     }}>
       <div className="min-h-screen bg-skyrim-dark text-skyrim-text font-sans selection:bg-skyrim-gold selection:text-skyrim-dark">
         <OnboardingModal open={onboardingOpen} onComplete={completeOnboarding} />
