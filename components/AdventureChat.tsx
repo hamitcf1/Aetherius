@@ -11,6 +11,7 @@ interface ChatMessage {
 }
 
 interface AdventureChatProps {
+  userId?: string | null;
   character: Character | null;
   inventory: InventoryItem[];
   quests: CustomQuest[];
@@ -44,6 +45,7 @@ Return ONLY a JSON object:
 Only include fields that changed. The narrative field is always required.`;
 
 export const AdventureChat: React.FC<AdventureChatProps> = ({
+  userId,
   character,
   inventory,
   quests,
@@ -63,6 +65,32 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
 
   useEffect(() => {
     if (!character) return;
+
+    // Prefer Firestore sync when authenticated
+    if (userId) {
+      (async () => {
+        try {
+          const { loadAdventureMessages } = await import('../services/firestore');
+          const loaded = await loadAdventureMessages(userId, character.id);
+          if (Array.isArray(loaded)) {
+            setMessages(loaded as unknown as ChatMessage[]);
+          }
+        } catch (e) {
+          console.warn('Failed to load adventure messages from Firestore; falling back to local storage.', e);
+          try {
+            const raw = localStorage.getItem(storageKey);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) setMessages(parsed);
+          } catch {
+            // ignore
+          }
+        }
+      })();
+      return;
+    }
+
+    // Local-only persistence
     try {
       const raw = localStorage.getItem(storageKey);
       if (!raw) return;
@@ -74,16 +102,17 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       // ignore
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [character?.id]);
+  }, [character?.id, userId]);
 
   useEffect(() => {
     if (!character) return;
+    if (userId) return; // Firestore handles persistence
     try {
       localStorage.setItem(storageKey, JSON.stringify(messages));
     } catch {
       // ignore
     }
-  }, [messages, character, storageKey]);
+  }, [messages, character, storageKey, userId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -132,6 +161,12 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     setInput('');
     setLoading(true);
 
+    if (userId) {
+      void import('../services/firestore')
+        .then(m => m.saveAdventureMessage(userId, character.id, playerMessage))
+        .catch(e => console.warn('Failed to save player message to Firestore', e));
+    }
+
     try {
       const { generateAdventureResponse } = await import('../services/geminiService');
       const context = buildContext();
@@ -147,6 +182,12 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
 
       setMessages(prev => [...prev, gmMessage]);
 
+      if (userId) {
+        void import('../services/firestore')
+          .then(m => m.saveAdventureMessage(userId, character.id, gmMessage))
+          .catch(e => console.warn('Failed to save GM message to Firestore', e));
+      }
+
       // Auto-apply game state changes if enabled
       if (autoApply && result) {
         onUpdateState(result);
@@ -160,6 +201,12 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, errorMessage]);
+
+      if (userId) {
+        void import('../services/firestore')
+          .then(m => m.saveAdventureMessage(userId, character.id, errorMessage))
+          .catch(e => console.warn('Failed to save error message to Firestore', e));
+      }
     } finally {
       setLoading(false);
       inputRef.current?.focus();
@@ -182,11 +229,26 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       timestamp: Date.now()
     };
     setMessages([intro]);
+
+    if (userId) {
+      void import('../services/firestore')
+        .then(async m => {
+          await m.clearAdventureMessages(userId, character.id);
+          await m.saveAdventureMessage(userId, character.id, intro);
+        })
+        .catch(e => console.warn('Failed to reset adventure messages in Firestore', e));
+    }
   };
 
   const clearChat = () => {
     if (confirm('Clear all messages and start fresh?')) {
       setMessages([]);
+
+      if (userId && character) {
+        void import('../services/firestore')
+          .then(m => m.clearAdventureMessages(userId, character.id))
+          .catch(e => console.warn('Failed to clear adventure messages in Firestore', e));
+      }
     }
   };
 

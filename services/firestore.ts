@@ -17,7 +17,15 @@ import {
   QueryConstraint
 } from 'firebase/firestore';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { Character, CustomQuest, InventoryItem, JournalEntry, StoryChapter, UserProfile } from '../types';
+import { Character, CustomQuest, InventoryItem, JournalEntry, StoryChapter, UserProfile, GameStateUpdate } from '../types';
+
+export interface AdventureMessage {
+  id: string;
+  role: 'player' | 'gm';
+  content: string;
+  timestamp: number;
+  updates?: GameStateUpdate;
+}
 
 // Get app instance
 const getFirebaseApp = () => {
@@ -408,4 +416,65 @@ export const ensureCharacterDefaults = (character: Character): Character => {
     lastPlayed: Date.now(),
     ...character,
   };
+};
+
+// ===== ADVENTURE CHAT (PER CHARACTER) =====
+
+const removeUndefinedDeep = (value: any): any => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (Array.isArray(value)) {
+    return value
+      .map(v => removeUndefinedDeep(v))
+      .filter(v => v !== undefined);
+  }
+  if (typeof value === 'object') {
+    const out: any = {};
+    for (const [k, v] of Object.entries(value)) {
+      const cleaned = removeUndefinedDeep(v);
+      if (cleaned !== undefined) out[k] = cleaned;
+    }
+    return out;
+  }
+  return value;
+};
+
+export const saveAdventureMessage = async (
+  uid: string,
+  characterId: string,
+  message: AdventureMessage
+): Promise<void> => {
+  const db = getDb();
+  const docRef = doc(db, 'users', uid, 'characters', characterId, 'adventureMessages', message.id);
+  await setDoc(docRef, removeUndefinedDeep(message), { merge: true });
+};
+
+export const loadAdventureMessages = async (
+  uid: string,
+  characterId: string
+): Promise<AdventureMessage[]> => {
+  const db = getDb();
+  const collRef = collection(
+    db,
+    'users',
+    uid,
+    'characters',
+    characterId,
+    'adventureMessages'
+  ) as CollectionReference<AdventureMessage>;
+
+  const q = query(collRef, orderBy('timestamp', 'asc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(d => d.data());
+};
+
+export const clearAdventureMessages = async (uid: string, characterId: string): Promise<void> => {
+  const db = getDb();
+  const collRef = collection(db, 'users', uid, 'characters', characterId, 'adventureMessages');
+  const snapshot = await getDocs(collRef);
+  if (snapshot.empty) return;
+
+  const batch = writeBatch(db);
+  snapshot.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
 };
