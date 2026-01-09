@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, User, Snowflake } from 'lucide-react';
+import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, Snowflake, ShoppingBag, Coins, X } from 'lucide-react';
 import SnowEffect from './SnowEffect';
 import { useAppContext } from '../AppContext';
 import { PREFERRED_AI_MODELS } from '../services/geminiService';
+import { ShopModal } from './ShopModal';
 
 const ActionBar: React.FC = () => {
   const {
@@ -17,14 +18,14 @@ const ActionBar: React.FC = () => {
     isGeneratingProfileImage,
     handleCreateImagePrompt,
     handleUploadPhoto,
-    handleRest,
-    handleEat,
-    handleDrink,
+    handleShopPurchase,
+    gold,
     aiModel,
     setAiModel
   } = useAppContext();
   const [open, setOpen] = useState(false);
   const [snow, setSnow] = useState(false);
+  const [shopOpen, setShopOpen] = useState(false);
   // Ref for the button to align dropdown
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{left: number, top: number, width: number}>({left: 0, top: 0, width: 220});
@@ -158,26 +159,20 @@ const ActionBar: React.FC = () => {
             <Download size={16} /> {isExporting ? 'Generating...' : 'Export Full Record'}
           </button>
 
-          {(typeof handleRest === 'function' || typeof handleEat === 'function' || typeof handleDrink === 'function') && (
-            <div className="border-t border-skyrim-border/60 pt-3 flex flex-col gap-2">
-              <div className="text-xs text-gray-500 font-bold">Survival</div>
-              {typeof handleRest === 'function' && (
-                <button onClick={handleRest} className="flex items-center gap-2 px-3 py-2 bg-skyrim-dark text-skyrim-gold rounded font-bold">
-                  Rest (8h)
-                </button>
-              )}
-              {typeof handleEat === 'function' && (
-                <button onClick={handleEat} className="flex items-center gap-2 px-3 py-2 bg-skyrim-dark text-skyrim-gold rounded font-bold">
-                  Eat
-                </button>
-              )}
-              {typeof handleDrink === 'function' && (
-                <button onClick={handleDrink} className="flex items-center gap-2 px-3 py-2 bg-skyrim-dark text-skyrim-gold rounded font-bold">
-                  Drink
-                </button>
-              )}
-            </div>
-          )}
+          {/* Shop Button */}
+          <div className="border-t border-skyrim-border/60 pt-3">
+            <button 
+              onClick={() => { setShopOpen(true); setOpen(false); }} 
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-amber-700 text-white rounded font-bold hover:bg-amber-600"
+            >
+              <ShoppingBag size={16} /> 
+              <span>Shop</span>
+              <span className="ml-auto flex items-center gap-1 text-yellow-300">
+                <Coins size={14} /> {gold}
+              </span>
+            </button>
+          </div>
+
           <button onClick={handleGenerateProfileImage} disabled={isGeneratingProfileImage} className="flex items-center gap-2 px-3 py-2 bg-skyrim-accent text-white rounded font-bold disabled:opacity-50">
             {isGeneratingProfileImage ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
             {isGeneratingProfileImage ? 'Generating...' : 'Generate Profile Photo'}
@@ -189,6 +184,12 @@ const ActionBar: React.FC = () => {
         document.body
       )}
       {snow && <SnowEffect />}
+      <ShopModal 
+        open={shopOpen} 
+        onClose={() => setShopOpen(false)} 
+        gold={gold} 
+        onPurchase={handleShopPurchase} 
+      />
     </>
   );
 };

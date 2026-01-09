@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Character, Milestone, Perk, InventoryItem, CustomQuest, JournalEntry, StoryChapter } from '../types';
-import { ChevronDown, ChevronRight, User, Brain, ShieldBan, Zap, Map, Activity, Info, Heart, Droplets, BicepsFlexed, CheckCircle, Circle, Trash2, Plus, Star, LayoutList, Layers, Ghost, Sparkles, ScrollText, Download, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, Brain, ShieldBan, Zap, Map, Activity, Info, Heart, Droplets, BicepsFlexed, CheckCircle, Circle, Trash2, Plus, Star, LayoutList, Layers, Ghost, Sparkles, ScrollText, Download, Image as ImageIcon, Loader2, Moon, Apple } from 'lucide-react';
 import { generateCharacterProfileImage } from '../services/geminiService';
+import { RestModal, EatModal, DrinkModal, type RestOptions } from './SurvivalModals';
 
 interface CharacterSheetProps {
   character: Character;
@@ -10,6 +11,12 @@ interface CharacterSheetProps {
   quests: CustomQuest[];
   journal: JournalEntry[];
   story: StoryChapter[];
+  // Survival handlers
+  onRest?: (options: RestOptions) => void;
+  onEat?: (item: InventoryItem) => void;
+  onDrink?: (item: InventoryItem) => void;
+  hasCampingGear?: boolean;
+  hasBedroll?: boolean;
 }
 
 const Section: React.FC<{ 
@@ -159,7 +166,12 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   inventory,
   quests,
   journal,
-  story
+  story,
+  onRest,
+  onEat,
+  onDrink,
+  hasCampingGear = false,
+  hasBedroll = false
 }) => {
   const [newMilestone, setNewMilestone] = useState('');
   const [newMilestoneLevel, setNewMilestoneLevel] = useState(1);
@@ -170,6 +182,11 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   const [perkSort, setPerkSort] = useState<'name' | 'skill'>('skill');
   const [isExporting, setIsExporting] = useState(false);
   const [isGeneratingProfileImage, setIsGeneratingProfileImage] = useState(false);
+  
+  // Survival modal states
+  const [restModalOpen, setRestModalOpen] = useState(false);
+  const [eatModalOpen, setEatModalOpen] = useState(false);
+  const [drinkModalOpen, setDrinkModalOpen] = useState(false);
 
     const time = (character as any).time || { day: 1, hour: 8, minute: 0 };
     const needs = (character as any).needs || { hunger: 0, thirst: 0, fatigue: 0 };
@@ -622,26 +639,101 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                         </div>
 
                         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            {([
-                                { key: 'hunger', label: 'Hunger', value: clampNeed(needs.hunger) },
-                                { key: 'thirst', label: 'Thirst', value: clampNeed(needs.thirst) },
-                                { key: 'fatigue', label: 'Fatigue', value: clampNeed(needs.fatigue) },
-                            ] as const).map(n => (
-                                <div key={n.key} className="bg-black/30 border border-skyrim-border/60 rounded p-3">
-                                    <div className="flex items-center justify-between text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">
-                                        <span>{n.label}</span>
-                                        <span className="text-gray-300">{n.value}</span>
-                                    </div>
-                                    <div className="h-2 bg-black rounded-full overflow-hidden border border-gray-800">
-                                        <div
-                                            className="h-full bg-skyrim-gold/70"
-                                            style={{ width: `${Math.max(0, Math.min(100, n.value))}%` }}
-                                        />
-                                    </div>
+                            {/* Hunger with Eat button */}
+                            <div className="bg-black/30 border border-skyrim-border/60 rounded p-3">
+                                <div className="flex items-center justify-between text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">
+                                    <span>Hunger</span>
+                                    <span className="text-gray-300">{clampNeed(needs.hunger)}</span>
                                 </div>
-                            ))}
+                                <div className="h-2 bg-black rounded-full overflow-hidden border border-gray-800 mb-2">
+                                    <div
+                                        className="h-full bg-orange-500/70"
+                                        style={{ width: `${Math.max(0, Math.min(100, clampNeed(needs.hunger)))}%` }}
+                                    />
+                                </div>
+                                {onEat && (
+                                    <button 
+                                        onClick={() => setEatModalOpen(true)}
+                                        className="w-full py-1.5 text-xs bg-orange-900/50 hover:bg-orange-800/50 text-orange-200 rounded border border-orange-700/50 flex items-center justify-center gap-1 transition-colors"
+                                    >
+                                        <Apple size={12} /> Eat
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Thirst with Drink button */}
+                            <div className="bg-black/30 border border-skyrim-border/60 rounded p-3">
+                                <div className="flex items-center justify-between text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">
+                                    <span>Thirst</span>
+                                    <span className="text-gray-300">{clampNeed(needs.thirst)}</span>
+                                </div>
+                                <div className="h-2 bg-black rounded-full overflow-hidden border border-gray-800 mb-2">
+                                    <div
+                                        className="h-full bg-blue-500/70"
+                                        style={{ width: `${Math.max(0, Math.min(100, clampNeed(needs.thirst)))}%` }}
+                                    />
+                                </div>
+                                {onDrink && (
+                                    <button 
+                                        onClick={() => setDrinkModalOpen(true)}
+                                        className="w-full py-1.5 text-xs bg-blue-900/50 hover:bg-blue-800/50 text-blue-200 rounded border border-blue-700/50 flex items-center justify-center gap-1 transition-colors"
+                                    >
+                                        <Droplets size={12} /> Drink
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Fatigue with Rest button */}
+                            <div className="bg-black/30 border border-skyrim-border/60 rounded p-3">
+                                <div className="flex items-center justify-between text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">
+                                    <span>Fatigue</span>
+                                    <span className="text-gray-300">{clampNeed(needs.fatigue)}</span>
+                                </div>
+                                <div className="h-2 bg-black rounded-full overflow-hidden border border-gray-800 mb-2">
+                                    <div
+                                        className="h-full bg-purple-500/70"
+                                        style={{ width: `${Math.max(0, Math.min(100, clampNeed(needs.fatigue)))}%` }}
+                                    />
+                                </div>
+                                {onRest && (
+                                    <button 
+                                        onClick={() => setRestModalOpen(true)}
+                                        className="w-full py-1.5 text-xs bg-purple-900/50 hover:bg-purple-800/50 text-purple-200 rounded border border-purple-700/50 flex items-center justify-center gap-1 transition-colors"
+                                    >
+                                        <Moon size={12} /> Rest
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
+
+          {/* Survival Modals */}
+          {onRest && (
+            <RestModal
+              open={restModalOpen}
+              onClose={() => setRestModalOpen(false)}
+              onRest={onRest}
+              gold={character.gold || 0}
+              hasCampingGear={hasCampingGear}
+              hasBedroll={hasBedroll}
+            />
+          )}
+          {onEat && (
+            <EatModal
+              open={eatModalOpen}
+              onClose={() => setEatModalOpen(false)}
+              onEat={onEat}
+              foodItems={inventory}
+            />
+          )}
+          {onDrink && (
+            <DrinkModal
+              open={drinkModalOpen}
+              onClose={() => setDrinkModalOpen(false)}
+              onDrink={onDrink}
+              drinkItems={inventory}
+            />
+          )}
 
           <Section title="Identity & Psychology" icon={<User />} defaultOpen={true}>
              <div className="mb-4">

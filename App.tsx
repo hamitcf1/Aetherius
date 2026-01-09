@@ -643,11 +643,97 @@ const App: React.FC = () => {
       setDirtyEntities(prev => new Set([...prev, updatedChapter.id]));
   };
 
-  // Progression Actions (MVP)
-  const handleRest = () => {
+  // === SURVIVAL & SHOP HANDLERS ===
+
+  // Check for camping gear in inventory
+  const hasCampingGear = items.some(i => 
+    i.characterId === currentCharacterId && 
+    (i.quantity || 0) > 0 &&
+    ((i.name || '').toLowerCase().includes('camping kit') || (i.name || '').toLowerCase().includes('tent'))
+  );
+  
+  const hasBedroll = items.some(i => 
+    i.characterId === currentCharacterId && 
+    (i.quantity || 0) > 0 &&
+    (i.name || '').toLowerCase().includes('bedroll')
+  );
+
+  // Rest with options (outside/camp/inn, variable hours)
+  const handleRestWithOptions = (options: { type: 'outside' | 'camp' | 'inn'; hours: number; innCost?: number }) => {
     if (!currentCharacterId || !activeCharacter) return;
-    // Rest advances time and reduces fatigue.
-    handleGameUpdate({ timeAdvanceMinutes: 8 * 60, needsChange: { fatigue: -40 } });
+    
+    // Calculate fatigue reduction based on rest type
+    let fatigueReduction = 15; // outside (poor rest)
+    if (options.type === 'camp') {
+      if (hasCampingGear) fatigueReduction = 40;
+      else if (hasBedroll) fatigueReduction = 30;
+      else fatigueReduction = 15;
+    } else if (options.type === 'inn') {
+      fatigueReduction = 50;
+    }
+    
+    // Scale by hours (base is 8 hours)
+    const scaledReduction = Math.round(fatigueReduction * (options.hours / 8));
+    
+    // Deduct gold for inn
+    const goldChange = options.type === 'inn' && options.innCost ? -options.innCost : 0;
+    
+    handleGameUpdate({ 
+      timeAdvanceMinutes: options.hours * 60, 
+      needsChange: { fatigue: -scaledReduction },
+      goldChange
+    });
+  };
+
+  // Eat a specific item
+  const handleEatItem = (item: InventoryItem) => {
+    if (!currentCharacterId || !activeCharacter) return;
+    handleGameUpdate({
+      timeAdvanceMinutes: 10,
+      needsChange: { hunger: -25 },
+      removedItems: [{ name: item.name, quantity: 1 }]
+    });
+  };
+
+  // Drink a specific item
+  const handleDrinkItem = (item: InventoryItem) => {
+    if (!currentCharacterId || !activeCharacter) return;
+    handleGameUpdate({
+      timeAdvanceMinutes: 5,
+      needsChange: { thirst: -25 },
+      removedItems: [{ name: item.name, quantity: 1 }]
+    });
+  };
+
+  // Shop purchase handler
+  const handleShopPurchase = (shopItem: { name: string; type: string; description: string; price: number }, quantity: number) => {
+    if (!currentCharacterId || !activeCharacter) return;
+    const totalCost = shopItem.price * quantity;
+    if ((activeCharacter.gold || 0) < totalCost) {
+      alert('Not enough gold!');
+      return;
+    }
+    
+    handleGameUpdate({
+      goldChange: -totalCost,
+      newItems: [{
+        name: shopItem.name,
+        type: shopItem.type,
+        description: shopItem.description,
+        quantity
+      }]
+    });
+  };
+
+  // Legacy handlers (keep for backwards compatibility but they won't be used directly)
+  const handleRest = () => handleRestWithOptions({ type: 'outside', hours: 8 });
+  const handleEat = () => {
+    const food = pickConsumable('food');
+    if (food) handleEatItem(food);
+  };
+  const handleDrink = () => {
+    const drink = pickConsumable('drink');
+    if (drink) handleDrinkItem(drink);
   };
 
   const pickConsumable = (kind: 'food' | 'drink'): InventoryItem | null => {
@@ -697,34 +783,6 @@ const App: React.FC = () => {
       }
     }
     return best;
-  };
-
-  const handleEat = () => {
-    if (!currentCharacterId || !activeCharacter) return;
-    const food = pickConsumable('food');
-    if (!food) {
-      alert('No food found in your inventory. Add a food item (e.g., Bread, Apple, Stew) to use Eat.');
-      return;
-    }
-    handleGameUpdate({
-      timeAdvanceMinutes: 10,
-      needsChange: { hunger: -25 },
-      removedItems: [{ name: food.name, quantity: 1 }]
-    });
-  };
-
-  const handleDrink = () => {
-    if (!currentCharacterId || !activeCharacter) return;
-    const drink = pickConsumable('drink');
-    if (!drink) {
-      alert('No drink found in your inventory. Add a drink item (e.g., Water, Mead, Wine) to use Drink.');
-      return;
-    }
-    handleGameUpdate({
-      timeAdvanceMinutes: 5,
-      needsChange: { thirst: -25 },
-      removedItems: [{ name: drink.name, quantity: 1 }]
-    });
   };
   
   // Helper to get active data
@@ -1151,9 +1209,6 @@ const App: React.FC = () => {
       isSaving,
       handleLogout,
       setCurrentCharacterId,
-      handleRest,
-      handleEat,
-      handleDrink,
       aiModel,
       setAiModel,
       handleExportPDF: () => {}, // TODO: Implement export
@@ -1181,6 +1236,15 @@ const App: React.FC = () => {
         window.prompt('Copy this prompt for AI image generation:', prompt);
       },
       handleUploadPhoto: () => {}, // TODO: Implement upload
+      // New survival & shop handlers
+      handleRestWithOptions,
+      handleEatItem,
+      handleDrinkItem,
+      handleShopPurchase,
+      gold: activeCharacter?.gold || 0,
+      inventory: getCharacterItems(),
+      hasCampingGear,
+      hasBedroll,
     }}>
       <div className="min-h-screen bg-skyrim-dark text-skyrim-text font-sans selection:bg-skyrim-gold selection:text-skyrim-dark">
         <OnboardingModal open={onboardingOpen} onComplete={completeOnboarding} />
@@ -1244,6 +1308,11 @@ const App: React.FC = () => {
                 quests={getCharacterQuests()}
                 journal={getCharacterJournal()}
                 story={getCharacterStory()}
+                onRest={handleRestWithOptions}
+                onEat={handleEatItem}
+                onDrink={handleDrinkItem}
+                hasCampingGear={hasCampingGear}
+                hasBedroll={hasBedroll}
               />
             )}
             {activeTab === TABS.INVENTORY && activeCharacter && (
