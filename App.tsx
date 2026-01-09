@@ -13,6 +13,7 @@ import { AIScribe } from './components/AIScribe';
 import { AdventureChat } from './components/AdventureChat';
 import { CharacterSelect } from './components/CharacterSelect';
 import { OnboardingModal } from './components/OnboardingModal';
+import UpdateNotification from './components/UpdateNotification';
 import { User, Scroll, BookOpen, Skull, Package, Feather, LogOut, Users, Loader, Save, Swords } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { setCurrentUser as setFeatureFlagUser } from './featureFlags';
@@ -1435,7 +1436,7 @@ const App: React.FC = () => {
                 <Skull size={24} />
                 <span className="hidden md:inline">Skyrim Aetherius</span>
               </div>
-              <div className="flex flex-nowrap items-center gap-1 sm:gap-2 relative overflow-x-auto">
+              <div className="flex flex-nowrap items-center gap-1 sm:gap-2 relative overflow-hidden">
                 {[
                     { id: TABS.CHARACTER, icon: User, label: 'Hero' },
                     { id: TABS.INVENTORY, icon: Package, label: 'Items' },
@@ -1537,6 +1538,9 @@ const App: React.FC = () => {
 
         {/* AI Game Master */}
         <AIScribe contextData={getAIContext()} onUpdateState={handleGameUpdate} model={aiModel} />
+
+        {/* Update Notification */}
+        <UpdateNotification position="bottom" />
 
       </div>
     </AppContext.Provider>

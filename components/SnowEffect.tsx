@@ -1,16 +1,16 @@
 import React, { useEffect, useMemo, memo } from 'react';
 
 /**
- * Performance-optimized snow effect using CSS animations.
- * - Uses CSS transforms (GPU-accelerated) instead of JS-driven animation
- * - Reduces reflows/repaints by using transform instead of top/left
- * - Uses will-change hint for compositor optimization
- * - Memoized to prevent unnecessary re-renders
- * - Configurable intensity levels
+ * Clean Snow Effect using CSS animations only.
+ * - GPU-accelerated transforms
+ * - No visual bugs
+ * - Configurable intensity
  */
 
 export interface SnowSettings {
   intensity: 'light' | 'normal' | 'heavy' | 'blizzard';
+  enableMouseInteraction?: boolean;
+  enableAccumulation?: boolean;
 }
 
 const INTENSITY_MAP = {
@@ -37,9 +37,9 @@ const generateSnowflakes = (count: number): Snowflake[] => {
     size: 2 + Math.random() * 4,
     left: Math.random() * 100,
     delay: Math.random() * 10,
-    duration: 8 + Math.random() * 12, // 8-20 seconds to fall
+    duration: 8 + Math.random() * 12,
     opacity: 0.5 + Math.random() * 0.5,
-    drift: -15 + Math.random() * 30, // Horizontal drift
+    drift: -15 + Math.random() * 30,
   }));
 };
 
@@ -81,7 +81,10 @@ const injectStyles = () => {
 
     .snow-container {
       position: fixed;
-      inset: 0;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       overflow: hidden;
       pointer-events: none;
       z-index: 9999;
