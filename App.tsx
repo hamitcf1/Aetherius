@@ -367,7 +367,7 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-skyrim-dark flex items-center justify-center p-4">
         <div className="bg-skyrim-paper rounded-lg shadow-2xl p-8 max-w-md w-full border border-skyrim-gold/30">
           <h1 className="text-4xl font-serif font-bold text-skyrim-gold text-center mb-8 tracking-widest">SKYRIM</h1>
-          <p className="text-skyrim-text text-center mb-6">Aetherius'a Hoş Geldiniz</p>
+          <p className="text-skyrim-text text-center mb-6">Welcome to Aetherius</p>
           
           {authError && (
             <div className="bg-red-900/30 border border-red-700 rounded p-4 mb-4 text-red-200 text-sm">
@@ -378,21 +378,21 @@ const App: React.FC = () => {
           <div className="space-y-4">
             <input 
               type="text"
-              placeholder="Kullanıcı Adı"
+              placeholder="Username"
               className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
               value={loginUsername}
               onChange={(e) => setLoginUsername(e.target.value)}
             />
             <input 
               type="email"
-              placeholder="E-posta"
+              placeholder="Email"
               className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
               value={loginEmail}
               onChange={(e) => setLoginEmail(e.target.value)}
             />
             <input 
               type="password"
-              placeholder="Şifre"
+              placeholder="Password"
               className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
               value={loginPassword}
               onChange={(e) => setLoginPassword(e.target.value)}
@@ -402,19 +402,19 @@ const App: React.FC = () => {
               onClick={() => handleLogin(loginEmail, loginPassword)}
               className="w-full bg-skyrim-gold text-skyrim-dark font-bold py-2 rounded hover:bg-yellow-400 transition-colors"
             >
-              Giriş Yap
+              Login
             </button>
             
             <button 
               onClick={() => handleRegister(loginEmail, loginPassword, loginUsername)}
               className="w-full bg-skyrim-gold/20 text-skyrim-gold font-bold py-2 rounded border border-skyrim-gold hover:bg-skyrim-gold/30 transition-colors"
             >
-              Kayıt Ol
+              Register
             </button>
           </div>
           
           <p className="text-xs text-gray-500 text-center mt-6">
-            Demo amaçlı test e-postaları: test@example.com
+            Demo test emails: test@example.com
           </p>
         </div>
       </div>
