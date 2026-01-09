@@ -171,8 +171,8 @@ export function ShopModal({ open, onClose, gold, onPurchase }: ShopModalProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
-      <div className="w-full max-w-4xl max-h-[90vh] bg-skyrim-paper border border-skyrim-gold rounded-lg shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
+      <div className="w-full sm:max-w-4xl min-h-screen sm:min-h-0 sm:max-h-[90vh] bg-skyrim-paper border-0 sm:border border-skyrim-gold sm:rounded-lg shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
         <div className="p-4 border-b border-skyrim-border flex items-center justify-between gap-4 bg-skyrim-dark/50">
           <div className="flex items-center gap-3">

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, Snowflake, ShoppingBag, Coins, X } from 'lucide-react';
 import SnowEffect from './SnowEffect';
 import { useAppContext } from '../AppContext';
+import { isFeatureEnabled } from '../featureFlags';
 import { PREFERRED_AI_MODELS } from '../services/geminiService';
 import { ShopModal } from './ShopModal';
 
@@ -151,13 +152,17 @@ const ActionBar: React.FC = () => {
           <button onClick={handleCreateImagePrompt} className="flex items-center gap-2 px-3 py-2 bg-blue-700 text-white rounded font-bold">
             <Sparkles size={16} /> Create Image Prompt
           </button>
-          <label className="flex items-center gap-2 px-3 py-2 bg-green-700 text-white rounded font-bold cursor-pointer">
-            <ImageIcon size={16} /> Upload Photo
-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUploadPhoto} />
-          </label>
-          <button onClick={handleExportPDF} disabled={isExporting} className="flex items-center gap-2 px-3 py-2 bg-skyrim-gold text-skyrim-dark rounded font-bold disabled:opacity-50">
-            <Download size={16} /> {isExporting ? 'Generating...' : 'Export Full Record'}
-          </button>
+          {isFeatureEnabled('photoUpload') && (
+            <label className="flex items-center gap-2 px-3 py-2 bg-green-700 text-white rounded font-bold cursor-pointer">
+              <ImageIcon size={16} /> Upload Photo
+              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUploadPhoto} />
+            </label>
+          )}
+          {isFeatureEnabled('exportPDF') && (
+            <button onClick={handleExportPDF} disabled={isExporting} className="flex items-center gap-2 px-3 py-2 bg-skyrim-gold text-skyrim-dark rounded font-bold disabled:opacity-50">
+              <Download size={16} /> {isExporting ? 'Generating...' : 'Export Full Record'}
+            </button>
+          )}
 
           {/* Shop Button */}
           <div className="border-t border-skyrim-border/60 pt-3">
@@ -173,13 +178,17 @@ const ActionBar: React.FC = () => {
             </button>
           </div>
 
-          <button onClick={handleGenerateProfileImage} disabled={isGeneratingProfileImage} className="flex items-center gap-2 px-3 py-2 bg-skyrim-accent text-white rounded font-bold disabled:opacity-50">
-            {isGeneratingProfileImage ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
-            {isGeneratingProfileImage ? 'Generating...' : 'Generate Profile Photo'}
-          </button>
-          <button onClick={() => setSnow((s) => !s)} className={`flex items-center gap-2 px-3 py-2 rounded font-bold ${snow ? 'bg-blue-200 text-blue-900' : 'bg-blue-900 text-white'}`}>
-            <Snowflake size={16} /> {snow ? 'Disable Snow Effect' : 'Snow Effect'}
-          </button>
+          {isFeatureEnabled('aiProfileImage') && (
+            <button onClick={handleGenerateProfileImage} disabled={isGeneratingProfileImage} className="flex items-center gap-2 px-3 py-2 bg-skyrim-accent text-white rounded font-bold disabled:opacity-50">
+              {isGeneratingProfileImage ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
+              {isGeneratingProfileImage ? 'Generating...' : 'Generate Profile Photo'}
+            </button>
+          )}
+          {isFeatureEnabled('snowEffect') && (
+            <button onClick={() => setSnow((s) => !s)} className={`flex items-center gap-2 px-3 py-2 rounded font-bold ${snow ? 'bg-blue-200 text-blue-900' : 'bg-blue-900 text-white'}`}>
+              <Snowflake size={16} /> {snow ? 'Disable Snow Effect' : 'Snow Effect'}
+            </button>
+          )}
         </div>,
         document.body
       )}

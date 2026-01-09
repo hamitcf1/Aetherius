@@ -51,6 +51,9 @@ export interface Character {
   gender: string; // Added gender
   archetype: string;
   profileImage?: string; // Profile photo URL
+  isDead?: boolean; // Mark character as dead (cannot be played)
+  deathDate?: string; // When the character died (narrative)
+  deathCause?: string; // How the character died
   
   // Progression
   level: number;

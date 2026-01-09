@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile, Character, SKYRIM_RACES } from '../types';
-import { User, Play, Plus, Dice5, MessageSquare, Loader2, Sparkles, Send, FileText, ArrowLeft } from 'lucide-react';
+import { User, Play, Plus, Dice5, MessageSquare, Loader2, Sparkles, Send, FileText, ArrowLeft, Trash2, Skull, RotateCcw } from 'lucide-react';
 import { generateCharacterProfile, chatWithScribe } from '../services/geminiService';
+import { isFeatureEnabled } from '../featureFlags';
 
 interface CharacterSelectProps {
   profiles: UserProfile[];
@@ -13,6 +14,9 @@ interface CharacterSelectProps {
   onLogout: () => void;
   onUpdateProfile?: (profileId: string, newName: string) => void;
   onUpdateCharacter?: (characterId: string, newName: string) => void;
+  onDeleteProfile?: (profileId: string) => void;
+  onDeleteCharacter?: (characterId: string) => void;
+  onMarkCharacterDead?: (characterId: string, isDead: boolean, deathCause?: string) => void;
 }
 
 const ARCHETYPES = [
@@ -23,7 +27,7 @@ const ARCHETYPES = [
 
 export const CharacterSelect: React.FC<CharacterSelectProps> = ({ 
     profiles, characters, onSelectProfile, onSelectCharacter, onCreateProfile, onCreateCharacter, onLogout,
-    onUpdateProfile, onUpdateCharacter
+    onUpdateProfile, onUpdateCharacter, onDeleteProfile, onDeleteCharacter, onMarkCharacterDead
 }) => {
   const [view, setView] = useState<'profiles' | 'characters'>('profiles');
   const [creationMode, setCreationMode] = useState<'manual' | 'chat' | 'import'>('manual');
@@ -49,6 +53,12 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  
+  // Delete/Death confirmation state
+  const [confirmDeleteProfile, setConfirmDeleteProfile] = useState<string | null>(null);
+  const [confirmDeleteCharacter, setConfirmDeleteCharacter] = useState<string | null>(null);
+  const [confirmDeathCharacter, setConfirmDeathCharacter] = useState<string | null>(null);
+  const [deathCause, setDeathCause] = useState('');
 
   useEffect(() => {
     if (chatBottomRef.current) chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -198,7 +208,29 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                     <div className="grid gap-4">
                         {profiles.map(p => (
                             <div key={p.id} className="flex items-center gap-3 p-4 bg-black/40 border border-skyrim-border hover:border-skyrim-gold hover:bg-black/60 transition-all group">
-                              {editingProfileId === p.id ? (
+                              {confirmDeleteProfile === p.id ? (
+                                // Delete confirmation
+                                <div className="flex-1 flex items-center justify-between gap-3">
+                                  <span className="text-red-400 text-sm">Delete profile "{p.username}" and all its characters?</span>
+                                  <div className="flex gap-2">
+                                    <button 
+                                      onClick={() => {
+                                        if (onDeleteProfile) onDeleteProfile(p.id);
+                                        setConfirmDeleteProfile(null);
+                                      }}
+                                      className="px-3 py-1 bg-red-700 text-white rounded text-sm hover:bg-red-600"
+                                    >
+                                      Delete
+                                    </button>
+                                    <button 
+                                      onClick={() => setConfirmDeleteProfile(null)}
+                                      className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : editingProfileId === p.id ? (
                                 <>
                                   <input 
                                     type="text" 
@@ -250,6 +282,14 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                   >
                                     Edit
                                   </button>
+                                  {isFeatureEnabled('profileDeletion') && onDeleteProfile && (
+                                    <button 
+                                      onClick={() => setConfirmDeleteProfile(p.id)}
+                                      className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-red-900/50 text-red-400 hover:bg-red-700 hover:text-white rounded text-xs transition-all"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  )}
                                 </>
                               )}
                             </div>
@@ -264,8 +304,67 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                        {creationMode === 'manual' ? (
                            <div className="grid gap-4">
                                 {displayedCharacters.map(c => (
-                                    <div key={c.id} className="flex items-center gap-3 p-4 bg-black/40 border border-skyrim-border hover:border-skyrim-gold hover:bg-black/60 transition-all group">
-                                      {editingCharacterId === c.id ? (
+                                    <div key={c.id} className={`flex items-center gap-3 p-4 border transition-all group ${
+                                      c.isDead 
+                                        ? 'bg-red-950/30 border-red-900/50 opacity-75' 
+                                        : 'bg-black/40 border-skyrim-border hover:border-skyrim-gold hover:bg-black/60'
+                                    }`}>
+                                      {/* Death Confirmation */}
+                                      {confirmDeathCharacter === c.id ? (
+                                        <div className="flex-1 flex flex-col gap-3">
+                                          <span className="text-red-400 text-sm">Mark "{c.name}" as deceased?</span>
+                                          <input
+                                            type="text"
+                                            placeholder="Cause of death (optional)"
+                                            value={deathCause}
+                                            onChange={e => setDeathCause(e.target.value)}
+                                            className="bg-black/50 border border-red-900 p-2 rounded text-gray-200 text-sm focus:outline-none"
+                                          />
+                                          <div className="flex gap-2">
+                                            <button 
+                                              onClick={() => {
+                                                if (onMarkCharacterDead) onMarkCharacterDead(c.id, deathCause || 'Unknown');
+                                                setConfirmDeathCharacter(null);
+                                                setDeathCause('');
+                                              }}
+                                              className="px-3 py-1 bg-red-700 text-white rounded text-sm hover:bg-red-600"
+                                            >
+                                              Confirm Death
+                                            </button>
+                                            <button 
+                                              onClick={() => {
+                                                setConfirmDeathCharacter(null);
+                                                setDeathCause('');
+                                              }}
+                                              className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : confirmDeleteCharacter === c.id ? (
+                                        /* Delete Confirmation */
+                                        <div className="flex-1 flex items-center justify-between gap-3">
+                                          <span className="text-red-400 text-sm">Permanently delete "{c.name}"?</span>
+                                          <div className="flex gap-2">
+                                            <button 
+                                              onClick={() => {
+                                                if (onDeleteCharacter) onDeleteCharacter(c.id);
+                                                setConfirmDeleteCharacter(null);
+                                              }}
+                                              className="px-3 py-1 bg-red-700 text-white rounded text-sm hover:bg-red-600"
+                                            >
+                                              Delete
+                                            </button>
+                                            <button 
+                                              onClick={() => setConfirmDeleteCharacter(null)}
+                                              className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : editingCharacterId === c.id ? (
                                         <>
                                           <input 
                                             type="text" 
@@ -299,27 +398,81 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                         </>
                                       ) : (
                                         <>
-                                          <button 
-                                            onClick={() => onSelectCharacter(c.id)} 
-                                            className="flex items-center gap-4 flex-1 text-left"
-                                          >
-                                            <div className="w-12 h-12 bg-skyrim-gold/20 rounded-full flex items-center justify-center text-skyrim-gold group-hover:text-white group-hover:bg-skyrim-gold transition-colors">
-                                                <Play size={24} fill="currentColor" />
+                                          {c.isDead ? (
+                                            /* Dead character - no play button */
+                                            <div className="flex items-center gap-4 flex-1">
+                                              <div className="w-12 h-12 bg-red-900/40 rounded-full flex items-center justify-center text-red-500">
+                                                <Skull size={24} />
+                                              </div>
+                                              <div className="text-left">
+                                                <span className="block text-xl font-serif text-gray-500 line-through">{c.name}</span>
+                                                <span className="text-sm text-gray-600">Lvl {c.level} {c.gender} {c.race} {c.archetype}</span>
+                                                <span className="block text-xs text-red-400/70 italic mt-1">
+                                                  Died: {c.deathCause || 'Unknown cause'}
+                                                  {c.deathDate && ` (${new Date(c.deathDate).toLocaleDateString()})`}
+                                                </span>
+                                              </div>
                                             </div>
-                                            <div className="text-left">
+                                          ) : (
+                                            /* Living character - playable */
+                                            <button 
+                                              onClick={() => onSelectCharacter(c.id)} 
+                                              className="flex items-center gap-4 flex-1 text-left"
+                                            >
+                                              <div className="w-12 h-12 bg-skyrim-gold/20 rounded-full flex items-center justify-center text-skyrim-gold group-hover:text-white group-hover:bg-skyrim-gold transition-colors">
+                                                <Play size={24} fill="currentColor" />
+                                              </div>
+                                              <div className="text-left">
                                                 <span className="block text-xl font-serif text-skyrim-gold group-hover:text-white transition-colors">{c.name}</span>
                                                 <span className="text-sm text-gray-500">Lvl {c.level} {c.gender} {c.race} {c.archetype}</span>
-                                            </div>
-                                          </button>
-                                          <button 
-                                            onClick={() => {
-                                              setEditingCharacterId(c.id);
-                                              setEditingName(c.name);
-                                            }}
-                                            className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-skyrim-gold/30 text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark rounded text-xs transition-all"
-                                          >
-                                            Edit
-                                          </button>
+                                              </div>
+                                            </button>
+                                          )}
+                                          
+                                          {/* Action buttons */}
+                                          <div className="flex items-center gap-1">
+                                            <button 
+                                              onClick={() => {
+                                                setEditingCharacterId(c.id);
+                                                setEditingName(c.name);
+                                              }}
+                                              className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-skyrim-gold/30 text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark rounded text-xs transition-all"
+                                            >
+                                              Edit
+                                            </button>
+                                            
+                                            {/* Death toggle */}
+                                            {isFeatureEnabled('characterDeath') && onMarkCharacterDead && (
+                                              c.isDead ? (
+                                                <button 
+                                                  onClick={() => onMarkCharacterDead(c.id, null)}
+                                                  className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-green-900/50 text-green-400 hover:bg-green-700 hover:text-white rounded text-xs transition-all"
+                                                  title="Resurrect character"
+                                                >
+                                                  <RotateCcw size={14} />
+                                                </button>
+                                              ) : (
+                                                <button 
+                                                  onClick={() => setConfirmDeathCharacter(c.id)}
+                                                  className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-red-900/50 text-red-400 hover:bg-red-700 hover:text-white rounded text-xs transition-all"
+                                                  title="Mark as dead"
+                                                >
+                                                  <Skull size={14} />
+                                                </button>
+                                              )
+                                            )}
+                                            
+                                            {/* Delete */}
+                                            {isFeatureEnabled('characterDeletion') && onDeleteCharacter && (
+                                              <button 
+                                                onClick={() => setConfirmDeleteCharacter(c.id)}
+                                                className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-red-900/50 text-red-400 hover:bg-red-700 hover:text-white rounded text-xs transition-all"
+                                                title="Delete character"
+                                              >
+                                                <Trash2 size={14} />
+                                              </button>
+                                            )}
+                                          </div>
                                         </>
                                       )}
                                     </div>

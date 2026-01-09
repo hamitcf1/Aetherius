@@ -39,6 +39,8 @@ import {
   saveJournalEntry,
   saveStoryChapter,
   saveUserProfile,
+  deleteUserProfile,
+  deleteCharacter,
   batchSaveGameState
 } from './services/firestore';
 import {
@@ -376,6 +378,86 @@ const App: React.FC = () => {
   const handleUpdateCharacter = (characterId: string, newName: string) => {
       setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, name: newName } : c));
       setDirtyEntities(prev => new Set([...prev, characterId]));
+  };
+
+  // Delete profile and all its characters
+  const handleDeleteProfile = async (profileId: string) => {
+    if (!currentUser) return;
+    
+    try {
+      // Delete from Firestore first
+      await deleteUserProfile(currentUser.uid, profileId);
+      
+      // Get characters belonging to this profile
+      const profileCharacters = characters.filter(c => c.profileId === profileId);
+      
+      // Delete each character from Firestore
+      for (const char of profileCharacters) {
+        await deleteCharacter(currentUser.uid, char.id);
+      }
+      
+      // Update local state
+      setProfiles(prev => prev.filter(p => p.id !== profileId));
+      setCharacters(prev => prev.filter(c => c.profileId !== profileId));
+      
+      // Clear current selection if deleted
+      if (currentProfileId === profileId) {
+        setCurrentProfileId(null);
+        setCurrentCharacterId(null);
+      }
+    } catch (error) {
+      console.error('Error deleting profile:', error);
+    }
+  };
+
+  // Delete a single character
+  const handleDeleteCharacter = async (characterId: string) => {
+    if (!currentUser) return;
+    
+    try {
+      // Delete from Firestore
+      await deleteCharacter(currentUser.uid, characterId);
+      
+      // Update local state
+      setCharacters(prev => prev.filter(c => c.id !== characterId));
+      
+      // Clear current selection if deleted
+      if (currentCharacterId === characterId) {
+        setCurrentCharacterId(null);
+      }
+    } catch (error) {
+      console.error('Error deleting character:', error);
+    }
+  };
+
+  // Mark character as dead or resurrect (deathCause = null means resurrect)
+  const handleMarkCharacterDead = async (characterId: string, deathCause: string | null) => {
+    if (!currentUser) return;
+    
+    const isDead = deathCause !== null;
+    const updates: Partial<Character> = {
+      isDead,
+      deathDate: isDead ? new Date().toISOString() : undefined,
+      deathCause: isDead ? deathCause : undefined
+    };
+    
+    // Update local state
+    setCharacters(prev => prev.map(c => 
+      c.id === characterId 
+        ? { ...c, ...updates }
+        : c
+    ));
+    setDirtyEntities(prev => new Set([...prev, characterId]));
+    
+    // Save to Firestore
+    try {
+      const char = characters.find(c => c.id === characterId);
+      if (char) {
+        await saveCharacter(currentUser.uid, { ...char, ...updates });
+      }
+    } catch (error) {
+      console.error('Error updating character death status:', error);
+    }
   };
 
   // Manual Save Handler - Forces immediate Firestore flush
@@ -1197,6 +1279,9 @@ const App: React.FC = () => {
               onLogout={handleLogout}
               onUpdateProfile={handleUpdateProfile}
               onUpdateCharacter={handleUpdateCharacter}
+              onDeleteProfile={handleDeleteProfile}
+              onDeleteCharacter={handleDeleteCharacter}
+              onMarkCharacterDead={handleMarkCharacterDead}
           />
           <OnboardingModal open={onboardingOpen} onComplete={completeOnboarding} />
         </>
