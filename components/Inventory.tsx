@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { InventoryItem } from '../types';
-import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins } from 'lucide-react';
+import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent } from 'lucide-react';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -155,8 +155,12 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
       case 'weapon': return <Sword size={18} />;
       case 'apparel': return <Shield size={18} />;
       case 'potion': return <FlaskConical size={18} />;
-      case 'ingredient': return <Package size={18} />;
+      case 'food': return <Apple size={18} />;
+      case 'drink': return <Droplets size={18} />;
+      case 'camping': return <Tent size={18} />;
+      case 'ingredient': return <FlaskConical size={18} />;
       case 'key': return <Key size={18} />;
+      case 'misc': return <Package size={18} />;
       default: return <Gem size={18} />;
     }
   };
