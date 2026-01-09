@@ -30,11 +30,11 @@ export function OnboardingModal(props: {
         body: (
           <div className="space-y-3">
             <p className="text-gray-200 font-sans leading-relaxed">
-              You are about to run a character-driven Skyrim roleplay campaign. This short tutorial shows the core loop and features.
+              You are about to run a character-driven Skyrim roleplay campaign. This short tutorial shows the core loop.
             </p>
             <div className="p-3 bg-black/30 border border-skyrim-border rounded">
               <p className="text-gray-300 text-sm font-sans">
-                Tip: You can skip anytime with ESC or by clicking outside. The tutorial won't show again after you finish or skip.
+                Tip: You can skip anytime. The tutorial wonâ€™t show again after you finish or skip.
               </p>
             </div>
           </div>
@@ -45,19 +45,18 @@ export function OnboardingModal(props: {
         body: (
           <div className="space-y-3">
             <p className="text-gray-200 font-sans leading-relaxed">
-              Start by creating your first character with rich backstory and personality.
+              Start by creating your first character.
             </p>
             <ul className="text-gray-300 text-sm font-sans list-disc pl-5 space-y-1">
-              <li>Choose race, archetype, identity, and starting stats.</li>
-              <li>Define psychology, motivations, and relationships.</li>
-              <li>Select a character from your roster to begin playing.</li>
+              <li>Create a character (race, archetype, identity, stats, etc.).</li>
+              <li>Select a character to enter the main game UI.</li>
             </ul>
             <div className="p-3 bg-blue-900/20 border border-blue-600/40 rounded mt-3">
               <p className="text-blue-200 text-sm font-sans font-semibold mb-2">
                 Multiple ways to create characters:
               </p>
               <ul className="text-blue-200 text-xs font-sans list-disc pl-5 space-y-1">
-                <li><span className="font-semibold">AI Scribe</span>: Chat with AI to design your character collaboratively.</li>
+                <li><span className="font-semibold">Scribe Chat</span>: Use AI to help design your character through conversation.</li>
                 <li><span className="font-semibold">Manual</span>: Fill out all fields yourself for full control.</li>
                 <li><span className="font-semibold">Full Random</span>: Generate a complete character with background instantly.</li>
                 <li><span className="font-semibold">Import Text</span>: Paste character information to auto-fill details.</li>
@@ -67,20 +66,20 @@ export function OnboardingModal(props: {
         ),
       },
       {
-        title: 'Tabs Overview',
+        title: 'Tabs: What Each One Does',
         body: (
           <div className="space-y-3">
             <ul className="text-gray-300 text-sm font-sans list-disc pl-5 space-y-1">
-              <li><span className="text-skyrim-gold font-semibold">Hero</span>: Character sheet, stats, identity, and progression.</li>
-              <li><span className="text-skyrim-gold font-semibold">Items</span>: Inventory management and equipment.</li>
-              <li><span className="text-skyrim-gold font-semibold">Quests</span>: Active quests, objectives, and completion tracking.</li>
-              <li><span className="text-skyrim-gold font-semibold">Story</span>: Chapters and narrative notes (long-term story).</li>
-              <li><span className="text-skyrim-gold font-semibold">Journal</span>: First-person diary entries from your character's view.</li>
-              <li><span className="text-skyrim-gold font-semibold">Adventure</span>: The AI Game Master â€“ your main gameplay tab.</li>
+              <li><span className="text-gray-200 font-semibold">Hero</span>: character sheet and progression.</li>
+              <li><span className="text-gray-200 font-semibold">Items</span>: inventory and equipment.</li>
+              <li><span className="text-gray-200 font-semibold">Quests</span>: quests and objectives.</li>
+              <li><span className="text-gray-200 font-semibold">Story</span>: chapters and notes (long-term narrative).</li>
+              <li><span className="text-gray-200 font-semibold">Journal</span>: first-person log entries.</li>
+              <li><span className="text-gray-200 font-semibold">Adventure</span>: the AI-driven tabletop-style play loop.</li>
             </ul>
             <div className="p-3 bg-black/30 border border-skyrim-border rounded">
               <p className="text-gray-300 text-sm font-sans">
-                Most gameplay happens in <span className="text-skyrim-gold font-semibold">Adventure</span>. Other tabs are your management tools.
+                Most gameplay happens in <span className="text-gray-200 font-semibold">Adventure</span>. The rest are your tools.
               </p>
             </div>
           </div>
@@ -91,19 +90,13 @@ export function OnboardingModal(props: {
         body: (
           <div className="space-y-3">
             <p className="text-gray-200 font-sans leading-relaxed">
-              In Adventure, you speak as your character and the AI Game Master responds with immersive narration.
+              In Adventure, you speak as your character. The GM replies and may propose clickable choices.
             </p>
             <ul className="text-gray-300 text-sm font-sans list-disc pl-5 space-y-1">
-              <li>Type what you do or say: <span className="text-gray-400 italic">"I approach the merchant and ask about rumors..."</span></li>
-              <li>Click choice buttons when the GM offers dialogue options.</li>
-              <li><span className="text-skyrim-gold">Hover over choices</span> to preview what your character will say.</li>
-              <li>Game updates (items, gold, quests, time) apply automatically.</li>
+              <li>Type what you do or say (â€œI knock and ask about the missing caravanâ€¦â€).</li>
+              <li>Use choice buttons if the GM offers them.</li>
+              <li>Game updates (items/quests/story/time/needs) are applied via the same update pipeline.</li>
             </ul>
-            <div className="p-3 bg-amber-900/20 border border-amber-600/40 rounded mt-2">
-              <p className="text-amber-200 text-xs font-sans">
-                <span className="font-semibold">Tip:</span> Choices may show gold costs. The transaction only happens when you select the option, not when viewing it.
-              </p>
-            </div>
           </div>
         ),
       },
@@ -111,33 +104,28 @@ export function OnboardingModal(props: {
         title: 'Time & Survival',
         body: (
           <div className="space-y-3">
-            <p className="text-gray-200 font-sans leading-relaxed">Time advances as you play. Your character has needs.</p>
+            <p className="text-gray-200 font-sans leading-relaxed">
+              Time can advance and your needs change (hunger, thirst, fatigue).
+            </p>
             <ul className="text-gray-300 text-sm font-sans list-disc pl-5 space-y-1">
-              <li><span className="text-red-400 font-semibold">Hunger</span>: Eat food items.</li>
-              <li><span className="text-blue-400 font-semibold">Thirst</span>: Drink beverages.</li>
-              <li><span className="text-purple-400 font-semibold">Fatigue</span>: Rest to recover.</li>
+              <li><span className="text-gray-200 font-semibold">Rest</span> reduces fatigue and advances time.</li>
+              <li><span className="text-gray-200 font-semibold">Eat/Drink</span> lowers hunger/thirst and consumes a matching item if possible.</li>
+              <li>You can see time and needs on the Hero tab.</li>
             </ul>
           </div>
         ),
       },
       {
-        title: 'Shop & Economy',
+        title: 'Saving',
         body: (
           <div className="space-y-3">
-            <ul className="text-gray-300 text-sm font-sans list-disc pl-5 space-y-1">
-              <li>Visit Shop from Actions menu to buy/sell items.</li>
-              <li>Item availability scales with your character level.</li>
-            </ul>
-          </div>
-        ),
-      },
-      {
-        title: 'Ready to Begin',
-        body: (
-          <div className="space-y-3">
-            <p className="text-gray-200 font-sans leading-relaxed">Create your first hero and begin your adventure!</p>
-            <div className="p-3 bg-skyrim-gold/20 border border-skyrim-gold/40 rounded">
-              <p className="text-skyrim-gold text-sm font-sans text-center italic">May the Divines guide your path, Dragonborn.</p>
+            <p className="text-gray-200 font-sans leading-relaxed">
+              Your data is stored under your account. Most changes auto-save; you can also use manual save.
+            </p>
+            <div className="p-3 bg-black/30 border border-skyrim-border rounded">
+              <p className="text-gray-300 text-sm font-sans">
+                Youâ€™re ready. Create your first hero, then begin in Adventure.
+              </p>
             </div>
           </div>
         ),

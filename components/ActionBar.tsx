@@ -294,6 +294,14 @@ const ActionBar: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Version and Credits */}
+          <div className="border-t border-skyrim-border/60 pt-3 mt-2">
+            <div className="text-center">
+              <div className="text-xs text-gray-500 font-sans">Version 1.0.0</div>
+              <div className="text-[10px] text-gray-600 font-sans mt-1">Made by Hamit Can Fındık</div>
+            </div>
+          </div>
         </div>,
         document.body
       )}
