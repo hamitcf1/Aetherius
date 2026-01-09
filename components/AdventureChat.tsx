@@ -480,7 +480,9 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
             onKeyDown={handleKeyDown}
             placeholder="What do you do? (Press Enter to send)"
             disabled={loading || messages.length === 0}
-            className="flex-1 bg-black/30 border border-skyrim-border rounded p-3 text-gray-200 placeholder-gray-500 resize-none focus:border-skyrim-gold focus:outline-none disabled:opacity-50 font-serif"
+            autoCapitalize="none"
+            autoCorrect="off"
+            className="flex-1 bg-black/30 border border-skyrim-border rounded p-3 text-gray-200 placeholder-gray-500 resize-none focus:border-skyrim-gold focus:outline-none disabled:opacity-50 font-serif normal-case"
             rows={2}
           />
           <button

@@ -73,12 +73,16 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries }) => {
             placeholder="Entry Title..."
             value={newEntryTitle}
             onChange={(e) => setNewEntryTitle(e.target.value)}
+            autoCapitalize="none"
+            autoCorrect="off"
           />
           <textarea
             className="w-full bg-black/20 border border-skyrim-border/30 rounded p-4 text-gray-300 font-serif leading-relaxed focus:outline-none focus:border-skyrim-gold/50 h-40"
             placeholder="Write your thoughts here..."
             value={newEntryContent}
             onChange={(e) => setNewEntryContent(e.target.value)}
+            autoCapitalize="none"
+            autoCorrect="off"
           />
           <div className="flex justify-end mt-4">
               <button 

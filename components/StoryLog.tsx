@@ -263,6 +263,8 @@ export const StoryLog: React.FC<StoryLogProps> = ({
                       value={chapterTitle}
                       onChange={e => setChapterTitle(e.target.value)}
                       placeholder="Chapter title..."
+                      autoCapitalize="none"
+                      autoCorrect="off"
                       className="w-full bg-black/50 border border-skyrim-border rounded p-3 text-gray-300 focus:border-skyrim-gold focus:outline-none"
                   />
               </div>
@@ -273,6 +275,8 @@ export const StoryLog: React.FC<StoryLogProps> = ({
                       value={chapterContent}
                       onChange={e => setChapterContent(e.target.value)}
                       placeholder="Write your chapter or use AI..."
+                      autoCapitalize="none"
+                      autoCorrect="off"
                       className="w-full bg-black/50 border border-skyrim-border rounded p-3 text-gray-300 focus:border-skyrim-gold focus:outline-none resize-none h-32 font-serif"
                   />
               </div>
@@ -285,6 +289,8 @@ export const StoryLog: React.FC<StoryLogProps> = ({
                           value={chapterPrompt}
                           onChange={e => setChapterPrompt(e.target.value)}
                           placeholder="Describe what should happen in this chapter..."
+                          autoCapitalize="none"
+                          autoCorrect="off"
                           className="flex-1 bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none"
                       />
                       <button 
@@ -305,6 +311,8 @@ export const StoryLog: React.FC<StoryLogProps> = ({
                           value={questTitle}
                           onChange={e => setQuestTitle(e.target.value)}
                           placeholder="Quest title..."
+                          autoCapitalize="none"
+                          autoCorrect="off"
                           className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none"
                       />
                       <input
@@ -312,18 +320,24 @@ export const StoryLog: React.FC<StoryLogProps> = ({
                           value={questLocation}
                           onChange={e => setQuestLocation(e.target.value)}
                           placeholder="Location (optional)..."
+                          autoCapitalize="none"
+                          autoCorrect="off"
                           className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none"
                       />
                       <textarea
                           value={questDescription}
                           onChange={e => setQuestDescription(e.target.value)}
                           placeholder="Quest description..."
+                          autoCapitalize="none"
+                          autoCorrect="off"
                           className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none resize-none h-20 font-serif"
                       />
                       <textarea
                           value={questObjectivesText}
                           onChange={e => setQuestObjectivesText(e.target.value)}
                           placeholder="Objectives (one per line)..."
+                          autoCapitalize="none"
+                          autoCorrect="off"
                           className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none resize-none h-20 font-serif"
                       />
                       <button

@@ -226,6 +226,8 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                         placeholder="Quest Title"
                         value={newTitle}
                         onChange={e => setNewTitle(e.target.value)}
+                        autoCapitalize="none"
+                        autoCorrect="off"
                     />
                      <div className="flex flex-col md:flex-row gap-4">
                         <input 
@@ -233,6 +235,8 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                             placeholder="Location (Optional)"
                             value={newLocation}
                             onChange={e => setNewLocation(e.target.value)}
+                            autoCapitalize="none"
+                            autoCorrect="off"
                         />
                          <input 
                             type="text"
@@ -240,6 +244,8 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                             placeholder="Due Date / Deadline (Optional)"
                             value={newDueDate}
                             onChange={e => setNewDueDate(e.target.value)}
+                                     autoCapitalize="none"
+                                     autoCorrect="off"
                         />
                      </div>
                     <textarea 
@@ -247,12 +253,16 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                         placeholder="Description..."
                         value={newDesc}
                         onChange={e => setNewDesc(e.target.value)}
+                        autoCapitalize="none"
+                        autoCorrect="off"
                     />
                     <textarea 
                         className="bg-black/30 border border-skyrim-border p-2 rounded text-gray-300 h-24 focus:outline-none font-serif"
                         placeholder="Objectives (one per line)..."
                         value={newObjectivesText}
                         onChange={e => setNewObjectivesText(e.target.value)}
+                        autoCapitalize="none"
+                        autoCorrect="off"
                     />
                     <div className="flex justify-end gap-3 mt-2">
                         <button onClick={cancelAdd} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
@@ -344,12 +354,16 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                           value={editDesc}
                           onChange={(e) => setEditDesc(e.target.value)}
                           placeholder="Description..."
+                          autoCapitalize="none"
+                          autoCorrect="off"
                       />
                       <textarea
                           className="w-full bg-black/40 border border-skyrim-border rounded p-2 text-gray-300 font-serif text-sm h-24"
                           value={editObjectivesText}
                           onChange={(e) => setEditObjectivesText(e.target.value)}
                           placeholder="Objectives (one per line)..."
+                          autoCapitalize="none"
+                          autoCorrect="off"
                       />
                     </div>
                 ) : (

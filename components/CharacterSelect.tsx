@@ -356,6 +356,8 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                        onChange={e => setChatInput(e.target.value)}
                                        onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
                                        disabled={isGenerating}
+                                       autoCapitalize="none"
+                                       autoCorrect="off"
                                    />
                                    <button 
                                       onClick={sendChatMessage} 
@@ -377,6 +379,8 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                     value={importText}
                                     onChange={e => setImportText(e.target.value)}
                                     disabled={isGenerating}
+                                 autoCapitalize="none"
+                                 autoCorrect="off"
                                />
                                <button 
                                   onClick={handleImportText}
@@ -405,6 +409,8 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                            placeholder="Username"
                            value={newName}
                            onChange={e => setNewName(e.target.value)}
+                          autoCapitalize="none"
+                          autoCorrect="off"
                        />
                        <button onClick={handleCreateProfile} disabled={!newName.trim()} className="px-6 bg-skyrim-gold hover:bg-skyrim-goldHover text-skyrim-dark font-bold rounded flex items-center gap-2 disabled:opacity-50">
                            <Plus size={20} /> Create
@@ -421,6 +427,8 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                         placeholder="Character Name"
                                         value={newName}
                                         onChange={e => setNewName(e.target.value)}
+                                      autoCapitalize="none"
+                                      autoCorrect="off"
                                     />
                                      <select 
                                         value={newGender}

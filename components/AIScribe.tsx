@@ -168,14 +168,18 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
               Your Action
             </label>
             <textarea
-              className="w-full bg-black/30 border border-skyrim-border text-gray-200 p-3 rounded focus:border-skyrim-gold focus:outline-none mb-2"
+              autoCapitalize="none"
+              autoCorrect="off"
+              className="w-full bg-black/30 border border-skyrim-border text-gray-200 p-3 rounded focus:border-skyrim-gold focus:outline-none mb-2 normal-case"
               rows={3}
               placeholder="e.g., I search the bandit chest for loot..."
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
             />
             <textarea
-              className="w-full bg-black/20 border border-skyrim-border text-gray-300 p-2 rounded focus:border-skyrim-gold focus:outline-none text-xs font-mono"
+              autoCapitalize="none"
+              autoCorrect="off"
+              className="w-full bg-black/20 border border-skyrim-border text-gray-300 p-2 rounded focus:border-skyrim-gold focus:outline-none text-xs font-mono normal-case"
               rows={2}
               placeholder="Batch add: 1x Iron Sword, 2x Potion of Healing, Quest: The Golden Claw, ..."
               value={batchInput}
