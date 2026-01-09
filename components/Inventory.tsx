@@ -23,6 +23,82 @@ const COMMON_ITEMS = [
     { name: "Sweetroll", type: "ingredient", desc: "A sticky treat." },
 ];
 
+const InventoryItemCard: React.FC<{
+    item: InventoryItem;
+    onUpdate: (updated: InventoryItem) => void;
+    onRemove: () => void;
+    onDeltaQuantity: (delta: number) => void;
+    getIcon: (type: string) => React.ReactNode;
+}> = ({ item, onUpdate, onRemove, onDeltaQuantity, getIcon }) => {
+    const [editMode, setEditMode] = useState(false);
+    const [editName, setEditName] = useState(item.name);
+    const [editDesc, setEditDesc] = useState(item.description);
+    const [editQty, setEditQty] = useState(item.quantity);
+
+    const startEdit = () => {
+        setEditName(item.name);
+        setEditDesc(item.description);
+        setEditQty(item.quantity);
+        setEditMode(true);
+    };
+
+    const handleSave = () => {
+        const nextQty = Number.isFinite(editQty) ? Math.max(1, editQty) : 1;
+        onUpdate({ ...item, name: editName, description: editDesc, quantity: nextQty });
+        setEditMode(false);
+    };
+
+    return (
+        <div className="bg-skyrim-paper/60 border border-skyrim-border p-4 rounded flex items-center gap-4 hover:border-skyrim-gold/50 transition-colors">
+            <div className="p-3 rounded-full bg-black/40 text-skyrim-gold border border-skyrim-border">
+                {getIcon(item.type)}
+            </div>
+            <div className="flex-1">
+                {editMode ? (
+                    <>
+                        <input
+                            className="w-full bg-black/40 border border-skyrim-border p-1 rounded text-skyrim-gold font-serif mb-1"
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                        />
+                        <input
+                            className="w-20 bg-black/40 border border-skyrim-border p-1 rounded text-gray-200 mb-1"
+                            type="number"
+                            min={1}
+                            value={editQty}
+                            onChange={e => setEditQty(Number(e.target.value))}
+                        />
+                        <input
+                            className="w-full bg-black/40 border border-skyrim-border p-1 rounded text-gray-200"
+                            value={editDesc}
+                            onChange={e => setEditDesc(e.target.value)}
+                        />
+                        <div className="flex gap-2 mt-2">
+                            <button onClick={handleSave} className="px-2 py-1 bg-skyrim-gold text-skyrim-dark rounded text-xs">Save</button>
+                            <button onClick={() => setEditMode(false)} className="px-2 py-1 bg-gray-600 text-white rounded text-xs">Cancel</button>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <h3 className="text-skyrim-gold font-serif">
+                            {item.name} <span className="text-xs text-gray-500 ml-2">x{item.quantity}</span>
+                        </h3>
+                        <p className="text-sm text-gray-400">{item.description}</p>
+                        <div className="flex gap-2 mt-2">
+                            <button onClick={startEdit} className="px-2 py-1 bg-skyrim-gold/20 text-skyrim-gold rounded text-xs">Edit</button>
+                            <button onClick={() => onDeltaQuantity(1)} className="px-2 py-1 bg-green-700/60 text-white rounded text-xs">+1</button>
+                            <button onClick={() => onDeltaQuantity(-1)} className="px-2 py-1 bg-red-700/60 text-white rounded text-xs">-1</button>
+                        </div>
+                    </>
+                )}
+            </div>
+            <button onClick={onRemove} className="text-gray-600 hover:text-red-500">
+                <Trash2 size={16} />
+            </button>
+        </div>
+    );
+};
+
 export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, setGold }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -58,6 +134,21 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
   const removeItem = (id: string) => {
     setItems(items.filter(i => i.id !== id));
   };
+
+    const updateItem = (updated: InventoryItem) => {
+        setItems(items.map(i => (i.id === updated.id ? updated : i)));
+    };
+
+    const deltaItemQuantity = (id: string, delta: number) => {
+        const current = items.find(i => i.id === id);
+        if (!current) return;
+        const nextQty = current.quantity + delta;
+        if (nextQty <= 0) {
+            removeItem(id);
+            return;
+        }
+        updateItem({ ...current, quantity: nextQty });
+    };
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -139,74 +230,16 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
       )}
 
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {items.map((item, idx) => {
-                        const [editMode, setEditMode] = useState(false);
-                        const [editName, setEditName] = useState(item.name);
-                        const [editDesc, setEditDesc] = useState(item.description);
-                        const [editQty, setEditQty] = useState(item.quantity);
-                        const handleSave = () => {
-                                const updated = { ...item, name: editName, description: editDesc, quantity: editQty };
-                                setItems([
-                                    ...items.slice(0, idx),
-                                    updated,
-                                    ...items.slice(idx + 1)
-                                ]);
-                                setEditMode(false);
-                        };
-                        const handleQuickAdd = () => {
-                                const updated = { ...item, quantity: item.quantity + 1 };
-                                setItems([
-                                    ...items.slice(0, idx),
-                                    updated,
-                                    ...items.slice(idx + 1)
-                                ]);
-                        };
-                        const handleQuickRemove = () => {
-                                if (item.quantity > 1) {
-                                    const updated = { ...item, quantity: item.quantity - 1 };
-                                    setItems([
-                                        ...items.slice(0, idx),
-                                        updated,
-                                        ...items.slice(idx + 1)
-                                    ]);
-                                } else {
-                                    removeItem(item.id);
-                                }
-                        };
-                        return (
-                            <div key={item.id} className="bg-skyrim-paper/60 border border-skyrim-border p-4 rounded flex items-center gap-4 hover:border-skyrim-gold/50 transition-colors">
-                                <div className={`p-3 rounded-full bg-black/40 text-skyrim-gold border border-skyrim-border`}>
-                                        {getIcon(item.type)}
-                                </div>
-                                <div className="flex-1">
-                                    {editMode ? (
-                                        <>
-                                            <input className="w-full bg-black/40 border border-skyrim-border p-1 rounded text-skyrim-gold font-serif mb-1" value={editName} onChange={e => setEditName(e.target.value)} />
-                                            <input className="w-20 bg-black/40 border border-skyrim-border p-1 rounded text-gray-200 mb-1" type="number" min={1} value={editQty} onChange={e => setEditQty(Number(e.target.value))} />
-                                            <input className="w-full bg-black/40 border border-skyrim-border p-1 rounded text-gray-200" value={editDesc} onChange={e => setEditDesc(e.target.value)} />
-                                            <div className="flex gap-2 mt-2">
-                                                <button onClick={handleSave} className="px-2 py-1 bg-skyrim-gold text-skyrim-dark rounded text-xs">Save</button>
-                                                <button onClick={() => setEditMode(false)} className="px-2 py-1 bg-gray-600 text-white rounded text-xs">Cancel</button>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <h3 className="text-skyrim-gold font-serif">{item.name} <span className="text-xs text-gray-500 ml-2">x{item.quantity}</span></h3>
-                                            <p className="text-sm text-gray-400">{item.description}</p>
-                                            <div className="flex gap-2 mt-2">
-                                                <button onClick={() => setEditMode(true)} className="px-2 py-1 bg-skyrim-gold/20 text-skyrim-gold rounded text-xs">Edit</button>
-                                                <button onClick={handleQuickAdd} className="px-2 py-1 bg-green-700/60 text-white rounded text-xs">+1</button>
-                                                <button onClick={handleQuickRemove} className="px-2 py-1 bg-red-700/60 text-white rounded text-xs">-1</button>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                                <button onClick={() => removeItem(item.id)} className="text-gray-600 hover:text-red-500">
-                                        <Trash2 size={16} />
-                                </button>
-                            </div>
-                        );
-                })}
+      {items.map((item) => (
+        <InventoryItemCard
+          key={item.id}
+          item={item}
+          getIcon={getIcon}
+          onUpdate={updateItem}
+          onDeltaQuantity={(delta) => deltaItemQuantity(item.id, delta)}
+          onRemove={() => removeItem(item.id)}
+        />
+      ))}
         {items.length === 0 && (
             <div className="col-span-full text-center py-12 text-gray-600 italic font-serif">
                 Your pockets are empty.

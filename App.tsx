@@ -329,7 +329,7 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-skyrim-dark flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader className="animate-spin text-skyrim-gold" size={48} />
-          <p className="text-skyrim-text">Yükleniyor...</p>
+          <p className="text-skyrim-text">Loading...</p>
         </div>
       </div>
     );

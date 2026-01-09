@@ -9,13 +9,71 @@ interface AIScribeProps {
 }
 
 export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState }) => {
-    const [batchInput, setBatchInput] = useState('');
+  const [batchInput, setBatchInput] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const [lastResponse, setLastResponse] = useState<GameStateUpdate | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+
+  const parseBatchInput = (text: string): GameStateUpdate | null => {
+    const raw = (text || '').trim();
+    if (!raw) return null;
+
+    const parts = raw
+      .split(/\n|,|\band\b/gi)
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const newItems: NonNullable<GameStateUpdate['newItems']> = [];
+    let goldChange = 0;
+
+    for (const part of parts) {
+      const goldMatch = part.match(/(\d+)\s*(?:x\s*)?(?:gold|septim|septims)\b/i);
+      if (goldMatch) {
+        goldChange += parseInt(goldMatch[1], 10) || 0;
+        continue;
+      }
+
+      // Match: "6x iron mace" or "6 iron mace"
+      const qtyMatch = part.match(/^(\d+)\s*x?\s+(.+)$/i);
+      if (qtyMatch) {
+        const quantity = Math.max(1, parseInt(qtyMatch[1], 10) || 1);
+        const name = qtyMatch[2].trim();
+        if (name) {
+          newItems.push({ name, type: 'misc', description: '', quantity });
+        }
+        continue;
+      }
+
+      // Fallback: treat as 1x item name
+      if (part) {
+        newItems.push({ name: part, type: 'misc', description: '', quantity: 1 });
+      }
+    }
+
+    const updates: GameStateUpdate = {};
+    if (newItems.length > 0) updates.newItems = newItems;
+    if (goldChange !== 0) updates.goldChange = goldChange;
+
+    return Object.keys(updates).length ? updates : null;
+  };
+
+  const mergeUpdates = (base: GameStateUpdate, extra: GameStateUpdate | null): GameStateUpdate => {
+    if (!extra) return base;
+    return {
+      ...base,
+      newItems: [...(base.newItems || []), ...(extra.newItems || [])],
+      newQuests: [...(base.newQuests || []), ...(extra.newQuests || [])],
+      updateQuests: [...(base.updateQuests || []), ...(extra.updateQuests || [])],
+      removedItems: [...(base.removedItems || []), ...(extra.removedItems || [])],
+      statUpdates: { ...(base.statUpdates || {}), ...(extra.statUpdates || {}) },
+      goldChange: (base.goldChange || 0) + (extra.goldChange || 0),
+      xpChange: (base.xpChange || 0) + (extra.xpChange || 0),
+      narrative: base.narrative || extra.narrative,
+    };
+  };
 
   const handleGenerate = async () => {
     if (!prompt) return;
@@ -47,12 +105,26 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState }
 
   const handleApply = () => {
       if (lastResponse) {
-          onUpdateState(lastResponse);
+          const batchUpdates = parseBatchInput(batchInput);
+          const merged = mergeUpdates(lastResponse, batchUpdates);
+          onUpdateState(merged);
           setIsOpen(false);
           setPrompt('');
+          setBatchInput('');
           setLastResponse(null);
           setGeneratedImage(null);
       }
+  };
+
+  const handleApplyBatchOnly = () => {
+    const updates = parseBatchInput(batchInput);
+    if (!updates) return;
+    onUpdateState(updates);
+    setIsOpen(false);
+    setPrompt('');
+    setBatchInput('');
+    setLastResponse(null);
+    setGeneratedImage(null);
   };
 
   if (!isOpen) {
@@ -168,14 +240,23 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState }
                </button>
              </>
            ) : (
-            <button
-              onClick={handleGenerate}
-              disabled={loading || !prompt}
-              className="px-6 py-2 bg-skyrim-gold hover:bg-skyrim-goldHover disabled:opacity-50 disabled:cursor-not-allowed text-skyrim-dark font-bold rounded flex items-center gap-2 font-serif"
-            >
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-              Generate Outcome
-            </button>
+            <>
+              <button
+                onClick={handleApplyBatchOnly}
+                disabled={loading || !batchInput.trim()}
+                className="px-4 py-2 border border-skyrim-gold text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark disabled:opacity-50 disabled:cursor-not-allowed font-bold rounded flex items-center gap-2 font-serif text-sm"
+              >
+                <Play size={16} /> Apply Batch
+              </button>
+              <button
+                onClick={handleGenerate}
+                disabled={loading || !prompt}
+                className="px-6 py-2 bg-skyrim-gold hover:bg-skyrim-goldHover disabled:opacity-50 disabled:cursor-not-allowed text-skyrim-dark font-bold rounded flex items-center gap-2 font-serif"
+              >
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
+                Generate Outcome
+              </button>
+            </>
            )}
         </div>
       </div>
