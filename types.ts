@@ -248,8 +248,23 @@ export interface GameStateUpdate {
   timeAdvanceMinutes?: number;
   needsChange?: Partial<SurvivalNeeds>;
 
+  // Transaction tracking - prevents duplicate charges
+  transactionId?: string;  // Unique ID for this specific transaction
+  isPreview?: boolean;     // If true, this response is showing OPTIONS, not executing a transaction
+  
   // Dialogue choices to present as clickable options
-  choices?: Array<{ label: string; playerText: string; topic?: string }>;
+  choices?: Array<{ 
+    label: string; 
+    playerText: string; 
+    topic?: string;
+    // Preview costs shown on the button (NOT applied until selected)
+    previewCost?: {
+      gold?: number;
+      items?: Array<{ name: string; quantity: number }>;
+    };
+    // Transaction ID to send when this choice is selected
+    transactionId?: string;
+  }>;
 
   // Character detail updates (hero sheet fields)
   characterUpdates?: {

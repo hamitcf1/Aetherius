@@ -3,6 +3,7 @@ import { Character, InventoryItem, CustomQuest, JournalEntry, StoryChapter, Game
 import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X, AlertTriangle, Users } from 'lucide-react';
 import type { PreferredAIModel } from '../services/geminiService';
 import { getSimulationManager, processAISimulationUpdate, SimulationStateManager, NPC, PlayerFact } from '../services/stateManager';
+import { getTransactionLedger, filterDuplicateTransactions } from '../services/transactionLedger';
 
 interface ChatMessage {
   id: string;
@@ -70,6 +71,34 @@ WORLD AUTHORITY:
 - Only Hold capitals have Jarls
 - Use canonical Skyrim lore unless specifically told otherwise
 
+TRANSACTION RULES (CRITICAL):
+When presenting purchase/trade OPTIONS to the player:
+- DO NOT include goldChange in the response - this is just showing options
+- Include previewCost in choices to show what each option costs
+- The transaction only occurs when the player SELECTS an option
+
+When EXECUTING a transaction (player explicitly confirms purchase/payment):
+- Include goldChange for the ACTUAL transaction
+- Include transactionId to track unique purchases
+- Only charge ONCE per logical transaction
+
+Example - SHOWING options (no goldChange yet):
+{
+  "narrative": { "title": "The Innkeeper", "content": "Hulda gestures to the rooms upstairs..." },
+  "choices": [
+    { "label": "Pay 10 gold for a bed", "playerText": "I'll take a bed for the night", "previewCost": { "gold": 10 } },
+    { "label": "Pay 25 gold for a room", "playerText": "I'd like a private room", "previewCost": { "gold": 25 } }
+  ]
+}
+
+Example - EXECUTING a transaction (player selected):
+{
+  "narrative": { "title": "Room Purchased", "content": "Hulda takes your coin and hands you a key..." },
+  "goldChange": -25,
+  "transactionId": "room_purchase_bannered_mare_1",
+  "newItems": [{ "name": "Room Key", "type": "misc", "description": "Key to your room", "quantity": 1 }]
+}
+
 RESPONSE FORMAT:
 Return ONLY a JSON object:
 {
@@ -79,11 +108,12 @@ Return ONLY a JSON object:
   "newQuests": [{ "title": "Quest", "description": "...", "location": "...", "dueDate": "...", "objectives": [{ "description": "...", "completed": false }] }],
   "updateQuests": [{ "title": "Quest Title", "status": "completed" }],
   "goldChange": 0,
+  "transactionId": "optional_unique_id_for_purchases",
   "statUpdates": {},
   "timeAdvanceMinutes": 0,
   "needsChange": { "hunger": 0, "thirst": 0, "fatigue": 0 },
   "choices": [
-    { "label": "Short option shown as a button", "playerText": "Exact text to send as the player's next message", "topic": "optional_topic_key" }
+    { "label": "Short option shown as button", "playerText": "Exact text to send", "topic": "optional_topic", "previewCost": { "gold": 10 } }
   ],
   "simulationUpdate": {
     "npcsIntroduced": [{ "name": "Guard Captain Hrolf", "role": "City Guard Captain", "disposition": "wary", "description": "A weathered Nord in steel plate" }],
@@ -166,15 +196,19 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       )
   );
 
-  // Initialize simulation state manager
+  // Initialize simulation state manager and transaction ledger
   useEffect(() => {
     if (!character) {
       simulationManagerRef.current = null;
+      getTransactionLedger().setCharacter(null);
       return;
     }
 
     const manager = getSimulationManager(character.id, userId || null);
     simulationManagerRef.current = manager;
+    
+    // Set character on transaction ledger
+    getTransactionLedger().setCharacter(character.id);
     
     // Load simulation state
     manager.load().catch(e => {
@@ -422,8 +456,30 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       }
 
       // Auto-apply game state changes if enabled
+      // Filter out duplicate/preview transactions to prevent double-charging
       if (autoApply && result) {
-        onUpdateState(result);
+        // If this response has choices, treat goldChange as a preview (don't apply yet)
+        // The gold will be charged when the player actually selects a choice
+        const hasChoices = Array.isArray(result.choices) && result.choices.length > 0;
+        const isPreviewResponse = result.isPreview || hasChoices;
+        
+        const { filteredUpdate, wasFiltered, reason } = filterDuplicateTransactions({
+          ...result,
+          isPreview: isPreviewResponse
+        });
+        
+        if (wasFiltered) {
+          console.log(`[Transaction] Gold change filtered: ${reason} (would have been ${result.goldChange})`);
+        }
+        
+        // If transaction was applied, record it
+        if (!wasFiltered && result.goldChange && result.transactionId) {
+          getTransactionLedger().recordTransaction(result.transactionId, {
+            goldAmount: result.goldChange
+          });
+        }
+        
+        onUpdateState(filteredUpdate as GameStateUpdate);
       }
     } catch (error) {
       console.error('Adventure chat error:', error);
@@ -807,10 +863,16 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                           key={`${msg.id}:choice:${idx}`}
                           onClick={() => sendPlayerText((c?.playerText || c?.label || '').trim())}
                           disabled={loading}
-                          className="px-3 py-2 bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/40 rounded hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors text-sm font-sans disabled:opacity-50"
+                          className="px-3 py-2 bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/40 rounded hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors text-sm font-sans disabled:opacity-50 flex items-center gap-2"
                           title={c?.playerText || c?.label}
                         >
-                          {c?.label || 'Choose'}
+                          <span>{c?.label || 'Choose'}</span>
+                          {/* Show preview cost badge if present */}
+                          {c?.previewCost?.gold && (
+                            <span className="text-xs px-1.5 py-0.5 bg-yellow-900/40 text-yellow-400 rounded border border-yellow-700/50">
+                              {c.previewCost.gold} gold
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>

@@ -33,6 +33,23 @@
       }
     </script>
     <style>
+      /* Skyrim-style custom cursors */
+      *, *::before, *::after {
+        cursor: url('/cursor-default.svg') 4 2, auto;
+      }
+      
+      a, button, [role="button"], 
+      input[type="submit"], input[type="button"], input[type="reset"],
+      select, .cursor-pointer, [onclick] {
+        cursor: url('/cursor-pointer.svg') 10 4, pointer;
+      }
+      
+      input[type="text"], input[type="password"], input[type="email"], 
+      input[type="number"], input[type="search"], input[type="tel"], 
+      input[type="url"], textarea, [contenteditable="true"] {
+        cursor: url('/cursor-text.svg') 16 16, text;
+      }
+
       body {
         background-color: #050505;
         background-image: url('https://www.transparenttextures.com/patterns/dark-leather.png');

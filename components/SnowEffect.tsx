@@ -1,79 +1,120 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, memo } from 'react';
 
-// Simple snowflake generator for Skyrim-style snow
-const SNOWFLAKE_COUNT = 60;
+/**
+ * Performance-optimized snow effect using CSS animations.
+ * - Uses CSS transforms (GPU-accelerated) instead of JS-driven animation
+ * - Reduces reflows/repaints by using transform instead of top/left
+ * - Uses will-change hint for compositor optimization
+ * - Memoized to prevent unnecessary re-renders
+ */
 
-const random = (min: number, max: number) => Math.random() * (max - min) + min;
+const SNOWFLAKE_COUNT = 50; // Reduced count for better performance
 
-const SnowEffect: React.FC = () => {
+interface Snowflake {
+  id: number;
+  size: number;
+  left: number;
+  delay: number;
+  duration: number;
+  opacity: number;
+  drift: number;
+}
+
+// Generate snowflake data once
+const generateSnowflakes = (): Snowflake[] => {
+  return Array.from({ length: SNOWFLAKE_COUNT }, (_, i) => ({
+    id: i,
+    size: 2 + Math.random() * 4,
+    left: Math.random() * 100,
+    delay: Math.random() * 10,
+    duration: 8 + Math.random() * 12, // 8-20 seconds to fall
+    opacity: 0.5 + Math.random() * 0.5,
+    drift: -15 + Math.random() * 30, // Horizontal drift
+  }));
+};
+
+// CSS keyframes injected once
+const injectStyles = () => {
+  const styleId = 'snowflake-styles';
+  if (document.getElementById(styleId)) return;
+
+  const style = document.createElement('style');
+  style.id = styleId;
+  style.textContent = `
+    @keyframes snowfall {
+      0% {
+        transform: translate3d(0, -10vh, 0) rotate(0deg);
+      }
+      100% {
+        transform: translate3d(var(--drift), 110vh, 0) rotate(360deg);
+      }
+    }
+
+    @keyframes snowflake-shimmer {
+      0%, 100% { opacity: var(--base-opacity); }
+      50% { opacity: calc(var(--base-opacity) * 0.6); }
+    }
+
+    .snowflake {
+      position: fixed;
+      top: 0;
+      background: radial-gradient(circle, #fff 0%, rgba(255,255,255,0.8) 40%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      will-change: transform;
+      animation: 
+        snowfall var(--duration) linear infinite,
+        snowflake-shimmer 3s ease-in-out infinite;
+      animation-delay: var(--delay);
+      z-index: 9999;
+    }
+
+    .snow-container {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  `;
+  document.head.appendChild(style);
+};
+
+const SnowflakeElement: React.FC<{ flake: Snowflake }> = memo(({ flake }) => (
+  <div
+    className="snowflake"
+    style={{
+      left: `${flake.left}%`,
+      width: `${flake.size}px`,
+      height: `${flake.size}px`,
+      '--duration': `${flake.duration}s`,
+      '--delay': `${-flake.delay}s`,
+      '--drift': `${flake.drift}px`,
+      '--base-opacity': flake.opacity,
+      boxShadow: `0 0 ${flake.size * 2}px ${flake.size / 2}px rgba(255,255,255,0.3)`,
+    } as React.CSSProperties}
+  />
+));
+
+SnowflakeElement.displayName = 'SnowflakeElement';
+
+const SnowEffect: React.FC = memo(() => {
+  // Generate snowflakes only once
+  const snowflakes = useMemo(() => generateSnowflakes(), []);
+
   useEffect(() => {
-    const snowflakes: HTMLDivElement[] = [];
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.left = '0';
-    container.style.top = '0';
-    container.style.width = '100vw';
-    container.style.height = '100vh';
-    container.style.pointerEvents = 'none';
-    container.style.zIndex = '9999';
-    container.className = 'skyrim-snow-effect';
-    document.body.appendChild(container);
-
-    for (let i = 0; i < SNOWFLAKE_COUNT; i++) {
-      const flake = document.createElement('div');
-      flake.style.position = 'absolute';
-      flake.style.left = `${random(0, 100)}vw`;
-      flake.style.top = `${random(-10, 100)}vh`;
-      flake.style.width = `${random(2, 6)}px`;
-      flake.style.height = flake.style.width;
-      flake.style.background = 'white';
-      flake.style.borderRadius = '50%';
-      flake.style.opacity = String(random(0.7, 1));
-      flake.style.filter = 'blur(0.5px)';
-      flake.style.boxShadow = '0 0 8px 2px #fff8';
-      flake.style.transition = 'top 0.2s linear';
-      flake.style.pointerEvents = 'none';
-      flake.style.zIndex = 'inherit';
-      container.appendChild(flake);
-      snowflakes.push(flake);
-    }
-
-    let running = true;
-    function animate() {
-      if (!running) return;
-      snowflakes.forEach(flake => {
-        let top = parseFloat(flake.style.top);
-        let speed = (flake as any)._speed || 0.4;
-        top += speed;
-        if (top > 100) {
-          // Instantly move to above the viewport, randomize left and speed, fade in
-          top = random(-10, 0);
-          flake.style.transition = 'none';
-          flake.style.top = `${top}vh`;
-          flake.style.left = `${random(0, 100)}vw`;
-          (flake as any)._speed = random(0.2, 0.7);
-          flake.style.opacity = '0';
-          // Force reflow for transition
-          void flake.offsetHeight;
-          flake.style.transition = 'top 0.2s linear, opacity 0.5s';
-          setTimeout(() => {
-            flake.style.opacity = String(random(0.7, 1));
-          }, 10);
-        } else {
-          flake.style.top = `${top}vh`;
-        }
-      });
-      requestAnimationFrame(animate);
-    }
-    animate();
-
-    return () => {
-      running = false;
-      container.remove();
-    };
+    injectStyles();
   }, []);
 
-  return null;
-};
+  return (
+    <div className="snow-container" aria-hidden="true">
+      {snowflakes.map((flake) => (
+        <SnowflakeElement key={flake.id} flake={flake} />
+      ))}
+    </div>
+  );
+});
+
+SnowEffect.displayName = 'SnowEffect';
 
 export default SnowEffect;
