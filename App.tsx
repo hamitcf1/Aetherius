@@ -286,15 +286,15 @@ const App: React.FC = () => {
     setAuthError(null);
     try {
       if (!email || !password || !username) {
-        setAuthError('E-posta, şifre ve kullanıcı adı gereklidir');
+        setAuthError('Email, password, and username are required');
         return;
       }
       if (password.length < 6) {
-        setAuthError('Şifre en az 6 karakter olmalıdır');
+        setAuthError('Password must be at least 6 characters');
         return;
       }
       await registerUser(email, password);
-      // Kullanıcı profili oluştur
+      // Create user profile
       if (currentUser) {
         const newProfile: UserProfile = { id: uniqueId(), username, created: Date.now() };
         setProfiles([...profiles, newProfile]);
@@ -306,11 +306,11 @@ const App: React.FC = () => {
       setAuthError(null);
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
-        setAuthError('Bu e-posta zaten kullanımda');
+        setAuthError('This email is already in use');
       } else if (error.code === 'auth/invalid-email') {
-        setAuthError('Geçersiz e-posta adresi');
+        setAuthError('Invalid email address');
       } else {
-        setAuthError('Kayıt başarısız oldu: ' + error.message);
+        setAuthError('Registration failed: ' + error.message);
       }
     }
   };
@@ -319,7 +319,7 @@ const App: React.FC = () => {
     setAuthError(null);
     try {
       if (!email || !password) {
-        setAuthError('E-posta ve şifre gereklidir');
+        setAuthError('Email and password are required');
         return;
       }
       await loginUser(email, password);
@@ -328,11 +328,11 @@ const App: React.FC = () => {
       setAuthError(null);
     } catch (error: any) {
       if (error.code === 'auth/user-not-found') {
-        setAuthError('Bu e-posta için kullanıcı bulunamadı');
+        setAuthError('No user found for this email');
       } else if (error.code === 'auth/wrong-password') {
-        setAuthError('Yanlış şifre');
+        setAuthError('Incorrect password');
       } else {
-        setAuthError('Giriş başarısız: ' + error.message);
+        setAuthError('Login failed: ' + error.message);
       }
     }
   };
@@ -347,7 +347,7 @@ const App: React.FC = () => {
       setCurrentProfileId(null);
       setCurrentCharacterId(null);
     } catch (error) {
-      setAuthError('Çıkış yapılamadı');
+      setAuthError('Logout failed');
     }
   };
   if (loading) {
@@ -733,26 +733,26 @@ const App: React.FC = () => {
       const lines: string[] = [];
 
       if (updates.narrative?.content) {
-        lines.push(updates.narrative.content.trim());
+        lines.push(`I remember it like this:\n${updates.narrative.content.trim()}`);
       }
 
       const changes: string[] = [];
 
       if (typeof updates.goldChange === 'number' && updates.goldChange !== 0) {
-        const sign = updates.goldChange > 0 ? '+' : '';
-        changes.push(`Gold: ${sign}${updates.goldChange}`);
+        if (updates.goldChange > 0) changes.push(`I gained ${updates.goldChange} gold.`);
+        else changes.push(`I spent ${Math.abs(updates.goldChange)} gold.`);
       }
       if (typeof updates.xpChange === 'number' && updates.xpChange !== 0) {
-        const sign = updates.xpChange > 0 ? '+' : '';
-        changes.push(`Experience: ${sign}${updates.xpChange}`);
+        if (updates.xpChange > 0) changes.push(`I gained ${updates.xpChange} experience.`);
+        else changes.push(`I lost ${Math.abs(updates.xpChange)} experience.`);
       }
 
       if (updates.statUpdates && Object.keys(updates.statUpdates).length) {
         const statParts: string[] = [];
-        if (typeof updates.statUpdates.health === 'number') statParts.push(`Health → ${updates.statUpdates.health}`);
-        if (typeof updates.statUpdates.magicka === 'number') statParts.push(`Magicka → ${updates.statUpdates.magicka}`);
-        if (typeof updates.statUpdates.stamina === 'number') statParts.push(`Stamina → ${updates.statUpdates.stamina}`);
-        if (statParts.length) changes.push(`Stats: ${statParts.join(', ')}`);
+        if (typeof updates.statUpdates.health === 'number') statParts.push(`health is now ${updates.statUpdates.health}`);
+        if (typeof updates.statUpdates.magicka === 'number') statParts.push(`magicka is now ${updates.statUpdates.magicka}`);
+        if (typeof updates.statUpdates.stamina === 'number') statParts.push(`stamina is now ${updates.statUpdates.stamina}`);
+        if (statParts.length) changes.push(`My ${statParts.join(', ')}.`);
       }
 
       if (updates.newItems?.length) {
@@ -762,7 +762,7 @@ const App: React.FC = () => {
             return `${qty}× ${String(i.name || '').trim()}`.trim();
           })
           .filter(Boolean);
-        if (items.length) changes.push(`Gained: ${items.join(', ')}`);
+        if (items.length) changes.push(`I gained ${items.join(', ')}.`);
       }
 
       if (updates.removedItems?.length) {
@@ -772,7 +772,7 @@ const App: React.FC = () => {
             return `${qty}× ${String(i.name || '').trim()}`.trim();
           })
           .filter(Boolean);
-        if (items.length) changes.push(`Lost/Used: ${items.join(', ')}`);
+        if (items.length) changes.push(`I used or lost ${items.join(', ')}.`);
       }
 
       if (updates.newQuests?.length) {
@@ -781,8 +781,9 @@ const App: React.FC = () => {
             const loc = q.location ? ` (${q.location})` : '';
             const due = q.dueDate ? ` — Due: ${q.dueDate}` : '';
             const objectives = (q.objectives || []).map(o => `- ${o.description}`).join('\n');
-            const objBlock = objectives ? `\nObjectives:\n${objectives}` : '';
-            return `Quest Started: ${q.title}${loc}${due}\n${q.description || ''}${objBlock}`.trim();
+            const objBlock = objectives ? `\nMy objectives:\n${objectives}` : '';
+            const desc = (q.description || '').trim();
+            return `I accepted a new quest: ${q.title}${loc}${due}.${desc ? `\n${desc}` : ''}${objBlock}`.trim();
           })
           .filter(Boolean);
         if (questSummaries.length) lines.push(questSummaries.join('\n\n'));
@@ -790,13 +791,17 @@ const App: React.FC = () => {
 
       if (updates.updateQuests?.length) {
         const questUpdates = updates.updateQuests
-          .map(q => `Quest ${q.status.toUpperCase()}: ${q.title}`)
+          .map(q => {
+            if (q.status === 'completed') return `I completed the quest: ${q.title}.`;
+            if (q.status === 'failed') return `I failed the quest: ${q.title}.`;
+            return `I updated my quest: ${q.title}.`;
+          })
           .filter(Boolean);
         if (questUpdates.length) changes.push(...questUpdates);
       }
 
       if (changes.length) {
-        lines.push(`\nNotes:\n- ${changes.join('\n- ')}`);
+        lines.push(`\nMy notes:\n- ${changes.join('\n- ')}`);
       }
 
       const entry: JournalEntry = {

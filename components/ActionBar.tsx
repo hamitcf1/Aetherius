@@ -71,7 +71,7 @@ const ActionBar: React.FC = () => {
         ref={buttonRef}
         onClick={handleToggle}
         className="bg-skyrim-gold text-skyrim-dark px-3 py-2 rounded shadow-lg font-bold flex items-center gap-2 relative overflow-hidden shrink-0"
-        aria-label={open ? 'Kapat' : 'Aç'}
+        aria-label={open ? 'Close actions menu' : 'Open actions menu'}
       >
         <span style={{ position: 'relative', width: 20, height: 20, display: 'inline-block' }}>
           <Plus
