@@ -20,7 +20,9 @@ const ActionBar: React.FC = () => {
     handleCreateImagePrompt,
     handleUploadPhoto,
     handleShopPurchase,
+    handleShopSell,
     gold,
+    inventory,
     aiModel,
     setAiModel
   } = useAppContext();
@@ -197,7 +199,9 @@ const ActionBar: React.FC = () => {
         open={shopOpen} 
         onClose={() => setShopOpen(false)} 
         gold={gold} 
-        onPurchase={handleShopPurchase} 
+        onPurchase={handleShopPurchase}
+        inventory={inventory}
+        onSell={handleShopSell}
       />
     </>
   );

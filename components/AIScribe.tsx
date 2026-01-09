@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { generateGameMasterResponse, generateLoreImage } from '../services/geminiService';
 import { GameStateUpdate } from '../types';
 import { Sparkles, X, Scroll, Loader2, Play, Image as ImageIcon, User, Brain, Wand2 } from 'lucide-react';
@@ -30,6 +30,21 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
   const [lastResponse, setLastResponse] = useState<GameStateUpdate | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [mode, setMode] = useState<'action' | 'hero'>('action'); // Mode toggle
+
+  // ESC key and body scroll lock
+  const handleEscape = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') setIsOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, handleEscape]);
 
   const parseBatchInput = (text: string): GameStateUpdate | null => {
     const raw = (text || '').trim();
@@ -155,7 +170,10 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div 
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) setIsOpen(false); }}
+    >
       <div className="bg-skyrim-paper border border-skyrim-gold w-full max-w-lg rounded-lg shadow-2xl flex flex-col max-h-[90vh]">
         
         {/* Header */}

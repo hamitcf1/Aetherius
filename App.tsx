@@ -810,6 +810,39 @@ const App: React.FC = () => {
     });
   };
 
+  // Shop sell handler
+  const handleShopSell = (item: InventoryItem, quantity: number, totalGold: number) => {
+    if (!currentCharacterId || !activeCharacter) return;
+    const currentQty = item.quantity || 0;
+    if (currentQty < quantity) return;
+
+    // Reduce item quantity or remove it
+    const newQty = currentQty - quantity;
+    if (newQty <= 0) {
+      // Remove item entirely
+      setItems(prev => prev.filter(i => i.id !== item.id));
+      if (currentUser) {
+        void deleteInventoryItem(currentUser.uid, item.id).catch(err => {
+          console.error('Failed to delete sold item:', err);
+        });
+      }
+    } else {
+      // Update quantity
+      const updatedItem = { ...item, quantity: newQty };
+      setItems(prev => prev.map(i => i.id === item.id ? updatedItem : i));
+      if (currentUser) {
+        void saveInventoryItem(currentUser.uid, updatedItem).catch(err => {
+          console.error('Failed to update sold item:', err);
+        });
+      }
+    }
+
+    // Add gold
+    handleGameUpdate({
+      goldChange: totalGold
+    });
+  };
+
   // Legacy handlers (keep for backwards compatibility but they won't be used directly)
   const handleRest = () => handleRestWithOptions({ type: 'outside', hours: 8 });
   const handleEat = () => {
@@ -1357,6 +1390,7 @@ const App: React.FC = () => {
       handleEatItem,
       handleDrinkItem,
       handleShopPurchase,
+      handleShopSell,
       gold: activeCharacter?.gold || 0,
       inventory: getCharacterItems(),
       hasCampingGear,

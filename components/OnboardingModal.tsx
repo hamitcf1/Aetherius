@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 type OnboardingStep = {
   title: string;
@@ -11,6 +11,17 @@ export function OnboardingModal(props: {
 }): React.JSX.Element | null {
   const { open, onComplete } = props;
   const [stepIndex, setStepIndex] = useState(0);
+
+  // ESC key handler
+  const handleEscape = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') onComplete();
+  }, [onComplete]);
+
+  useEffect(() => {
+    if (!open) return;
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [open, handleEscape]);
 
   const steps: OnboardingStep[] = useMemo(
     () => [
@@ -125,6 +136,7 @@ export function OnboardingModal(props: {
       role="dialog"
       aria-modal="true"
       aria-label="Tutorial"
+      onClick={(e) => { if (e.target === e.currentTarget) onComplete(); }}
     >
       <div className="w-full max-w-2xl bg-black/50 border border-skyrim-border rounded-lg shadow-2xl">
         <div className="p-5 sm:p-6 border-b border-skyrim-border flex items-start justify-between gap-4">

@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { X, ShoppingBag, Coins, Search, Package, Sword, Shield, FlaskConical, Tent, Apple, Droplets } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { X, ShoppingBag, Coins, Search, Package, Sword, Shield, FlaskConical, Tent, Apple, Droplets, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import type { InventoryItem } from '../types';
 
 export interface ShopItem {
   id: string;
@@ -121,15 +122,36 @@ const SHOP_INVENTORY: ShopItem[] = [
 const CATEGORIES = ['All', 'Food', 'Drinks', 'Potions', 'Camping', 'Weapons', 'Armor', 'Misc', 'Ingredients'];
 
 const categoryIcons: Record<string, React.ReactNode> = {
-  All: <Package size={16} />,
-  Food: <Apple size={16} />,
-  Drinks: <Droplets size={16} />,
-  Potions: <FlaskConical size={16} />,
-  Camping: <Tent size={16} />,
-  Weapons: <Sword size={16} />,
-  Armor: <Shield size={16} />,
-  Misc: <Package size={16} />,
-  Ingredients: <FlaskConical size={16} />,
+  All: <Package size={14} />,
+  Food: <Apple size={14} />,
+  Drinks: <Droplets size={14} />,
+  Potions: <FlaskConical size={14} />,
+  Camping: <Tent size={14} />,
+  Weapons: <Sword size={14} />,
+  Armor: <Shield size={14} />,
+  Misc: <Package size={14} />,
+  Ingredients: <FlaskConical size={14} />,
+};
+
+// Calculate sell price (50% of base value, minimum 1 gold)
+const getSellPrice = (item: InventoryItem): number => {
+  // Try to find matching shop item for base price
+  const shopItem = SHOP_INVENTORY.find(si => 
+    si.name.toLowerCase() === item.name.toLowerCase()
+  );
+  if (shopItem) {
+    return Math.max(1, Math.floor(shopItem.price * 0.5));
+  }
+  // Default pricing based on type
+  const basePrices: Record<string, number> = {
+    weapon: 20,
+    apparel: 15,
+    potion: 10,
+    ingredient: 2,
+    misc: 5,
+    key: 0,
+  };
+  return Math.max(1, Math.floor((basePrices[item.type] || 5) * 0.5));
 };
 
 interface ShopModalProps {
@@ -137,14 +159,43 @@ interface ShopModalProps {
   onClose: () => void;
   gold: number;
   onPurchase: (item: ShopItem, quantity: number) => void;
+  inventory?: InventoryItem[];
+  onSell?: (item: InventoryItem, quantity: number, totalGold: number) => void;
 }
 
-export function ShopModal({ open, onClose, gold, onPurchase }: ShopModalProps) {
+export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onSell }: ShopModalProps) {
+  const [mode, setMode] = useState<'buy' | 'sell'>('buy');
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  const filteredItems = useMemo(() => {
+  // Handle ESC key to close
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onClose();
+    }
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    document.addEventListener('keydown', handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [open, handleKeyDown]);
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (open) {
+      setQuantities({});
+      setSearch('');
+    }
+  }, [open]);
+
+  const filteredShopItems = useMemo(() => {
     return SHOP_INVENTORY.filter(item => {
       const matchesCategory = category === 'All' || item.category === category;
       const matchesSearch = !search || 
@@ -154,9 +205,22 @@ export function ShopModal({ open, onClose, gold, onPurchase }: ShopModalProps) {
     });
   }, [category, search]);
 
+  const filteredInventoryItems = useMemo(() => {
+    return inventory.filter(item => {
+      // Don't allow selling keys
+      if (item.type === 'key') return false;
+      if ((item.quantity || 0) <= 0) return false;
+      const matchesSearch = !search || 
+        item.name.toLowerCase().includes(search.toLowerCase()) ||
+        item.description.toLowerCase().includes(search.toLowerCase());
+      return matchesSearch;
+    });
+  }, [inventory, search]);
+
   const getQuantity = (id: string) => quantities[id] || 1;
-  const setQuantity = (id: string, qty: number) => {
-    setQuantities(prev => ({ ...prev, [id]: Math.max(1, qty) }));
+  const setQuantity = (id: string, qty: number, max?: number) => {
+    const newQty = Math.max(1, max ? Math.min(qty, max) : qty);
+    setQuantities(prev => ({ ...prev, [id]: newQty }));
   };
 
   const handleBuy = (item: ShopItem) => {
@@ -168,123 +232,242 @@ export function ShopModal({ open, onClose, gold, onPurchase }: ShopModalProps) {
     }
   };
 
+  const handleSell = (item: InventoryItem) => {
+    if (!onSell) return;
+    const qty = Math.min(getQuantity(item.id), item.quantity || 1);
+    const unitPrice = getSellPrice(item);
+    const total = unitPrice * qty;
+    onSell(item, qty, total);
+    setQuantities(prev => ({ ...prev, [item.id]: 1 }));
+  };
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-start sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
-      <div className="w-full sm:max-w-4xl min-h-screen sm:min-h-0 sm:max-h-[90vh] bg-skyrim-paper border-0 sm:border border-skyrim-gold sm:rounded-lg shadow-2xl flex flex-col overflow-hidden">
+    <div 
+      className="fixed inset-0 z-[70] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div 
+        className="w-full max-w-2xl bg-skyrim-paper border-2 border-skyrim-gold rounded-lg shadow-2xl flex flex-col"
+        style={{ maxHeight: 'min(550px, 80vh)', margin: 'auto' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="p-4 border-b border-skyrim-border flex items-center justify-between gap-4 bg-skyrim-dark/50">
-          <div className="flex items-center gap-3">
-            <ShoppingBag className="text-skyrim-gold" size={24} />
-            <h2 className="text-xl font-serif text-skyrim-gold">General Goods</h2>
+        <div className="px-4 py-3 border-b border-skyrim-border flex items-center justify-between gap-3 bg-skyrim-dark/50 rounded-t-lg flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <ShoppingBag className="text-skyrim-gold" size={20} />
+            <h2 className="text-lg font-serif text-skyrim-gold">General Goods</h2>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-1 bg-black/40 rounded border border-skyrim-border">
-              <Coins size={16} className="text-yellow-500" />
-              <span className="text-yellow-400 font-bold">{gold}</span>
-              <span className="text-gray-400 text-sm">septims</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-black/40 rounded border border-skyrim-border">
+              <Coins size={14} className="text-yellow-500" />
+              <span className="text-yellow-400 font-bold text-sm">{gold}</span>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-black/40 rounded transition-colors">
-              <X size={20} className="text-gray-400" />
+            <button onClick={onClose} className="p-1.5 hover:bg-black/40 rounded transition-colors">
+              <X size={18} className="text-gray-400 hover:text-white" />
             </button>
           </div>
         </div>
 
-        {/* Search & Categories */}
-        <div className="p-4 border-b border-skyrim-border/60 space-y-3 bg-black/20">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search items..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-black/40 border border-skyrim-border rounded text-gray-200 placeholder-gray-500 focus:border-skyrim-gold focus:outline-none"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm transition-colors ${
-                  category === cat
-                    ? 'bg-skyrim-gold text-skyrim-dark font-bold'
-                    : 'bg-black/30 text-gray-300 hover:bg-black/50 border border-skyrim-border/50'
-                }`}
-              >
-                {categoryIcons[cat]}
-                {cat}
-              </button>
-            ))}
-          </div>
+        {/* Buy/Sell Tabs */}
+        <div className="flex border-b border-skyrim-border/60 bg-black/20 flex-shrink-0">
+          <button
+            onClick={() => { setMode('buy'); setSearch(''); setCategory('All'); }}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-colors ${
+              mode === 'buy'
+                ? 'bg-skyrim-gold/20 text-skyrim-gold border-b-2 border-skyrim-gold'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-black/20'
+            }`}
+          >
+            <ArrowDownToLine size={16} />
+            Buy
+          </button>
+          <button
+            onClick={() => { setMode('sell'); setSearch(''); }}
+            disabled={!onSell}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-colors ${
+              mode === 'sell'
+                ? 'bg-green-900/30 text-green-400 border-b-2 border-green-500'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-black/20'
+            } ${!onSell ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <ArrowUpFromLine size={16} />
+            Sell
+          </button>
         </div>
 
-        {/* Items Grid */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {filteredItems.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">No items found.</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filteredItems.map(item => {
-                const qty = getQuantity(item.id);
-                const total = item.price * qty;
-                const canAfford = gold >= total;
-
-                return (
-                  <div
-                    key={item.id}
-                    className={`p-3 rounded border transition-colors ${
-                      canAfford
-                        ? 'bg-black/30 border-skyrim-border/60 hover:border-skyrim-gold/50'
-                        : 'bg-black/20 border-red-900/30 opacity-60'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <div className="text-gray-200 font-semibold text-sm">{item.name}</div>
-                        <div className="text-gray-500 text-xs">{item.category}</div>
-                      </div>
-                      <div className="flex items-center gap-1 text-yellow-500 text-sm font-bold whitespace-nowrap">
-                        <Coins size={12} />
-                        {item.price}
-                      </div>
-                    </div>
-                    <p className="text-gray-400 text-xs mb-3 line-clamp-2">{item.description}</p>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1 bg-black/40 rounded border border-skyrim-border/50">
-                        <button
-                          onClick={() => setQuantity(item.id, qty - 1)}
-                          className="px-2 py-1 text-gray-400 hover:text-white"
-                        >
-                          -
-                        </button>
-                        <span className="w-8 text-center text-gray-200 text-sm">{qty}</span>
-                        <button
-                          onClick={() => setQuantity(item.id, qty + 1)}
-                          className="px-2 py-1 text-gray-400 hover:text-white"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => handleBuy(item)}
-                        disabled={!canAfford}
-                        className={`flex-1 px-3 py-1.5 rounded text-sm font-bold transition-colors ${
-                          canAfford
-                            ? 'bg-skyrim-gold text-skyrim-dark hover:bg-yellow-400'
-                            : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        Buy ({total}g)
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+        {/* Search & Categories (Buy mode only) */}
+        <div className="px-3 py-2.5 border-b border-skyrim-border/40 bg-black/10 flex-shrink-0 space-y-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input
+              type="text"
+              placeholder={mode === 'buy' ? 'Search shop...' : 'Search inventory...'}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 bg-black/40 border border-skyrim-border rounded text-gray-200 placeholder-gray-500 focus:border-skyrim-gold focus:outline-none text-sm"
+            />
+          </div>
+          {mode === 'buy' && (
+            <div className="flex flex-wrap gap-1">
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setCategory(cat)}
+                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+                    category === cat
+                      ? 'bg-skyrim-gold text-skyrim-dark font-bold'
+                      : 'bg-black/30 text-gray-400 hover:text-gray-200 hover:bg-black/50'
+                  }`}
+                >
+                  {categoryIcons[cat]}
+                  <span>{cat}</span>
+                </button>
+              ))}
             </div>
           )}
+        </div>
+
+        {/* Items List */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {mode === 'buy' ? (
+            // BUY MODE
+            filteredShopItems.length === 0 ? (
+              <div className="text-center text-gray-500 py-8 text-sm">No items found.</div>
+            ) : (
+              <div className="divide-y divide-skyrim-border/30">
+                {filteredShopItems.map(item => {
+                  const qty = getQuantity(item.id);
+                  const total = item.price * qty;
+                  const canAfford = gold >= total;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className={`px-3 py-2.5 flex items-center gap-3 hover:bg-black/20 transition-colors ${
+                        !canAfford ? 'opacity-50' : ''
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-200 font-medium text-sm truncate">{item.name}</span>
+                          <span className="text-gray-500 text-xs">({item.category})</span>
+                        </div>
+                        <p className="text-gray-500 text-xs truncate">{item.description}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-1 text-yellow-500 text-xs font-bold">
+                          <Coins size={12} />
+                          {item.price}
+                        </div>
+                        <div className="flex items-center bg-black/40 rounded border border-skyrim-border/50">
+                          <button
+                            onClick={() => setQuantity(item.id, qty - 1)}
+                            className="px-1.5 py-0.5 text-gray-400 hover:text-white text-xs"
+                          >
+                            -
+                          </button>
+                          <span className="w-6 text-center text-gray-200 text-xs">{qty}</span>
+                          <button
+                            onClick={() => setQuantity(item.id, qty + 1)}
+                            className="px-1.5 py-0.5 text-gray-400 hover:text-white text-xs"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => handleBuy(item)}
+                          disabled={!canAfford}
+                          className={`px-2.5 py-1 rounded text-xs font-bold transition-colors ${
+                            canAfford
+                              ? 'bg-skyrim-gold text-skyrim-dark hover:bg-yellow-400'
+                              : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                          }`}
+                        >
+                          Buy {total}g
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            // SELL MODE
+            filteredInventoryItems.length === 0 ? (
+              <div className="text-center text-gray-500 py-8 text-sm">
+                {search ? 'No matching items in your inventory.' : 'No items to sell.'}
+              </div>
+            ) : (
+              <div className="divide-y divide-skyrim-border/30">
+                {filteredInventoryItems.map(item => {
+                  const maxQty = item.quantity || 1;
+                  const qty = Math.min(getQuantity(item.id), maxQty);
+                  const unitPrice = getSellPrice(item);
+                  const total = unitPrice * qty;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="px-3 py-2.5 flex items-center gap-3 hover:bg-black/20 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-200 font-medium text-sm truncate">{item.name}</span>
+                          <span className="text-gray-500 text-xs">×{item.quantity}</span>
+                          {item.equipped && (
+                            <span className="text-xs bg-blue-900/50 text-blue-300 px-1.5 py-0.5 rounded">Equipped</span>
+                          )}
+                        </div>
+                        <p className="text-gray-500 text-xs truncate">{item.description}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-1 text-green-400 text-xs font-bold">
+                          <Coins size={12} />
+                          {unitPrice}/ea
+                        </div>
+                        {maxQty > 1 && (
+                          <div className="flex items-center bg-black/40 rounded border border-skyrim-border/50">
+                            <button
+                              onClick={() => setQuantity(item.id, qty - 1, maxQty)}
+                              className="px-1.5 py-0.5 text-gray-400 hover:text-white text-xs"
+                            >
+                              -
+                            </button>
+                            <span className="w-6 text-center text-gray-200 text-xs">{qty}</span>
+                            <button
+                              onClick={() => setQuantity(item.id, qty + 1, maxQty)}
+                              className="px-1.5 py-0.5 text-gray-400 hover:text-white text-xs"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => handleSell(item)}
+                          className="px-2.5 py-1 rounded text-xs font-bold bg-green-700 text-white hover:bg-green-600 transition-colors"
+                        >
+                          Sell +{total}g
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-3 py-2 border-t border-skyrim-border/60 bg-black/20 flex-shrink-0">
+          <p className="text-gray-500 text-xs text-center">
+            {mode === 'buy' 
+              ? `${filteredShopItems.length} items available` 
+              : `${filteredInventoryItems.length} items to sell (50% value)`
+            }
+          </p>
         </div>
       </div>
     </div>

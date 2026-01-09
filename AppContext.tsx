@@ -22,6 +22,7 @@ export interface AppContextType {
   handleDrinkItem: (item: InventoryItem) => void;
   // Shop
   handleShopPurchase: (item: ShopItem, quantity: number) => void;
+  handleShopSell: (item: InventoryItem, quantity: number, totalGold: number) => void;
   gold: number;
   inventory: InventoryItem[];
   hasCampingGear: boolean;

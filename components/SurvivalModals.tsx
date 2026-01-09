@@ -1,6 +1,24 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { X, Moon, Apple, Droplets, Tent, Home, TreePine, Clock, Coins } from 'lucide-react';
 import { InventoryItem } from '../types';
+
+// Hook for modal keyboard and click-outside handling
+function useModalClose(open: boolean, onClose: () => void) {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    document.addEventListener('keydown', handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [open, handleKeyDown]);
+}
 
 // === REST MODAL ===
 export interface RestOptions {
@@ -23,6 +41,8 @@ const INN_COST = 10;
 export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedroll }: RestModalProps) {
   const [restType, setRestType] = useState<'outside' | 'camp' | 'inn'>('outside');
   const [hours, setHours] = useState(8);
+
+  useModalClose(open, onClose);
 
   const restQuality = useMemo(() => {
     if (restType === 'inn') return { label: 'Well Rested', fatigueReduction: 50, desc: 'A warm bed at the inn. Full rest.' };
@@ -47,7 +67,10 @@ export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedr
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div className="w-full max-w-md bg-skyrim-paper border border-skyrim-gold rounded-lg shadow-2xl overflow-hidden">
         <div className="p-4 border-b border-skyrim-border flex items-center justify-between bg-skyrim-dark/50">
           <div className="flex items-center gap-3">
@@ -55,7 +78,7 @@ export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedr
             <h2 className="text-lg font-serif text-skyrim-gold">Rest</h2>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-black/40 rounded">
-            <X size={18} className="text-gray-400" />
+            <X size={18} className="text-gray-400 hover:text-white" />
           </button>
         </div>
 
@@ -165,6 +188,8 @@ interface EatModalProps {
 const FOOD_KEYWORDS = ['bread', 'apple', 'cheese', 'meat', 'stew', 'soup', 'potato', 'carrot', 'salmon', 'leek', 'cabbage', 'sweetroll', 'pie', 'ration', 'food', 'meal', 'venison', 'rabbit', 'horker', 'mammoth', 'beef', 'haunch'];
 
 export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
+  useModalClose(open, onClose);
+
   const availableFood = useMemo(() => {
     return foodItems.filter(item => {
       if ((item.quantity || 0) <= 0) return false;
@@ -182,7 +207,10 @@ export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div className="w-full max-w-md bg-skyrim-paper border border-skyrim-gold rounded-lg shadow-2xl overflow-hidden">
         <div className="p-4 border-b border-skyrim-border flex items-center justify-between bg-skyrim-dark/50">
           <div className="flex items-center gap-3">
@@ -190,7 +218,7 @@ export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
             <h2 className="text-lg font-serif text-skyrim-gold">Eat</h2>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-black/40 rounded">
-            <X size={18} className="text-gray-400" />
+            <X size={18} className="text-gray-400 hover:text-white" />
           </button>
         </div>
 
@@ -235,6 +263,8 @@ interface DrinkModalProps {
 const DRINK_KEYWORDS = ['water', 'ale', 'mead', 'wine', 'milk', 'drink', 'juice', 'tea', 'skooma', 'skin'];
 
 export function DrinkModal({ open, onClose, onDrink, drinkItems }: DrinkModalProps) {
+  useModalClose(open, onClose);
+
   const availableDrinks = useMemo(() => {
     return drinkItems.filter(item => {
       if ((item.quantity || 0) <= 0) return false;
@@ -255,7 +285,10 @@ export function DrinkModal({ open, onClose, onDrink, drinkItems }: DrinkModalPro
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div className="w-full max-w-md bg-skyrim-paper border border-skyrim-gold rounded-lg shadow-2xl overflow-hidden">
         <div className="p-4 border-b border-skyrim-border flex items-center justify-between bg-skyrim-dark/50">
           <div className="flex items-center gap-3">
@@ -263,7 +296,7 @@ export function DrinkModal({ open, onClose, onDrink, drinkItems }: DrinkModalPro
             <h2 className="text-lg font-serif text-skyrim-gold">Drink</h2>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-black/40 rounded">
-            <X size={18} className="text-gray-400" />
+            <X size={18} className="text-gray-400 hover:text-white" />
           </button>
         </div>
 
