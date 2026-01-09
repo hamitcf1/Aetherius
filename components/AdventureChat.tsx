@@ -62,9 +62,23 @@ REST HANDLING:
 - Use needsChange to reduce fatigue and apply any hunger/thirst increase
 
 EATING/DRINKING IN ADVENTURE:
-- When player eats food: Remove the item via removedItems, reduce hunger by 20-40
-- When player drinks: Remove the item via removedItems, reduce thirst by 20-40
-- Always narrate the consumption naturally
+There are TWO types of food/drink consumption:
+
+1. INN/TAVERN FOOD (purchased and eaten on the spot):
+   - Use goldChange to charge the cost (e.g., goldChange: -15 for chicken)
+   - Use needsChange to reduce hunger/thirst (e.g., needsChange: { hunger: -30 })
+   - Do NOT use removedItems - the food was never in inventory!
+   - Do NOT use newItems - don't add food to inventory just to remove it
+   - Example: Ordering roasted chicken at an inn costs 15 gold, reduces hunger by 30
+
+2. INVENTORY FOOD (eating from player's inventory):
+   - Check survivalResources.foodItems to see what food player has
+   - Use removedItems to remove the consumed item
+   - Use needsChange to reduce hunger/thirst
+   - Do NOT charge gold - player already owns the item
+
+IMPORTANT: When showing food purchase OPTIONS at an inn, use previewCost in choices.
+When player SELECTS a food option, charge gold and apply hunger reduction - never add/remove inventory items.
 
 NEED EFFECTS (Narrate these when high):
 - hunger > 60: Character feels hungry, stomach growls
@@ -983,7 +997,8 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                       {/* Inline item changes (always show) */}
                       {(msg.updates.removedItems?.length || msg.updates.newItems?.length || 
                         (typeof msg.updates.goldChange === 'number' && msg.updates.goldChange !== 0) ||
-                        (typeof msg.updates.xpChange === 'number' && msg.updates.xpChange !== 0)) && (
+                        (typeof msg.updates.xpChange === 'number' && msg.updates.xpChange !== 0) ||
+                        (msg.updates.needsChange && Object.keys(msg.updates.needsChange).length > 0)) && (
                         <div className="mt-1 flex flex-wrap gap-2 text-xs font-sans">
                           {msg.updates.removedItems?.map((item, idx) => (
                             <span key={`removed-${idx}`} className="text-red-400 bg-red-900/20 px-2 py-0.5 rounded border border-red-900/30">
@@ -1012,6 +1027,38 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                             }`}>
                               {msg.updates.xpChange > 0 ? '+' : ''}{msg.updates.xpChange} XP ✨
                             </span>
+                          )}
+                          {/* Survival needs changes */}
+                          {msg.updates.needsChange && (
+                            <>
+                              {typeof msg.updates.needsChange.hunger === 'number' && msg.updates.needsChange.hunger !== 0 && (
+                                <span className={`px-2 py-0.5 rounded border ${
+                                  msg.updates.needsChange.hunger < 0 
+                                    ? 'text-green-400 bg-green-900/20 border-green-900/30' 
+                                    : 'text-orange-400 bg-orange-900/20 border-orange-900/30'
+                                }`}>
+                                  {msg.updates.needsChange.hunger < 0 ? '🍖 ' : ''}{msg.updates.needsChange.hunger > 0 ? '+' : ''}{msg.updates.needsChange.hunger} hunger
+                                </span>
+                              )}
+                              {typeof msg.updates.needsChange.thirst === 'number' && msg.updates.needsChange.thirst !== 0 && (
+                                <span className={`px-2 py-0.5 rounded border ${
+                                  msg.updates.needsChange.thirst < 0 
+                                    ? 'text-blue-400 bg-blue-900/20 border-blue-900/30' 
+                                    : 'text-orange-400 bg-orange-900/20 border-orange-900/30'
+                                }`}>
+                                  {msg.updates.needsChange.thirst < 0 ? '💧 ' : ''}{msg.updates.needsChange.thirst > 0 ? '+' : ''}{msg.updates.needsChange.thirst} thirst
+                                </span>
+                              )}
+                              {typeof msg.updates.needsChange.fatigue === 'number' && msg.updates.needsChange.fatigue !== 0 && (
+                                <span className={`px-2 py-0.5 rounded border ${
+                                  msg.updates.needsChange.fatigue < 0 
+                                    ? 'text-cyan-400 bg-cyan-900/20 border-cyan-900/30' 
+                                    : 'text-orange-400 bg-orange-900/20 border-orange-900/30'
+                                }`}>
+                                  {msg.updates.needsChange.fatigue < 0 ? '😴 ' : ''}{msg.updates.needsChange.fatigue > 0 ? '+' : ''}{msg.updates.needsChange.fatigue} fatigue
+                                </span>
+                              )}
+                            </>
                           )}
                         </div>
                       )}
