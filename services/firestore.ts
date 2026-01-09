@@ -415,6 +415,35 @@ export const saveUserSettings = async (uid: string, settings: UserSettings): Pro
   await setDoc(userSettingsDocRef(uid), next, { merge: true });
 };
 
+// ===== USER METADATA (for easier tracking in database) =====
+
+export interface UserMetadata {
+  uid: string;
+  email: string;
+  username?: string;
+  createdAt: number;
+  lastLogin: number;
+}
+
+export const saveUserMetadata = async (userData: UserMetadata): Promise<void> => {
+  const db = getDb();
+  if (!db) throw new Error('Firestore not initialized');
+
+  // Save metadata directly in the user document (not in a subcollection)
+  // This makes email/username visible in Firebase console under users/{uid}
+  const docRef = doc(db, 'users', userData.uid);
+  const payload: Record<string, unknown> = {
+    email: userData.email,
+    username: userData.username,
+    createdAt: userData.createdAt,
+    lastLogin: userData.lastLogin
+  };
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === undefined) delete payload[key];
+  });
+  await setDoc(docRef, payload, { merge: true });
+};
+
 // ===== BATCH OPERATIONS =====
 
 export const batchSaveGameState = async (

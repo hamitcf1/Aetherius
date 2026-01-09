@@ -41,16 +41,15 @@ export function OnboardingModal(props: {
         ),
       },
       {
-        title: 'Create Your Profile & Hero',
+        title: 'Create Your Hero',
         body: (
           <div className="space-y-3">
             <p className="text-gray-200 font-sans leading-relaxed">
-              Start by creating a profile (your account persona) and then a character.
+              Start by creating your first character.
             </p>
             <ul className="text-gray-300 text-sm font-sans list-disc pl-5 space-y-1">
-              <li>Create a profile name (you can have multiple).</li>
               <li>Create a character (race, archetype, identity, stats, etc.).</li>
-              <li>Select both to enter the main game UI.</li>
+              <li>Select a character to enter the main game UI.</li>
             </ul>
             <div className="p-3 bg-blue-900/20 border border-blue-600/40 rounded mt-3">
               <p className="text-blue-200 text-sm font-sans font-semibold mb-2">
@@ -125,7 +124,7 @@ export function OnboardingModal(props: {
             </p>
             <div className="p-3 bg-black/30 border border-skyrim-border rounded">
               <p className="text-gray-300 text-sm font-sans">
-                You’re ready. Create a profile and your first hero, then begin in Adventure.
+                You’re ready. Create your first hero, then begin in Adventure.
               </p>
             </div>
           </div>

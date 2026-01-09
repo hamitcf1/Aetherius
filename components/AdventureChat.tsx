@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Character, InventoryItem, CustomQuest, JournalEntry, StoryChapter, GameStateUpdate } from '../types';
-import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp } from 'lucide-react';
+import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { PreferredAIModel } from '../services/geminiService';
 
 interface ChatMessage {
@@ -79,6 +79,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [autoApply, setAutoApply] = useState(true);
+  const [showModelTip, setShowModelTip] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -94,6 +95,25 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         Boolean((character.identity || '').trim())
       )
   );
+
+  useEffect(() => {
+    const key = userId ? `aetherius:hideAdventureModelTip:${userId}` : 'aetherius:hideAdventureModelTip';
+    try {
+      setShowModelTip(localStorage.getItem(key) !== '1');
+    } catch {
+      setShowModelTip(true);
+    }
+  }, [userId]);
+
+  const dismissModelTip = () => {
+    setShowModelTip(false);
+    const key = userId ? `aetherius:hideAdventureModelTip:${userId}` : 'aetherius:hideAdventureModelTip';
+    try {
+      localStorage.setItem(key, '1');
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     if (!character) return;
@@ -385,16 +405,26 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       </div>
 
       {/* AI Model Tip */}
-      <div className="mb-4 bg-blue-900/20 border border-blue-600/50 rounded-lg p-3 sm:p-4">
-        <div className="flex items-start gap-2">
-          <span className="text-blue-400 text-lg">💡</span>
-          <div className="flex-1">
-            <p className="text-blue-200 text-sm">
-              <strong>Tip:</strong> For the best adventure experience, we highly recommend using the <strong>Gemma 2 27B</strong> model. You can change it in the Actions menu.
-            </p>
+      {showModelTip && (
+        <div className="mb-4 bg-blue-900/20 border border-blue-600/50 rounded-lg p-3 sm:p-4 relative">
+          <button
+            onClick={dismissModelTip}
+            className="absolute top-2 right-2 text-blue-200/70 hover:text-blue-200 transition-colors"
+            aria-label="Dismiss tip"
+            type="button"
+          >
+            <X size={16} />
+          </button>
+          <div className="flex items-start gap-2 pr-6">
+            <span className="text-blue-400 text-lg">💡</span>
+            <div className="flex-1">
+              <p className="text-blue-200 text-sm">
+                <strong>Tip:</strong> For the best adventure experience, we highly recommend using the <strong>Gemma 2 27B</strong> model. You can change it in the Actions menu.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Controls */}
       <div className="mb-4 flex flex-wrap gap-2 justify-between items-center">

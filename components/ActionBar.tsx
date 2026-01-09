@@ -5,7 +5,7 @@ import SnowEffect from './SnowEffect';
 import { useAppContext } from '../AppContext';
 import { isFeatureEnabled, isFeatureWIP, getFeatureLabel } from '../featureFlags';
 import { PREFERRED_AI_MODELS } from '../services/geminiService';
-import { ShopModal } from './ShopModal';
+import { ShopModal } from './ShopModal.tsx';
 
 const ActionBar: React.FC = () => {
   const {
@@ -128,7 +128,7 @@ const ActionBar: React.FC = () => {
             <div className="flex flex-col gap-1">
               <div className="text-xs text-gray-500 font-bold">AI Model</div>
               <select
-                value={aiModel || 'gemini-2.0-flash'}
+                value={aiModel || 'gemma-3-27b-it'}
                 onChange={(e) => setAiModel(e.target.value)}
                 className="w-full bg-black/20 border border-skyrim-border text-gray-200 px-2 py-2 rounded focus:border-skyrim-gold focus:outline-none"
               >
@@ -143,23 +143,23 @@ const ActionBar: React.FC = () => {
               </div>
             </div>
           )}
-          <button onClick={handleManualSave} disabled={isSaving} className="flex items-center gap-2 px-3 py-2 bg-skyrim-gold text-skyrim-dark rounded font-bold disabled:opacity-50">
+          <button onClick={handleManualSave} disabled={isSaving} className="w-full flex items-center gap-2 px-3 py-2 bg-skyrim-gold text-skyrim-dark rounded font-bold disabled:opacity-50">
             <Save size={16} /> {isSaving ? 'Saving...' : 'Save'}
           </button>
-          <button onClick={() => setCurrentCharacterId(null)} className="flex items-center gap-2 px-3 py-2 bg-skyrim-dark text-skyrim-gold rounded font-bold">
+          <button onClick={() => setCurrentCharacterId(null)} className="w-full flex items-center gap-2 px-3 py-2 bg-skyrim-dark text-skyrim-gold rounded font-bold">
             <Users size={16} /> Switch
           </button>
-          <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 bg-red-700 text-white rounded font-bold">
+          <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 bg-red-700 text-white rounded font-bold">
             <LogOut size={16} /> Exit
           </button>
-          <button onClick={handleCreateImagePrompt} className="flex items-center gap-2 px-3 py-2 bg-blue-700 text-white rounded font-bold">
+          <button onClick={handleCreateImagePrompt} className="w-full flex items-center gap-2 px-3 py-2 bg-blue-700 text-white rounded font-bold">
             <Sparkles size={16} /> Create Image Prompt
           </button>
           
           {/* Upload Photo - show as disabled if feature not enabled */}
           <div className="relative group">
             <label 
-              className={`flex items-center gap-2 px-3 py-2 rounded font-bold ${
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded font-bold ${
                 isFeatureEnabled('photoUpload') 
                   ? 'bg-green-700 text-white cursor-pointer hover:bg-green-600' 
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
@@ -182,7 +182,7 @@ const ActionBar: React.FC = () => {
             <button 
               onClick={isFeatureEnabled('exportPDF') ? handleExportPDF : undefined}
               disabled={!isFeatureEnabled('exportPDF') || isExporting}
-              className={`flex items-center gap-2 px-3 py-2 rounded font-bold ${
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded font-bold ${
                 isFeatureEnabled('exportPDF')
                   ? 'bg-skyrim-gold text-skyrim-dark hover:bg-yellow-400 disabled:opacity-50'
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
@@ -216,7 +216,7 @@ const ActionBar: React.FC = () => {
             <button 
               onClick={isFeatureEnabled('aiProfileImage') ? handleGenerateProfileImage : undefined}
               disabled={!isFeatureEnabled('aiProfileImage') || isGeneratingProfileImage}
-              className={`flex items-center gap-2 px-3 py-2 rounded font-bold ${
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded font-bold ${
                 isFeatureEnabled('aiProfileImage')
                   ? 'bg-skyrim-accent text-white hover:bg-purple-700 disabled:opacity-50'
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
@@ -237,7 +237,7 @@ const ActionBar: React.FC = () => {
             <button 
               onClick={isFeatureEnabled('snowEffect') ? () => setSnow((s) => !s) : undefined}
               disabled={!isFeatureEnabled('snowEffect')}
-              className={`flex items-center gap-2 px-3 py-2 rounded font-bold ${
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded font-bold ${
                 isFeatureEnabled('snowEffect')
                   ? (snow ? 'bg-blue-200 text-blue-900' : 'bg-blue-900 text-white hover:bg-blue-800')
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'

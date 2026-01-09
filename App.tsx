@@ -40,9 +40,10 @@ import {
   saveJournalEntry,
   saveStoryChapter,
   saveUserProfile,
-  deleteUserProfile,
   deleteCharacter,
-  batchSaveGameState
+  batchSaveGameState,
+  saveUserMetadata,
+  
 } from './services/firestore';
 import {
   setUserOnline,
@@ -124,7 +125,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [showLogin, setShowLogin] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginUsername, setLoginUsername] = useState('');
@@ -152,7 +153,7 @@ const App: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   // AI Model Selection (global)
-  const [aiModel, setAiModel] = useState<PreferredAIModel>('gemini-2.0-flash');
+  const [aiModel, setAiModel] = useState<PreferredAIModel>('gemma-3-27b-it');
 
   useEffect(() => {
     const key = currentUser?.uid ? `aetherius:aiModel:${currentUser.uid}` : 'aetherius:aiModel';
@@ -202,7 +203,22 @@ const App: React.FC = () => {
           ]);
 
           console.log('Data loaded successfully:', { userProfiles, userCharacters, userItems });
-          setProfiles(userProfiles);
+          // Ensure there is always at least one profile so we can go straight to character selection.
+          // Profiles remain as an internal grouping, but we no longer show a profile selection screen.
+          let nextProfiles = userProfiles || [];
+          if (nextProfiles.length === 0) {
+            const derivedName = (user.email || '').split('@')[0]?.trim() || 'Player';
+            const defaultProfile: UserProfile = { id: uniqueId(), username: derivedName, created: Date.now() };
+            nextProfiles = [defaultProfile];
+            try {
+              await saveUserProfile(user.uid, defaultProfile);
+            } catch (e) {
+              console.warn('Failed to auto-create default profile (non-critical):', e);
+              setDirtyEntities(prev => new Set([...prev, defaultProfile.id]));
+            }
+          }
+          setProfiles(nextProfiles);
+          setCurrentProfileId(nextProfiles[0]?.id ?? null);
 
           // Decide whether to show onboarding for this user.
           try {
@@ -367,50 +383,9 @@ const App: React.FC = () => {
   }, [dirtyEntities, currentUser, characters, items, quests, journalEntries, storyChapters, profiles]);
 
   // Actions
-  const handleCreateProfile = (name: string) => {
-      const newProfile: UserProfile = { id: uniqueId(), username: name, created: Date.now() };
-      setProfiles([...profiles, newProfile]);
-      setDirtyEntities(prev => new Set([...prev, newProfile.id]));
-  };
-
-  const handleUpdateProfile = (profileId: string, newName: string) => {
-      setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, username: newName } : p));
-      setDirtyEntities(prev => new Set([...prev, profileId]));
-  };
-
   const handleUpdateCharacter = (characterId: string, newName: string) => {
       setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, name: newName } : c));
       setDirtyEntities(prev => new Set([...prev, characterId]));
-  };
-
-  // Delete profile and all its characters
-  const handleDeleteProfile = async (profileId: string) => {
-    if (!currentUser) return;
-    
-    try {
-      // Delete from Firestore first
-      await deleteUserProfile(currentUser.uid, profileId);
-      
-      // Get characters belonging to this profile
-      const profileCharacters = characters.filter(c => c.profileId === profileId);
-      
-      // Delete each character from Firestore
-      for (const char of profileCharacters) {
-        await deleteCharacter(currentUser.uid, char.id);
-      }
-      
-      // Update local state
-      setProfiles(prev => prev.filter(p => p.id !== profileId));
-      setCharacters(prev => prev.filter(c => c.profileId !== profileId));
-      
-      // Clear current selection if deleted
-      if (currentProfileId === profileId) {
-        setCurrentProfileId(null);
-        setCurrentCharacterId(null);
-      }
-    } catch (error) {
-      console.error('Error deleting profile:', error);
-    }
   };
 
   // Delete a single character
@@ -506,13 +481,29 @@ const App: React.FC = () => {
         setAuthError('Password must be at least 6 characters');
         return;
       }
-      await registerUser(email, password);
-      // Create user profile
-      if (currentUser) {
-        const newProfile: UserProfile = { id: uniqueId(), username, created: Date.now() };
-        setProfiles([...profiles, newProfile]);
-        setDirtyEntities(prev => new Set([...prev, newProfile.id]));
+      const userCredential = await registerUser(email, password);
+
+      // Create a default profile immediately so the next screen is character selection.
+      try {
+        await initializeFirestoreDb();
+        const defaultProfile: UserProfile = { id: uniqueId(), username, created: Date.now() };
+        await saveUserProfile(userCredential.user.uid, defaultProfile);
+        setProfiles([defaultProfile]);
+        setCurrentProfileId(defaultProfile.id);
+      } catch (e) {
+        console.warn('Failed to auto-create default profile on register (non-critical):', e);
       }
+      
+      // Save user metadata for easier tracking in database (non-blocking)
+      saveUserMetadata({
+        uid: userCredential.user.uid,
+        email: email,
+        username: username,
+        createdAt: Date.now(),
+        lastLogin: Date.now()
+      }).catch(err => {
+        console.warn('Failed to save user metadata (non-critical):', err);
+      });
       setLoginEmail('');
       setLoginPassword('');
       setLoginUsername('');
@@ -541,7 +532,7 @@ const App: React.FC = () => {
       setAuthError(null);
     } catch (error: any) {
       if (error.code === 'auth/user-not-found') {
-        setAuthError('No user found for this email');
+        setAuthError('No user found');
       } else if (error.code === 'auth/wrong-password') {
         setAuthError('Incorrect password');
       } else {
@@ -574,7 +565,7 @@ const App: React.FC = () => {
     );
   }
 
-  // Login Screen
+  // Login/Register Screen
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-skyrim-dark flex items-center justify-center p-4">
@@ -588,47 +579,84 @@ const App: React.FC = () => {
             </div>
           )}
           
-          <div className="space-y-4">
-            <input 
-              type="text"
-              placeholder="Username (not for login, required for registration)"
-              className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
-              value={loginUsername}
-              onChange={(e) => setLoginUsername(e.target.value)}
-            />
-            <input 
-              type="email"
-              placeholder="Email"
-              className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
-              value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
-            />
-            <input 
-              type="password"
-              placeholder="Password"
-              className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-            />
-            
-            <button 
-              onClick={() => handleLogin(loginEmail, loginPassword)}
-              className="w-full bg-skyrim-gold text-skyrim-dark font-bold py-2 rounded hover:bg-yellow-400 transition-colors"
-            >
-              Login
-            </button>
-            
-            <button 
-              onClick={() => handleRegister(loginEmail, loginPassword, loginUsername)}
-              className="w-full bg-skyrim-gold/20 text-skyrim-gold font-bold py-2 rounded border border-skyrim-gold hover:bg-skyrim-gold/30 transition-colors"
-            >
-              Register
-            </button>
-          </div>
-          
-          <p className="text-xs text-gray-500 text-center mt-6">
-            Demo test emails: test@example.com
-          </p>
+          {authMode === 'login' ? (
+            // LOGIN FORM
+            <div className="space-y-4">
+              <input 
+                type="email"
+                placeholder="Email"
+                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin(loginEmail, loginPassword)}
+              />
+              <input 
+                type="password"
+                placeholder="Password"
+                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin(loginEmail, loginPassword)}
+              />
+              
+              <button 
+                onClick={() => handleLogin(loginEmail, loginPassword)}
+                className="w-full bg-skyrim-gold text-skyrim-dark font-bold py-2 rounded hover:bg-yellow-400 transition-colors"
+              >
+                Login
+              </button>
+              
+              <div className="text-center">
+                <button
+                  onClick={() => { setAuthMode('register'); setAuthError(null); }}
+                  className="text-skyrim-gold hover:text-yellow-400 text-sm transition-colors"
+                >
+                  Don't have an account? <span className="underline">Register here</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            // REGISTER FORM
+            <div className="space-y-4">
+              <input 
+                type="text"
+                placeholder="Name / Nickname"
+                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
+              />
+              <input 
+                type="email"
+                placeholder="Email"
+                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+              />
+              <input 
+                type="password"
+                placeholder="Password (min 6 characters)"
+                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+              />
+              
+              <button 
+                onClick={() => handleRegister(loginEmail, loginPassword, loginUsername)}
+                className="w-full bg-skyrim-gold text-skyrim-dark font-bold py-2 rounded hover:bg-yellow-400 transition-colors"
+              >
+                Register
+              </button>
+              
+              <div className="text-center">
+                <button
+                  onClick={() => { setAuthMode('login'); setAuthError(null); }}
+                  className="text-skyrim-gold hover:text-yellow-400 text-sm transition-colors"
+                >
+                  Already have an account? <span className="underline">Login here</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1329,15 +1357,13 @@ const App: React.FC = () => {
   };
 
   // Render Logic
-  if (!currentProfileId || !currentCharacterId) {
+  if (!currentCharacterId) {
       return (
         <>
           <CharacterSelect 
-              profiles={profiles}
+              profileId={currentProfileId}
               characters={characters}
-              onCreateProfile={handleCreateProfile}
               onCreateCharacter={handleCreateCharacter}
-              onSelectProfile={(p) => setCurrentProfileId(p.id)}
               onSelectCharacter={async (cid) => {
                 setCurrentCharacterId(cid);
                 if (currentUser) {
@@ -1345,9 +1371,7 @@ const App: React.FC = () => {
                 }
               }}
               onLogout={handleLogout}
-              onUpdateProfile={handleUpdateProfile}
               onUpdateCharacter={handleUpdateCharacter}
-              onDeleteProfile={handleDeleteProfile}
               onDeleteCharacter={handleDeleteCharacter}
               onMarkCharacterDead={handleMarkCharacterDead}
           />
@@ -1411,7 +1435,7 @@ const App: React.FC = () => {
                 <Skull size={24} />
                 <span className="hidden md:inline">Skyrim Aetherius</span>
               </div>
-              <div className="flex flex-wrap md:flex-nowrap items-center gap-2 relative">
+              <div className="flex flex-nowrap items-center gap-1 sm:gap-2 relative overflow-x-auto">
                 {[
                     { id: TABS.CHARACTER, icon: User, label: 'Hero' },
                     { id: TABS.INVENTORY, icon: Package, label: 'Items' },
@@ -1423,7 +1447,7 @@ const App: React.FC = () => {
                   <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded transition-all duration-300 text-sm md:text-base ${
+                    className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded transition-all duration-300 text-sm md:text-base ${
                       activeTab === tab.id 
                           ? 'bg-skyrim-gold text-skyrim-dark font-bold' 
                           : 'text-gray-400 hover:text-skyrim-gold hover:bg-white/5'

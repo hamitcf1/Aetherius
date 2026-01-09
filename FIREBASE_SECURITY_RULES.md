@@ -12,9 +12,14 @@ Add these rules to your Firestore Security Rules in the Firebase Console:
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow users to read/write their own user data
-    match /users/{uid}/{document=**} {
+    // User private data
+    match /users/{uid} {
       allow read, write: if request.auth.uid == uid;
+
+      // Allow access to all subcollections (only for own data)
+      match /{document=**} {
+        allow read, write: if request.auth.uid == uid;
+      }
     }
   }
 }

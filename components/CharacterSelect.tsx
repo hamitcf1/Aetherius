@@ -1,20 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UserProfile, Character, SKYRIM_RACES } from '../types';
-import { User, Play, Plus, Dice5, MessageSquare, Loader2, Sparkles, Send, FileText, ArrowLeft, Trash2, Skull, RotateCcw } from 'lucide-react';
+import { Character, SKYRIM_RACES } from '../types';
+import { Play, Plus, Dice5, MessageSquare, Loader2, Sparkles, Send, FileText, ArrowLeft, Trash2, Skull, RotateCcw } from 'lucide-react';
 import { generateCharacterProfile, chatWithScribe } from '../services/geminiService';
 import { isFeatureEnabled } from '../featureFlags';
 
 interface CharacterSelectProps {
-  profiles: UserProfile[];
+  profileId: string | null;
   characters: Character[];
-  onSelectProfile: (profile: UserProfile) => void;
   onSelectCharacter: (characterId: string) => void;
-  onCreateProfile: (name: string) => void;
   onCreateCharacter: (profileId: string, name: string, archetype: string, race: string, gender: string, fullDetails?: Partial<Character>) => void;
   onLogout: () => void;
-  onUpdateProfile?: (profileId: string, newName: string) => void;
   onUpdateCharacter?: (characterId: string, newName: string) => void;
-  onDeleteProfile?: (profileId: string) => void;
   onDeleteCharacter?: (characterId: string) => void;
   onMarkCharacterDead?: (characterId: string, isDead: boolean, deathCause?: string) => void;
 }
@@ -26,12 +22,10 @@ const ARCHETYPES = [
 ];
 
 export const CharacterSelect: React.FC<CharacterSelectProps> = ({ 
-    profiles, characters, onSelectProfile, onSelectCharacter, onCreateProfile, onCreateCharacter, onLogout,
-    onUpdateProfile, onUpdateCharacter, onDeleteProfile, onDeleteCharacter, onMarkCharacterDead
+  profileId, characters, onSelectCharacter, onCreateCharacter, onLogout,
+  onUpdateCharacter, onDeleteCharacter, onMarkCharacterDead
 }) => {
-  const [view, setView] = useState<'profiles' | 'characters'>('profiles');
   const [creationMode, setCreationMode] = useState<'manual' | 'chat' | 'import'>('manual');
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   
   // Manual State
   const [newName, setNewName] = useState('');
@@ -50,12 +44,10 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
   const [importText, setImportText] = useState('');
   
   // Edit State
-  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   
   // Delete/Death confirmation state
-  const [confirmDeleteProfile, setConfirmDeleteProfile] = useState<string | null>(null);
   const [confirmDeleteCharacter, setConfirmDeleteCharacter] = useState<string | null>(null);
   const [confirmDeathCharacter, setConfirmDeathCharacter] = useState<string | null>(null);
   const [deathCause, setDeathCause] = useState('');
@@ -64,22 +56,9 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
     if (chatBottomRef.current) chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
 
-  const selectProfile = (p: UserProfile) => {
-      setSelectedProfileId(p.id);
-      onSelectProfile(p);
-      setView('characters');
-  };
-
-  const handleCreateProfile = () => {
-    if (newName.trim()) {
-        onCreateProfile(newName);
-        setNewName('');
-    }
-  };
-
   const handleManualCreate = () => {
-      if (selectedProfileId && newName.trim()) {
-          onCreateCharacter(selectedProfileId, newName, newArchetype, newRace, newGender);
+      if (profileId && newName.trim()) {
+          onCreateCharacter(profileId, newName, newArchetype, newRace, newGender);
           setNewName('');
       }
   };
@@ -88,9 +67,9 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
       setIsGenerating(true);
       try {
           const char = await generateCharacterProfile("Create a completely random character.");
-          if (char && selectedProfileId) {
+          if (char && profileId) {
               onCreateCharacter(
-                  selectedProfileId, 
+              profileId, 
                   char.name || "Unknown", 
                   char.archetype || "Adventurer", 
                   char.race || "Nord",
@@ -110,9 +89,9 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
       setIsGenerating(true);
       try {
           const char = await generateCharacterProfile(importText, 'text_import');
-          if (char && selectedProfileId) {
+          if (char && profileId) {
               onCreateCharacter(
-                  selectedProfileId, 
+              profileId, 
                   char.name || "Unknown", 
                   char.archetype || "Adventurer", 
                   char.race || "Nord",
@@ -167,9 +146,9 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
 
              // Generate
              const char = await generateCharacterProfile(conversationLog, 'chat_result');
-             if (char && selectedProfileId) {
+             if (char && profileId) {
                   onCreateCharacter(
-                      selectedProfileId, 
+                  profileId, 
                       char.name || "Unknown", 
                       char.archetype || "Adventurer", 
                       char.race || "Nord",
@@ -191,120 +170,23 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
       }
   };
 
-  const displayedCharacters = characters.filter(c => c.profileId === selectedProfileId);
+  const displayedCharacters = profileId ? characters.filter(c => c.profileId === profileId) : [];
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-skyrim-dark bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')]">
-        <div className="w-full max-w-4xl p-8 bg-skyrim-paper border border-skyrim-gold shadow-2xl rounded-lg flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-4xl p-4 sm:p-8 bg-skyrim-paper border border-skyrim-gold shadow-2xl rounded-lg flex flex-col max-h-[92vh] sm:max-h-[90vh]">
             
-            <h1 className="text-3xl font-serif text-skyrim-gold text-center mb-6 border-b border-skyrim-border pb-4">
-                {view === 'profiles' ? 'Select User Profile' : 'Select Character'}
+        <h1 className="text-2xl sm:text-3xl font-serif text-skyrim-gold text-center mb-4 sm:mb-6 border-b border-skyrim-border pb-3 sm:pb-4">
+                Select Character
             </h1>
             
             {/* Main Content */}
-            <div className="flex-1 overflow-y-auto mb-6 pr-2">
-                {view === 'profiles' ? (
-                    // Profile List
-                    <div className="grid gap-4">
-                        {profiles.map(p => (
-                            <div key={p.id} className="flex items-center gap-3 p-4 bg-black/40 border border-skyrim-border hover:border-skyrim-gold hover:bg-black/60 transition-all group">
-                              {confirmDeleteProfile === p.id ? (
-                                // Delete confirmation
-                                <div className="flex-1 flex items-center justify-between gap-3">
-                                  <span className="text-red-400 text-sm">Delete profile "{p.username}" and all its characters?</span>
-                                  <div className="flex gap-2">
-                                    <button 
-                                      onClick={() => {
-                                        if (onDeleteProfile) onDeleteProfile(p.id);
-                                        setConfirmDeleteProfile(null);
-                                      }}
-                                      className="px-3 py-1 bg-red-700 text-white rounded text-sm hover:bg-red-600"
-                                    >
-                                      Delete
-                                    </button>
-                                    <button 
-                                      onClick={() => setConfirmDeleteProfile(null)}
-                                      className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : editingProfileId === p.id ? (
-                                <>
-                                  <input 
-                                    type="text" 
-                                    value={editingName} 
-                                    onChange={e => setEditingName(e.target.value)}
-                                    className="flex-1 bg-black/50 border border-skyrim-gold p-2 rounded text-gray-200 focus:outline-none"
-                                    onKeyDown={e => {
-                                      if (e.key === 'Enter' && onUpdateProfile) {
-                                        onUpdateProfile(p.id, editingName);
-                                        setEditingProfileId(null);
-                                      }
-                                    }}
-                                  />
-                                  <button 
-                                    onClick={() => {
-                                      if (onUpdateProfile) {
-                                        onUpdateProfile(p.id, editingName);
-                                      }
-                                      setEditingProfileId(null);
-                                    }}
-                                    className="px-3 py-1 bg-skyrim-gold text-skyrim-dark rounded text-sm hover:bg-yellow-400"
-                                  >
-                                    Save
-                                  </button>
-                                  <button 
-                                    onClick={() => setEditingProfileId(null)}
-                                    className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
-                                  >
-                                    Cancel
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button 
-                                    onClick={() => selectProfile(p)} 
-                                    className="flex items-center gap-4 flex-1 text-left"
-                                  >
-                                    <div className="w-10 h-10 bg-skyrim-gold/20 rounded-full flex items-center justify-center text-skyrim-gold group-hover:bg-skyrim-gold group-hover:text-skyrim-dark transition-colors">
-                                        <User size={20} />
-                                    </div>
-                                    <span className="text-xl font-serif text-gray-200 group-hover:text-skyrim-gold transition-colors">{p.username}</span>
-                                  </button>
-                                  <button 
-                                    onClick={() => {
-                                      setEditingProfileId(p.id);
-                                      setEditingName(p.username);
-                                    }}
-                                    className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-skyrim-gold/30 text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark rounded text-xs transition-all"
-                                  >
-                                    Edit
-                                  </button>
-                                  {isFeatureEnabled('profileDeletion') && onDeleteProfile && (
-                                    <button 
-                                      onClick={() => setConfirmDeleteProfile(p.id)}
-                                      className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-red-900/50 text-red-400 hover:bg-red-700 hover:text-white rounded text-xs transition-all"
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                        ))}
-                         {profiles.length === 0 && (
-                            <div className="text-center text-gray-500 italic py-8">No profiles found. Create one to begin.</div>
-                        )}
-                    </div>
-                ) : (
-                   // Character List
-                   <>
+        <div className="flex-1 overflow-y-auto mb-4 sm:mb-6 pr-0 sm:pr-2">
+                <>
                        {creationMode === 'manual' ? (
                            <div className="grid gap-4">
                                 {displayedCharacters.map(c => (
-                                    <div key={c.id} className={`flex items-center gap-3 p-4 border transition-all group ${
+                    <div key={c.id} className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 border transition-all group ${
                                       c.isDead 
                                         ? 'bg-red-950/30 border-red-900/50 opacity-75' 
                                         : 'bg-black/40 border-skyrim-border hover:border-skyrim-gold hover:bg-black/60'
@@ -430,13 +312,13 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                           )}
                                           
                                           {/* Action buttons */}
-                                          <div className="flex items-center gap-1">
+                                          <div className="flex items-center justify-end flex-wrap gap-1">
                                             <button 
                                               onClick={() => {
                                                 setEditingCharacterId(c.id);
                                                 setEditingName(c.name);
                                               }}
-                                              className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-skyrim-gold/30 text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark rounded text-xs transition-all"
+                                              className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 px-2 py-1 bg-skyrim-gold/30 text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark rounded text-xs transition-all"
                                             >
                                               Edit
                                             </button>
@@ -446,7 +328,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                               c.isDead ? (
                                                 <button 
                                                   onClick={() => onMarkCharacterDead(c.id, null)}
-                                                  className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-green-900/50 text-green-400 hover:bg-green-700 hover:text-white rounded text-xs transition-all"
+                                                  className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 px-2 py-1 bg-green-900/50 text-green-400 hover:bg-green-700 hover:text-white rounded text-xs transition-all"
                                                   title="Resurrect character"
                                                 >
                                                   <RotateCcw size={14} />
@@ -454,7 +336,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                               ) : (
                                                 <button 
                                                   onClick={() => setConfirmDeathCharacter(c.id)}
-                                                  className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-red-900/50 text-red-400 hover:bg-red-700 hover:text-white rounded text-xs transition-all"
+                                                  className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 px-2 py-1 bg-red-900/50 text-red-400 hover:bg-red-700 hover:text-white rounded text-xs transition-all"
                                                   title="Mark as dead"
                                                 >
                                                   <Skull size={14} />
@@ -466,7 +348,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                             {isFeatureEnabled('characterDeletion') && onDeleteCharacter && (
                                               <button 
                                                 onClick={() => setConfirmDeleteCharacter(c.id)}
-                                                className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-red-900/50 text-red-400 hover:bg-red-700 hover:text-white rounded text-xs transition-all"
+                                                className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 px-2 py-1 bg-red-900/50 text-red-400 hover:bg-red-700 hover:text-white rounded text-xs transition-all"
                                                 title="Delete character"
                                               >
                                                 <Trash2 size={14} />
@@ -545,38 +427,20 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                </button>
                            </div>
                        )}
-                   </>
-                )}
+                     </>
             </div>
 
             {/* Creation Forms */}
-            <div className="border-t border-skyrim-border pt-6">
+            <div className="border-t border-skyrim-border pt-4 sm:pt-6">
                 <h3 className="text-sm text-skyrim-gold uppercase tracking-widest font-bold mb-4">
-                    {view === 'profiles' ? 'Create New Profile' : 'Create New Character'}
+                Create New Character
                 </h3>
-                
-                {view === 'profiles' ? (
-                     <div className="flex gap-2">
-                        <input 
-                           className="flex-1 bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold"
-                           placeholder="Username"
-                           value={newName}
-                           onChange={e => setNewName(e.target.value)}
-                          autoCapitalize="none"
-                          autoCorrect="off"
-                       />
-                       <button onClick={handleCreateProfile} disabled={!newName.trim()} className="px-6 bg-skyrim-gold hover:bg-skyrim-goldHover text-skyrim-dark font-bold rounded flex items-center gap-2 disabled:opacity-50">
-                           <Plus size={20} /> Create
-                       </button>
-                   </div>
-                ) : (
-                    // Character Creation Controls
-                    <>
+                <>
                         {creationMode === 'manual' ? (
                              <div className="flex flex-col gap-4">
-                                <div className="flex gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     <input 
-                                        className="flex-[2] bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold"
+                          className="col-span-2 sm:col-span-2 bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold"
                                         placeholder="Character Name"
                                         value={newName}
                                         onChange={e => setNewName(e.target.value)}
@@ -586,7 +450,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                      <select 
                                         value={newGender}
                                         onChange={(e) => setNewGender(e.target.value)}
-                                        className="bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold text-sm"
+                          className="col-span-1 sm:col-span-1 w-full bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold text-sm"
                                     >
                                         <option value="Male">Male</option>
                                         <option value="Female">Female</option>
@@ -594,34 +458,34 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                     <select 
                                         value={newRace}
                                         onChange={(e) => setNewRace(e.target.value)}
-                                        className="bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold text-sm"
+                          className="col-span-1 sm:col-span-1 w-full bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold text-sm"
                                     >
                                         {SKYRIM_RACES.map(r => <option key={r} value={r}>{r}</option>)}
                                     </select>
                                     <select 
                                         value={newArchetype} 
                                         onChange={(e) => setNewArchetype(e.target.value)}
-                                        className="bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold text-sm"
+                          className="col-span-2 sm:col-span-1 w-full bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold text-sm"
                                     >
                                         {ARCHETYPES.map(a => <option key={a} value={a}>{a}</option>)}
                                     </select>
                                 </div>
                                 
-                                <div className="flex gap-3 flex-wrap md:flex-nowrap">
-                                    <button onClick={handleManualCreate} disabled={!newName.trim()} className="flex-1 py-3 bg-skyrim-gold hover:bg-skyrim-goldHover text-skyrim-dark font-bold rounded flex items-center justify-center gap-2 disabled:opacity-50 whitespace-nowrap px-4">
+                      <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-nowrap">
+                        <button onClick={handleManualCreate} disabled={!profileId || !newName.trim()} className="w-full sm:flex-1 py-3 bg-skyrim-gold hover:bg-skyrim-goldHover text-skyrim-dark font-bold rounded flex items-center justify-center gap-2 disabled:opacity-50 whitespace-nowrap px-4">
                                         <Plus size={20} /> Quick Create
                                     </button>
                                     
-                                    <button onClick={handleRandomizeFull} disabled={isGenerating} className="flex-1 py-3 bg-skyrim-accent hover:bg-skyrim-accent/80 text-white font-bold rounded flex items-center justify-center gap-2 border border-skyrim-border whitespace-nowrap px-4">
+                        <button onClick={handleRandomizeFull} disabled={!profileId || isGenerating} className="w-full sm:flex-1 py-3 bg-skyrim-accent hover:bg-skyrim-accent/80 text-white font-bold rounded flex items-center justify-center gap-2 border border-skyrim-border whitespace-nowrap px-4 disabled:opacity-50">
                                         {isGenerating ? <Loader2 className="animate-spin" size={20} /> : <Dice5 size={20} />} 
                                         Full Random
                                     </button>
 
-                                    <button onClick={startChat} className="flex-1 py-3 bg-skyrim-dark hover:bg-black text-skyrim-gold font-bold rounded flex items-center justify-center gap-2 border border-skyrim-gold whitespace-nowrap px-4">
+                        <button onClick={startChat} disabled={!profileId} className="w-full sm:flex-1 py-3 bg-skyrim-dark hover:bg-black text-skyrim-gold font-bold rounded flex items-center justify-center gap-2 border border-skyrim-gold whitespace-nowrap px-4 disabled:opacity-50">
                                         <MessageSquare size={20} /> Scribe Chat
                                     </button>
 
-                                    <button onClick={() => setCreationMode('import')} className="flex-1 py-3 bg-skyrim-dark hover:bg-black text-gray-300 font-bold rounded flex items-center justify-center gap-2 border border-gray-600 whitespace-nowrap px-4">
+                        <button onClick={() => setCreationMode('import')} disabled={!profileId} className="w-full sm:flex-1 py-3 bg-skyrim-dark hover:bg-black text-gray-300 font-bold rounded flex items-center justify-center gap-2 border border-gray-600 whitespace-nowrap px-4 disabled:opacity-50">
                                         <FileText size={20} /> Import Text
                                     </button>
                                 </div>
@@ -631,15 +495,8 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                 <ArrowLeft size={16} /> Return to Character List
                              </button>
                         )}
-                    </>
-                )}
+                      </>
             </div>
-
-            {view === 'characters' && (
-                <button onClick={() => setView('profiles')} className="mt-4 text-xs text-gray-500 hover:text-skyrim-gold w-full text-center">
-                    &larr; Switch Profile
-                </button>
-            )}
 
             {/* Logout */}
             <button onClick={onLogout} className="mt-2 text-xs text-red-500 hover:text-red-300 w-full text-center">
