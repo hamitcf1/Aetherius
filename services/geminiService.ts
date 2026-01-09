@@ -35,6 +35,42 @@ let aiGemma: GoogleGenAI | null = null;
 
 const isGemmaModel = (modelId: string) => modelId.toLowerCase().startsWith('gemma');
 
+const supportsJsonMimeType = (modelId: string) => !isGemmaModel(modelId);
+
+const isJsonModeNotEnabledError = (error: any): boolean => {
+  const msg = String(error?.message || '');
+  const raw = String(error?.toString?.() || '');
+  return (
+    msg.includes('JSON mode is not enabled') ||
+    raw.includes('JSON mode is not enabled') ||
+    msg.includes('INVALID_ARGUMENT')
+  );
+};
+
+const extractJsonObject = (text: string): string | null => {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return null;
+
+  // Remove common markdown fences
+  const unfenced = trimmed
+    .replace(/^```(?:json)?/i, '')
+    .replace(/```$/i, '')
+    .trim();
+
+  // If it's already a JSON object/array
+  if ((unfenced.startsWith('{') && unfenced.endsWith('}')) || (unfenced.startsWith('[') && unfenced.endsWith(']'))) {
+    return unfenced;
+  }
+
+  // Best-effort: grab the first top-level JSON object
+  const firstBrace = unfenced.indexOf('{');
+  const lastBrace = unfenced.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return unfenced.slice(firstBrace, lastBrace + 1);
+  }
+  return null;
+};
+
 const getClientForModel = (modelId: string): GoogleGenAI => {
   if (isGemmaModel(modelId)) {
     const key = getGemmaApiKey();
@@ -100,17 +136,33 @@ export const generateGameMasterResponse = async (
       Keep the tone immersive (Tamrielic).
     `;
 
-    const response = await model.generateContent({
-      model: selectedModel,
-      contents: fullPrompt,
-      config: {
-        responseMimeType: 'application/json'
+    const run = async (useJsonMode: boolean) => {
+      const config = useJsonMode
+        ? { responseMimeType: 'application/json' as const }
+        : undefined;
+      return await model.generateContent({
+        model: selectedModel,
+        contents: fullPrompt,
+        ...(config ? { config } : {})
+      });
+    };
+
+    let response: any;
+    try {
+      response = await run(supportsJsonMimeType(selectedModel));
+    } catch (e) {
+      // Some models (e.g., Gemma) reject JSON mode. Retry without it.
+      if (isJsonModeNotEnabledError(e)) {
+        response = await run(false);
+      } else {
+        throw e;
       }
-    });
+    }
 
     const text = response.text || "{}";
     try {
-        return JSON.parse(text);
+        const json = extractJsonObject(text) || "{}";
+        return JSON.parse(json);
     } catch (e) {
         console.error("Failed to parse JSON from AI", text);
         return { narrative: { title: "Error", content: "The Scribe muttered incoherently." } };
@@ -152,17 +204,32 @@ export const generateAdventureResponse = async (
   Remember: Return ONLY valid JSON.
   The "narrative" field MUST be an object: { "title": "...", "content": "..." }.`;
 
-    const response = await ai.models.generateContent({
-      model: String(selectedModel),
-      contents: fullPrompt,
-      config: {
-        responseMimeType: 'application/json'
+    const run = async (useJsonMode: boolean) => {
+      const config = useJsonMode
+        ? { responseMimeType: 'application/json' as const }
+        : undefined;
+      return await ai.models.generateContent({
+        model: String(selectedModel),
+        contents: fullPrompt,
+        ...(config ? { config } : {})
+      });
+    };
+
+    let response: any;
+    try {
+      response = await run(supportsJsonMimeType(String(selectedModel)));
+    } catch (e) {
+      if (isJsonModeNotEnabledError(e)) {
+        response = await run(false);
+      } else {
+        throw e;
       }
-    });
+    }
 
     const text = response.text || "{}";
     try {
-      const parsed = JSON.parse(text);
+      const json = extractJsonObject(text) || "{}";
+      const parsed = JSON.parse(json);
       if (!parsed?.narrative) {
         return { narrative: { title: 'Adventure', content: 'The winds carry no response...' } };
       }
