@@ -127,10 +127,44 @@ export const loadCharacters = async (uid: string): Promise<Character[]> => {
 export const deleteCharacter = async (uid: string, characterId: string): Promise<void> => {
   try {
     const db = getDb();
-    const docRef = doc(db, 'users', uid, 'characters', characterId);
-    await deleteDoc(docRef);
+    
+    // Delete the character document
+    const characterDocRef = doc(db, 'users', uid, 'characters', characterId);
+    await deleteDoc(characterDocRef);
+    
+    // Delete all related inventory items
+    const itemsRef = collection(db, 'users', uid, 'items');
+    const itemsQuery = query(itemsRef, where('characterId', '==', characterId));
+    const itemsSnapshot = await getDocs(itemsQuery);
+    const itemDeletePromises = itemsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    // Delete all related quests
+    const questsRef = collection(db, 'users', uid, 'quests');
+    const questsQuery = query(questsRef, where('characterId', '==', characterId));
+    const questsSnapshot = await getDocs(questsQuery);
+    const questDeletePromises = questsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    // Delete all related journal entries
+    const journalRef = collection(db, 'users', uid, 'journalEntries');
+    const journalQuery = query(journalRef, where('characterId', '==', characterId));
+    const journalSnapshot = await getDocs(journalQuery);
+    const journalDeletePromises = journalSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    // Delete all related story chapters
+    const storyRef = collection(db, 'users', uid, 'storyChapters');
+    const storyQuery = query(storyRef, where('characterId', '==', characterId));
+    const storySnapshot = await getDocs(storyQuery);
+    const storyDeletePromises = storySnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    // Wait for all deletions to complete
+    await Promise.all([
+      ...itemDeletePromises,
+      ...questDeletePromises,
+      ...journalDeletePromises,
+      ...storyDeletePromises
+    ]);
   } catch (error) {
-    console.error('Error deleting character:', error);
+    console.error('Error deleting character and related data:', error);
     throw error;
   }
 };

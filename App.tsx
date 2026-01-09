@@ -418,11 +418,15 @@ const App: React.FC = () => {
     if (!currentUser) return;
     
     try {
-      // Delete from Firestore
+      // Delete from Firestore (this will also delete related items, quests, journal, and story)
       await deleteCharacter(currentUser.uid, characterId);
       
-      // Update local state
+      // Update local state - remove character and all related data
       setCharacters(prev => prev.filter(c => c.id !== characterId));
+      setItems(prev => prev.filter(i => i.characterId !== characterId));
+      setQuests(prev => prev.filter(q => q.characterId !== characterId));
+      setJournalEntries(prev => prev.filter(j => j.characterId !== characterId));
+      setStoryChapters(prev => prev.filter(s => s.characterId !== characterId));
       
       // Clear current selection if deleted
       if (currentCharacterId === characterId) {
