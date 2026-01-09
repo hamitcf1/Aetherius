@@ -1677,6 +1677,7 @@ const App: React.FC = () => {
                 quests={getCharacterQuests()}
                 journal={getCharacterJournal()}
                 items={getCharacterItems()}
+                userId={currentUser?.uid}
               />
             )}
             {activeTab === TABS.JOURNAL && (
