@@ -22,7 +22,8 @@ import {
   onAuthChange, 
   registerUser, 
   loginUser, 
-  logoutUser
+  logoutUser,
+  sendPasswordReset
 } from './services/firebase';
 import { 
   initializeFirestoreDb,
@@ -126,10 +127,11 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginUsername, setLoginUsername] = useState('');
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   // Global State (in-memory)
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -542,6 +544,25 @@ const App: React.FC = () => {
     }
   };
 
+  const handleForgotPassword = async (email: string) => {
+    setAuthError(null);
+    setResetEmailSent(false);
+    try {
+      if (!email) {
+        setAuthError('Please enter your email address');
+        return;
+      }
+      const result = await sendPasswordReset(email);
+      if (result.success) {
+        setResetEmailSent(true);
+      } else {
+        setAuthError(result.error || 'Failed to send reset email');
+      }
+    } catch (error: any) {
+      setAuthError('Failed to send reset email: ' + error.message);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       if (currentUser) {
@@ -607,16 +628,24 @@ const App: React.FC = () => {
                 Login
               </button>
               
-              <div className="text-center">
+              <div className="text-center space-y-2">
                 <button
-                  onClick={() => { setAuthMode('register'); setAuthError(null); }}
-                  className="text-skyrim-gold hover:text-yellow-400 text-sm transition-colors"
+                  onClick={() => { setAuthMode('forgot'); setAuthError(null); setResetEmailSent(false); }}
+                  className="text-gray-400 hover:text-skyrim-gold text-sm transition-colors"
                 >
-                  Don't have an account? <span className="underline">Register here</span>
+                  Forgot your password?
                 </button>
+                <div>
+                  <button
+                    onClick={() => { setAuthMode('register'); setAuthError(null); }}
+                    className="text-skyrim-gold hover:text-yellow-400 text-sm transition-colors"
+                  >
+                    Don't have an account? <span className="underline">Register here</span>
+                  </button>
+                </div>
               </div>
             </div>
-          ) : (
+          ) : authMode === 'register' ? (
             // REGISTER FORM
             <div className="space-y-4">
               <input 
@@ -656,6 +685,54 @@ const App: React.FC = () => {
                   Already have an account? <span className="underline">Login here</span>
                 </button>
               </div>
+            </div>
+          ) : (
+            // FORGOT PASSWORD FORM
+            <div className="space-y-4">
+              {resetEmailSent ? (
+                <div className="text-center space-y-4">
+                  <div className="bg-green-900/30 border border-green-700 rounded p-4 text-green-200 text-sm">
+                    <p className="font-bold mb-2">✓ Reset Email Sent!</p>
+                    <p>Check your inbox for a password reset link. If you don't see it, check your spam folder.</p>
+                  </div>
+                  <button
+                    onClick={() => { setAuthMode('login'); setResetEmailSent(false); setAuthError(null); }}
+                    className="text-skyrim-gold hover:text-yellow-400 text-sm transition-colors"
+                  >
+                    ← Back to Login
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-gray-400 text-sm text-center mb-4">
+                    Enter your email address and we'll send you a link to reset your password.
+                  </p>
+                  <input 
+                    type="email"
+                    placeholder="Email"
+                    className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleForgotPassword(loginEmail)}
+                  />
+                  
+                  <button 
+                    onClick={() => handleForgotPassword(loginEmail)}
+                    className="w-full bg-skyrim-gold text-skyrim-dark font-bold py-2 rounded hover:bg-yellow-400 transition-colors"
+                  >
+                    Send Reset Link
+                  </button>
+                  
+                  <div className="text-center">
+                    <button
+                      onClick={() => { setAuthMode('login'); setAuthError(null); }}
+                      className="text-skyrim-gold hover:text-yellow-400 text-sm transition-colors"
+                    >
+                      ← Back to Login
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
