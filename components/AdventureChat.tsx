@@ -150,6 +150,62 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     });
   };
 
+  const formatList = (items: string[], max: number) => {
+    const trimmed = items.filter(Boolean).slice(0, max);
+    if (trimmed.length === 0) return '';
+    return trimmed.join(', ') + (items.length > max ? ', …' : '');
+  };
+
+  const snippet = (text: string, maxLen: number) => {
+    const t = (text || '').replace(/\s+/g, ' ').trim();
+    if (!t) return '';
+    if (t.length <= maxLen) return t;
+    return t.slice(0, maxLen).trimEnd() + '…';
+  };
+
+  const buildContextualIntro = (): string => {
+    if (!character) return '';
+
+    const lastChapter = story.slice(-1)[0];
+    const lastJournal = journal.slice(-1)[0];
+    const activeQuests = quests.filter(q => q.status === 'active');
+
+    const questLine = activeQuests.length
+      ? `Active quests: ${formatList(activeQuests.map(q => q.title), 4)}.`
+      : '';
+
+    const itemsLine = inventory.length
+      ? `Notable gear: ${formatList(
+          inventory
+            .filter(i => (i.quantity || 0) > 0)
+            .slice(0, 8)
+            .map(i => `${i.name}${i.quantity > 1 ? ` x${i.quantity}` : ''}`),
+          6
+        )}.`
+      : '';
+
+    const identityLine = character.identity ? snippet(character.identity, 180) : '';
+
+    // If we have no prior state at all, fall back to the classic opener.
+    const hasEstablishedState = Boolean(lastChapter || lastJournal || activeQuests.length || inventory.length || identityLine);
+    if (!hasEstablishedState) {
+      return `*The mists of time part before you...*\n\nWelcome, ${character.name}, ${character.race} ${character.archetype}. The land of Skyrim stretches before you, cold and unforgiving, yet ripe with opportunity.\n\nYou find yourself at a crossroads. The cobblestones beneath your feet are worn by centuries of travelers. To the north, smoke rises from a small village. To the east, a dark forest looms. A weathered signpost creaks in the wind.\n\n*What do you do?*`;
+    }
+
+    const recapParts: string[] = [];
+    if (lastChapter) {
+      recapParts.push(`Last chapter: “${lastChapter.title}”. ${snippet(lastChapter.content, 320)}`);
+    } else if (lastJournal) {
+      recapParts.push(`Last journal entry: “${lastJournal.title}”. ${snippet(lastJournal.content, 320)}`);
+    }
+    if (questLine) recapParts.push(questLine);
+    if (itemsLine) recapParts.push(itemsLine);
+    if (identityLine) recapParts.push(`You remind yourself who you are: ${identityLine}`);
+
+    const recap = recapParts.join('\n\n');
+    return `*You draw a slow breath and feel Skyrim’s cold air bite at your lungs...*\n\n${recap}\n\nThe world hasn’t reset—only turned another page.\n\n*What do you do next?*`;
+  };
+
   const handleSend = async () => {
     if (!input.trim() || loading || !character) return;
 
@@ -228,7 +284,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     const intro: ChatMessage = {
       id: Math.random().toString(36).substr(2, 9),
       role: 'gm',
-      content: `*The mists of time part before you...*\n\nWelcome, ${character.name}, ${character.race} ${character.archetype}. The land of Skyrim stretches before you, cold and unforgiving, yet ripe with opportunity.\n\nYou find yourself at a crossroads. The cobblestones beneath your feet are worn by centuries of travelers. To the north, smoke rises from a small village. To the east, a dark forest looms. A weathered signpost creaks in the wind.\n\n*What do you do?*`,
+      content: buildContextualIntro(),
       timestamp: Date.now()
     };
     setMessages([intro]);
