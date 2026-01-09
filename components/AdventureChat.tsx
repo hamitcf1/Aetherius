@@ -384,6 +384,18 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         <p className="text-gray-500 font-sans text-sm">A text-based journey through Skyrim</p>
       </div>
 
+      {/* AI Model Tip */}
+      <div className="mb-4 bg-blue-900/20 border border-blue-600/50 rounded-lg p-3 sm:p-4">
+        <div className="flex items-start gap-2">
+          <span className="text-blue-400 text-lg">💡</span>
+          <div className="flex-1">
+            <p className="text-blue-200 text-sm">
+              <strong>Tip:</strong> For the best adventure experience, we highly recommend using the <strong>Gemma 2 27B</strong> model. You can change it in the Actions menu.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Controls */}
       <div className="mb-4 flex flex-wrap gap-2 justify-between items-center">
         <div className="flex gap-2">
