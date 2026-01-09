@@ -149,9 +149,6 @@ const ActionBar: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <div className="text-[10px] text-gray-500">
-                Gemma models use <span className="font-mono">VITE_GEMMA_API_KEY</span> (recommended) or <span className="font-mono">GEMMA_API_KEY</span>/<span className="font-mono">gemma_api_key</span>.
-              </div>
             </div>
           )}
           <button onClick={handleManualSave} disabled={isSaving} className="w-full flex items-center gap-2 px-3 py-2 bg-skyrim-gold text-skyrim-dark rounded font-bold disabled:opacity-50">
