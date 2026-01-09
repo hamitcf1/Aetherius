@@ -8,7 +8,7 @@
  */
 
 // Admin user IDs (Firebase UIDs) - only these accounts can see admin features
-const ADMIN_UIDS: string[] = [
+const ADMIN_UIDS: string[] = ['6bmF8elZmJai6F5XCxeWoM7zTZv1'
   // Add your Firebase UID here, e.g.:
   // 'abc123xyz456',
 ];
@@ -50,7 +50,7 @@ export const FEATURES = {
   // === AI FEATURES ===
   aiScribe: { enabled: true, wip: false },
   aiCharacterGeneration: { enabled: true, wip: false },
-  aiProfileImage: { enabled: true, wip: true, label: 'Beta' },
+  aiProfileImage: { enabled: false, wip: true, label: 'Coming Soon' },
   gemmaModels: { enabled: true, wip: false },
 
   // === CHARACTER MANAGEMENT ===
@@ -60,8 +60,8 @@ export const FEATURES = {
   
   // === UI/UX ===
   onboarding: { enabled: true, wip: false },
-  snowEffect: { enabled: false, wip: true, label: 'Coming Soon' },
-  exportPDF: { enabled: false, wip: true, label: 'Coming Soon' },
+  snowEffect: { enabled: true, wip: false, label: 'Coming Soon' },
+  exportPDF: { enabled: true, wip: false, label: 'Coming Soon' },
   photoUpload: { enabled: false, wip: true, label: 'Coming Soon' },
 
   // === EXPERIMENTAL ===

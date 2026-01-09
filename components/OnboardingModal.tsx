@@ -52,6 +52,17 @@ export function OnboardingModal(props: {
               <li>Create a character (race, archetype, identity, stats, etc.).</li>
               <li>Select both to enter the main game UI.</li>
             </ul>
+            <div className="p-3 bg-blue-900/20 border border-blue-600/40 rounded mt-3">
+              <p className="text-blue-200 text-sm font-sans font-semibold mb-2">
+                Multiple ways to create characters:
+              </p>
+              <ul className="text-blue-200 text-xs font-sans list-disc pl-5 space-y-1">
+                <li><span className="font-semibold">Scribe Chat</span>: Use AI to help design your character through conversation.</li>
+                <li><span className="font-semibold">Manual</span>: Fill out all fields yourself for full control.</li>
+                <li><span className="font-semibold">Full Random</span>: Generate a complete character with background instantly.</li>
+                <li><span className="font-semibold">Import Text</span>: Paste character information to auto-fill details.</li>
+              </ul>
+            </div>
           </div>
         ),
       },
