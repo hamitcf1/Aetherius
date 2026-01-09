@@ -858,23 +858,33 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                   {/* Clickable dialogue choices */}
                   {msg.role === 'gm' && Array.isArray(msg.updates?.choices) && (msg.updates?.choices?.length || 0) > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {msg.updates!.choices!.slice(0, 6).map((c, idx) => (
-                        <button
-                          key={`${msg.id}:choice:${idx}`}
-                          onClick={() => sendPlayerText((c?.playerText || c?.label || '').trim())}
-                          disabled={loading}
-                          className="px-3 py-2 bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/40 rounded hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors text-sm font-sans disabled:opacity-50 flex items-center gap-2"
-                          title={c?.playerText || c?.label}
-                        >
-                          <span>{c?.label || 'Choose'}</span>
-                          {/* Show preview cost badge if present */}
-                          {c?.previewCost?.gold && (
-                            <span className="text-xs px-1.5 py-0.5 bg-yellow-900/40 text-yellow-400 rounded border border-yellow-700/50">
-                              {c.previewCost.gold} gold
-                            </span>
-                          )}
-                        </button>
-                      ))}
+                      {msg.updates!.choices!.slice(0, 6).map((c, idx) => {
+                        const playerText = (c?.playerText || c?.label || '').trim();
+                        return (
+                          <div key={`${msg.id}:choice:${idx}`} className="group relative">
+                            <button
+                              onClick={() => sendPlayerText(playerText)}
+                              disabled={loading}
+                              className="px-3 py-2 bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/40 rounded hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors text-sm font-sans disabled:opacity-50 flex items-center gap-2"
+                            >
+                              <span>{c?.label || 'Choose'}</span>
+                              {/* Show preview cost badge if present */}
+                              {c?.previewCost?.gold && (
+                                <span className="text-xs px-1.5 py-0.5 bg-yellow-900/40 text-yellow-400 rounded border border-yellow-700/50">
+                                  {c.previewCost.gold} gold
+                                </span>
+                              )}
+                            </button>
+                            {/* Hover tooltip showing what will be typed */}
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900/95 border border-skyrim-gold/50 rounded shadow-lg text-xs text-gray-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 max-w-[250px]">
+                              <div className="text-gray-400 text-[10px] mb-1">You will say:</div>
+                              <div className="text-skyrim-gold italic truncate">"{playerText}"</div>
+                              {/* Tooltip arrow */}
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900/95"></div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                   
