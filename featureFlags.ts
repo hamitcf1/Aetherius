@@ -60,7 +60,7 @@ export const FEATURES = {
   
   // === UI/UX ===
   onboarding: { enabled: true, wip: false },
-  snowEffect: { enabled: true, wip: false },
+  snowEffect: { enabled: false, wip: true, label: 'Coming Soon' },
   exportPDF: { enabled: false, wip: true, label: 'Coming Soon' },
   photoUpload: { enabled: false, wip: true, label: 'Coming Soon' },
 
