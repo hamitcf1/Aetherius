@@ -6,9 +6,19 @@ import React, { useEffect, useMemo, memo } from 'react';
  * - Reduces reflows/repaints by using transform instead of top/left
  * - Uses will-change hint for compositor optimization
  * - Memoized to prevent unnecessary re-renders
+ * - Configurable intensity levels
  */
 
-const SNOWFLAKE_COUNT = 50; // Reduced count for better performance
+export interface SnowSettings {
+  intensity: 'light' | 'normal' | 'heavy' | 'blizzard';
+}
+
+const INTENSITY_MAP = {
+  light: 25,
+  normal: 50,
+  heavy: 100,
+  blizzard: 180,
+};
 
 interface Snowflake {
   id: number;
@@ -20,9 +30,9 @@ interface Snowflake {
   drift: number;
 }
 
-// Generate snowflake data once
-const generateSnowflakes = (): Snowflake[] => {
-  return Array.from({ length: SNOWFLAKE_COUNT }, (_, i) => ({
+// Generate snowflake data
+const generateSnowflakes = (count: number): Snowflake[] => {
+  return Array.from({ length: count }, (_, i) => ({
     id: i,
     size: 2 + Math.random() * 4,
     left: Math.random() * 100,
@@ -98,9 +108,16 @@ const SnowflakeElement: React.FC<{ flake: Snowflake }> = memo(({ flake }) => (
 
 SnowflakeElement.displayName = 'SnowflakeElement';
 
-const SnowEffect: React.FC = memo(() => {
-  // Generate snowflakes only once
-  const snowflakes = useMemo(() => generateSnowflakes(), []);
+interface SnowEffectProps {
+  settings?: Partial<SnowSettings>;
+}
+
+const SnowEffect: React.FC<SnowEffectProps> = memo(({ settings }) => {
+  const intensity = settings?.intensity || 'normal';
+  const snowflakeCount = INTENSITY_MAP[intensity];
+  
+  // Generate snowflakes based on intensity
+  const snowflakes = useMemo(() => generateSnowflakes(snowflakeCount), [snowflakeCount]);
 
   useEffect(() => {
     injectStyles();

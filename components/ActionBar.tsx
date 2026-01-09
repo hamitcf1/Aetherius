@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, Snowflake, ShoppingBag, Coins, X } from 'lucide-react';
-import SnowEffect from './SnowEffect';
+import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, Snowflake, ShoppingBag, Coins, X, ChevronDown } from 'lucide-react';
+import SnowEffect, { SnowSettings } from './SnowEffect';
 import { useAppContext } from '../AppContext';
 import { isFeatureEnabled, isFeatureWIP, getFeatureLabel } from '../featureFlags';
 import { PREFERRED_AI_MODELS } from '../services/geminiService';
 import { ShopModal } from './ShopModal.tsx';
+
+type SnowIntensity = SnowSettings['intensity'];
+
+const SNOW_INTENSITY_OPTIONS: Array<{ value: SnowIntensity; label: string }> = [
+  { value: 'light', label: 'Light' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'heavy', label: 'Heavy' },
+  { value: 'blizzard', label: 'Blizzard' },
+];
 
 const ActionBar: React.FC = () => {
   const {
@@ -29,6 +38,8 @@ const ActionBar: React.FC = () => {
   } = useAppContext();
   const [open, setOpen] = useState(false);
   const [snow, setSnow] = useState(false);
+  const [snowIntensity, setSnowIntensity] = useState<SnowIntensity>('normal');
+  const [showSnowOptions, setShowSnowOptions] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   // Ref for the button to align dropdown
   const buttonRef = React.useRef<HTMLButtonElement>(null);
@@ -234,17 +245,49 @@ const ActionBar: React.FC = () => {
           
           {/* Snow Effect - show as disabled if feature not enabled */}
           <div className="relative group">
-            <button 
-              onClick={isFeatureEnabled('snowEffect') ? () => setSnow((s) => !s) : undefined}
-              disabled={!isFeatureEnabled('snowEffect')}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded font-bold ${
-                isFeatureEnabled('snowEffect')
-                  ? (snow ? 'bg-blue-200 text-blue-900' : 'bg-blue-900 text-white hover:bg-blue-800')
-                  : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
-              }`}
-            >
-              <Snowflake size={16} /> {snow ? 'Disable Snow Effect' : 'Snow Effect'}
-            </button>
+            <div className="flex gap-1">
+              <button 
+                onClick={isFeatureEnabled('snowEffect') ? () => setSnow((s) => !s) : undefined}
+                disabled={!isFeatureEnabled('snowEffect')}
+                className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-l font-bold ${
+                  isFeatureEnabled('snowEffect')
+                    ? (snow ? 'bg-blue-200 text-blue-900' : 'bg-blue-900 text-white hover:bg-blue-800')
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
+                }`}
+              >
+                <Snowflake size={16} /> {snow ? 'Disable Snow Effect' : 'Snow Effect'}
+              </button>
+              {isFeatureEnabled('snowEffect') && snow && (
+                <button
+                  onClick={() => setShowSnowOptions(s => !s)}
+                  className="px-2 py-2 bg-blue-200 text-blue-900 rounded-r border-l border-blue-300 hover:bg-blue-100"
+                  title="Snow settings"
+                >
+                  <ChevronDown size={16} className={showSnowOptions ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                </button>
+              )}
+            </div>
+            {/* Snow intensity options */}
+            {snow && showSnowOptions && isFeatureEnabled('snowEffect') && (
+              <div className="mt-2 p-2 bg-gray-800 rounded border border-gray-700 space-y-2">
+                <div className="text-xs text-gray-400 mb-1">Snow Intensity</div>
+                <div className="flex flex-wrap gap-1">
+                  {SNOW_INTENSITY_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setSnowIntensity(opt.value)}
+                      className={`px-2 py-1 text-xs rounded ${
+                        snowIntensity === opt.value
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {!isFeatureEnabled('snowEffect') && (
               <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-50 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
                 {getFeatureLabel('snowEffect') || 'Work in Progress'}
@@ -254,7 +297,7 @@ const ActionBar: React.FC = () => {
         </div>,
         document.body
       )}
-      {snow && <SnowEffect />}
+      {snow && <SnowEffect settings={{ intensity: snowIntensity }} />}
       <ShopModal 
         open={shopOpen} 
         onClose={() => setShopOpen(false)} 
