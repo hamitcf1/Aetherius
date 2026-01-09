@@ -587,7 +587,7 @@ const App: React.FC = () => {
           <div className="space-y-4">
             <input 
               type="text"
-              placeholder="Username"
+              placeholder="Username (not for login, required for registration)"
               className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
               value={loginUsername}
               onChange={(e) => setLoginUsername(e.target.value)}
