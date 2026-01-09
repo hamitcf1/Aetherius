@@ -39,7 +39,7 @@ Return ONLY a JSON object:
   "narrative": { "title": "Short title", "content": "Your story response here..." },
   "newItems": [{ "name": "Item", "type": "misc", "description": "...", "quantity": 1 }],
   "removedItems": [{ "name": "Item", "quantity": 1 }],
-  "newQuests": [{ "title": "Quest", "description": "...", "location": "..." }],
+  "newQuests": [{ "title": "Quest", "description": "...", "location": "...", "dueDate": "...", "objectives": [{ "description": "...", "completed": false }] }],
   "updateQuests": [{ "title": "Quest Title", "status": "completed" }],
   "goldChange": 0,
   "statUpdates": {}

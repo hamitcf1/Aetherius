@@ -81,7 +81,7 @@ const StatBar: React.FC<{
     onChange: (val: number) => void;
 }> = ({ label, value, color, icon, onChange }) => { 
     return (
-        <div className="flex-1 group">
+        <div className="flex-1 min-w-0 group">
             <div className="flex justify-between text-xs uppercase mb-1 text-gray-400 font-bold items-center">
                 <span className="flex items-center gap-1 group-hover:text-skyrim-gold transition-colors">{icon} {label}</span>
                 <input
@@ -95,7 +95,7 @@ const StatBar: React.FC<{
                         if (v > 600) v = 600;
                         onChange(v);
                     }}
-                    className="w-16 bg-black/40 border border-skyrim-border rounded text-gray-300 text-sm px-2 ml-2 focus:outline-none focus:border-skyrim-gold text-right tracking-widest"
+                    className="w-14 sm:w-16 bg-black/40 border border-skyrim-border rounded text-gray-300 text-sm px-2 ml-2 focus:outline-none focus:border-skyrim-gold text-right tracking-widest"
                     style={{ height: 24, letterSpacing: '0.05em' }}
                 />
             </div>
@@ -579,7 +579,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
               </div>
           </div>
 
-          <div className="mb-6 p-4 bg-black/40 rounded border border-skyrim-border flex gap-6">
+                    <div className="mb-6 p-4 bg-black/40 rounded border border-skyrim-border flex flex-col sm:flex-row gap-4">
               <StatBar 
                 label="Health" 
                 value={character.stats.health} 

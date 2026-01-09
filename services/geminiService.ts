@@ -126,9 +126,10 @@ export const generateGameMasterResponse = async (
       Structure:
       {
         "narrative": { "title": "Short Title", "content": "The story text..." },
-        "newQuests": [ { "title": "Quest Name", "description": "...", "location": "..." } ],
+        "newQuests": [ { "title": "Quest Name", "description": "...", "location": "...", "dueDate": "...", "objectives": [ { "description": "...", "completed": false } ] } ],
         "updateQuests": [ { "title": "Existing Quest Name", "status": "completed" } ],
         "newItems": [ { "name": "Item Name", "type": "weapon/potion/etc", "description": "...", "quantity": 1 } ],
+        "removedItems": [ { "name": "Item Name", "quantity": 1 } ],
         "statUpdates": { "health": 90 }
       }
       

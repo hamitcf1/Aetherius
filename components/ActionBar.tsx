@@ -29,10 +29,16 @@ const ActionBar: React.FC = () => {
   const updateDropdownPos = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth || 0;
+      const padding = 8;
+      const desiredWidth = Math.max(240, rect.width);
+      const width = Math.max(0, Math.min(desiredWidth, viewportWidth - padding * 2));
+      const maxLeft = Math.max(padding, viewportWidth - width - padding);
+      const left = Math.min(Math.max(padding, rect.left), maxLeft);
       setDropdownPos({
-        left: rect.left,
-        top: rect.bottom + window.scrollY + 4,
-        width: rect.width
+        left,
+        top: rect.bottom + 4,
+        width
       });
     }
   };
@@ -64,8 +70,7 @@ const ActionBar: React.FC = () => {
       <button
         ref={buttonRef}
         onClick={handleToggle}
-        className="bg-skyrim-gold text-skyrim-dark px-3 py-2 rounded shadow-lg font-bold flex items-center gap-2 relative overflow-hidden"
-        style={{ marginLeft: 8, width: 110 }}
+        className="bg-skyrim-gold text-skyrim-dark px-3 py-2 rounded shadow-lg font-bold flex items-center gap-2 relative overflow-hidden shrink-0"
         aria-label={open ? 'Kapat' : 'Aç'}
       >
         <span style={{ position: 'relative', width: 20, height: 20, display: 'inline-block' }}>
@@ -103,10 +108,11 @@ const ActionBar: React.FC = () => {
         <div
           className="bg-skyrim-paper border border-skyrim-gold rounded-lg shadow-2xl p-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2"
           style={{
-            position: 'absolute',
+            position: 'fixed',
             left: dropdownPos.left,
             top: dropdownPos.top,
             minWidth: dropdownPos.width,
+            maxWidth: 'calc(100vw - 16px)',
             zIndex: 1000
           }}
         >

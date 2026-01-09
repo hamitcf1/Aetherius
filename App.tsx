@@ -558,6 +558,18 @@ const App: React.FC = () => {
   const handleGameUpdate = (updates: GameStateUpdate) => {
       if (!currentCharacterId || !activeCharacter) return;
 
+      const hasAnyUpdate = Boolean(
+        updates?.narrative ||
+          (updates?.newQuests && updates.newQuests.length) ||
+          (updates?.updateQuests && updates.updateQuests.length) ||
+          (updates?.newItems && updates.newItems.length) ||
+          (updates?.removedItems && updates.removedItems.length) ||
+          updates?.statUpdates ||
+          typeof updates?.goldChange === 'number' ||
+          typeof updates?.xpChange === 'number'
+      );
+      if (!hasAnyUpdate) return;
+
       // 1. Narrative -> Story Chapter
       if (updates.narrative) {
           const chapter: StoryChapter = {
@@ -581,7 +593,12 @@ const App: React.FC = () => {
               title: q.title,
               description: q.description,
               location: q.location,
-              objectives: [],
+              dueDate: q.dueDate,
+              objectives: (q.objectives || []).map(o => ({
+                id: uniqueId(),
+                description: o.description,
+                completed: Boolean(o.completed)
+              })),
               status: 'active' as const,
               createdAt: Date.now()
           }));
@@ -704,12 +721,90 @@ const App: React.FC = () => {
       }
 
       // 7. Auto-Journal
+      const title =
+        updates.narrative?.title ||
+        (updates.newQuests?.length ? 'New Quest' : undefined) ||
+        (updates.updateQuests?.length ? 'Quest Update' : undefined) ||
+        (updates.newItems?.length || updates.removedItems?.length ? 'Supplies & Spoils' : undefined) ||
+        (updates.goldChange ? 'Coin & Debts' : undefined) ||
+        (updates.statUpdates ? 'Condition' : undefined) ||
+        'Field Notes';
+
+      const lines: string[] = [];
+
+      if (updates.narrative?.content) {
+        lines.push(updates.narrative.content.trim());
+      }
+
+      const changes: string[] = [];
+
+      if (typeof updates.goldChange === 'number' && updates.goldChange !== 0) {
+        const sign = updates.goldChange > 0 ? '+' : '';
+        changes.push(`Gold: ${sign}${updates.goldChange}`);
+      }
+      if (typeof updates.xpChange === 'number' && updates.xpChange !== 0) {
+        const sign = updates.xpChange > 0 ? '+' : '';
+        changes.push(`Experience: ${sign}${updates.xpChange}`);
+      }
+
+      if (updates.statUpdates && Object.keys(updates.statUpdates).length) {
+        const statParts: string[] = [];
+        if (typeof updates.statUpdates.health === 'number') statParts.push(`Health → ${updates.statUpdates.health}`);
+        if (typeof updates.statUpdates.magicka === 'number') statParts.push(`Magicka → ${updates.statUpdates.magicka}`);
+        if (typeof updates.statUpdates.stamina === 'number') statParts.push(`Stamina → ${updates.statUpdates.stamina}`);
+        if (statParts.length) changes.push(`Stats: ${statParts.join(', ')}`);
+      }
+
+      if (updates.newItems?.length) {
+        const items = updates.newItems
+          .map(i => {
+            const qty = Math.max(1, Number(i.quantity || 1));
+            return `${qty}× ${String(i.name || '').trim()}`.trim();
+          })
+          .filter(Boolean);
+        if (items.length) changes.push(`Gained: ${items.join(', ')}`);
+      }
+
+      if (updates.removedItems?.length) {
+        const items = updates.removedItems
+          .map(i => {
+            const qty = Math.max(1, Number(i.quantity || 1));
+            return `${qty}× ${String(i.name || '').trim()}`.trim();
+          })
+          .filter(Boolean);
+        if (items.length) changes.push(`Lost/Used: ${items.join(', ')}`);
+      }
+
+      if (updates.newQuests?.length) {
+        const questSummaries = updates.newQuests
+          .map(q => {
+            const loc = q.location ? ` (${q.location})` : '';
+            const due = q.dueDate ? ` — Due: ${q.dueDate}` : '';
+            const objectives = (q.objectives || []).map(o => `- ${o.description}`).join('\n');
+            const objBlock = objectives ? `\nObjectives:\n${objectives}` : '';
+            return `Quest Started: ${q.title}${loc}${due}\n${q.description || ''}${objBlock}`.trim();
+          })
+          .filter(Boolean);
+        if (questSummaries.length) lines.push(questSummaries.join('\n\n'));
+      }
+
+      if (updates.updateQuests?.length) {
+        const questUpdates = updates.updateQuests
+          .map(q => `Quest ${q.status.toUpperCase()}: ${q.title}`)
+          .filter(Boolean);
+        if (questUpdates.length) changes.push(...questUpdates);
+      }
+
+      if (changes.length) {
+        lines.push(`\nNotes:\n- ${changes.join('\n- ')}`);
+      }
+
       const entry: JournalEntry = {
         id: uniqueId(),
         characterId: currentCharacterId,
         date: "4E 201",
-        title: updates.narrative?.title || "Event",
-        content: `The Game Master decreed: ${updates.narrative?.title}`,
+        title,
+        content: lines.filter(Boolean).join('\n\n').trim(),
       };
       setJournalEntries(prev => [...prev, entry]);
       setDirtyEntities(prev => new Set([...prev, entry.id]));
@@ -790,7 +885,7 @@ const App: React.FC = () => {
                 <Skull size={24} />
                 <span className="hidden md:inline">Skyrim Aetherius</span>
               </div>
-              <div className="flex items-center gap-2 overflow-x-auto relative">
+              <div className="flex flex-wrap md:flex-nowrap items-center gap-2 relative">
                 {[
                     { id: TABS.CHARACTER, icon: User, label: 'Hero' },
                     { id: TABS.INVENTORY, icon: Package, label: 'Items' },
@@ -860,6 +955,7 @@ const App: React.FC = () => {
                 chapters={getCharacterStory()} 
                 onUpdateChapter={updateStoryChapter}
                 onAddChapter={(chapter) => setStoryChapters(prev => [...prev, chapter])}
+                onGameUpdate={handleGameUpdate}
                 character={activeCharacter}
                 quests={getCharacterQuests()}
                 journal={getCharacterJournal()}

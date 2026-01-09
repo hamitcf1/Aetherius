@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StoryChapter, Character, CustomQuest, JournalEntry, InventoryItem } from '../types';
+import { StoryChapter, Character, CustomQuest, JournalEntry, InventoryItem, GameStateUpdate } from '../types';
 import { Scroll, Calendar, Image as ImageIcon, Loader2, Plus, Download, Send } from 'lucide-react';
 import { generateLoreImage, generateGameMasterResponse } from '../services/geminiService';
 
@@ -7,6 +7,7 @@ interface StoryLogProps {
   chapters: StoryChapter[];
   onUpdateChapter: (chapter: StoryChapter) => void;
   onAddChapter?: (chapter: StoryChapter) => void;
+    onGameUpdate?: (updates: GameStateUpdate) => void;
   character?: Character;
   quests?: CustomQuest[];
   journal?: JournalEntry[];
@@ -17,6 +18,7 @@ export const StoryLog: React.FC<StoryLogProps> = ({
     chapters, 
     onUpdateChapter,
     onAddChapter,
+    onGameUpdate,
     character,
     quests = [],
     journal = [],
@@ -26,10 +28,16 @@ export const StoryLog: React.FC<StoryLogProps> = ({
     const visibleChapters = chapters.filter(c => !c.deleted);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [creatingChapter, setCreatingChapter] = useState(false);
+    const [isGeneratingChapter, setIsGeneratingChapter] = useState(false);
   const [chapterPrompt, setChapterPrompt] = useState('');
   const [chapterTitle, setChapterTitle] = useState('');
   const [chapterContent, setChapterContent] = useState('');
   const [isExportingStory, setIsExportingStory] = useState(false);
+
+    const [questTitle, setQuestTitle] = useState('');
+    const [questLocation, setQuestLocation] = useState('');
+    const [questDescription, setQuestDescription] = useState('');
+    const [questObjectivesText, setQuestObjectivesText] = useState('');
 
   const handleVisualize = async (chapter: StoryChapter) => {
       setLoadingId(chapter.id);
@@ -65,8 +73,8 @@ export const StoryLog: React.FC<StoryLogProps> = ({
 
   const handleGenerateChapterWithAI = async () => {
       if (!chapterPrompt.trim() || !character) return;
-      
-      setCreatingChapter(true);
+
+      setIsGeneratingChapter(true);
       try {
           const context = JSON.stringify({
               character,
@@ -76,25 +84,58 @@ export const StoryLog: React.FC<StoryLogProps> = ({
           });
 
           const update = await generateGameMasterResponse(chapterPrompt, context);
-          
-          if (update.narrative) {
-              const newChapter: StoryChapter = {
-                  id: Math.random().toString(36).substr(2, 9),
-                  characterId: character.id,
-                  title: update.narrative.title,
-                  content: update.narrative.content,
-                  date: "4E 201",
-                  summary: update.narrative.title,
-                  createdAt: Date.now()
-              };
-              onAddChapter?.(newChapter);
+
+          if (typeof onGameUpdate === 'function') {
+              onGameUpdate(update);
               setChapterPrompt('');
+              return;
+          }
+
+          if (update.narrative) {
+            const newChapter: StoryChapter = {
+                id: Math.random().toString(36).substr(2, 9),
+                characterId: character.id,
+                title: update.narrative.title,
+                content: update.narrative.content,
+                date: "4E 201",
+                summary: update.narrative.title,
+                createdAt: Date.now()
+            };
+            onAddChapter?.(newChapter);
+            setChapterPrompt('');
           }
       } catch (error) {
           console.error('Error generating chapter:', error);
       } finally {
-          setCreatingChapter(false);
+          setIsGeneratingChapter(false);
       }
+  };
+
+  const handleAddQuestFromStory = () => {
+      if (!questTitle.trim()) return;
+      if (typeof onGameUpdate !== 'function') return;
+
+      const objectives = (questObjectivesText || '')
+        .split('\n')
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map(description => ({ description, completed: false }));
+
+      onGameUpdate({
+        newQuests: [
+          {
+            title: questTitle.trim(),
+            description: questDescription.trim(),
+            location: questLocation.trim() || undefined,
+            objectives: objectives.length ? objectives : undefined,
+          },
+        ],
+      });
+
+      setQuestTitle('');
+      setQuestLocation('');
+      setQuestDescription('');
+      setQuestObjectivesText('');
   };
 
   const handleExportStory = async () => {
@@ -248,11 +289,53 @@ export const StoryLog: React.FC<StoryLogProps> = ({
                       />
                       <button 
                           onClick={handleGenerateChapterWithAI}
-                          disabled={!chapterPrompt.trim() || creatingChapter}
+                          disabled={!chapterPrompt.trim() || isGeneratingChapter}
                           className="px-4 py-2 bg-skyrim-accent hover:bg-skyrim-accent/80 text-white rounded text-sm font-bold disabled:opacity-50 flex items-center gap-1"
                       >
-                          {creatingChapter ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />}
+                          {isGeneratingChapter ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />}
                       </button>
+                  </div>
+              </div>
+
+              <div className="mb-4 p-2 sm:p-4 bg-black/30 border border-gray-700 rounded">
+                  <p className="text-xs text-gray-400 mb-3 uppercase tracking-wider font-bold">Add Quest (Optional)</p>
+                  <div className="grid gap-3">
+                      <input
+                          type="text"
+                          value={questTitle}
+                          onChange={e => setQuestTitle(e.target.value)}
+                          placeholder="Quest title..."
+                          className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none"
+                      />
+                      <input
+                          type="text"
+                          value={questLocation}
+                          onChange={e => setQuestLocation(e.target.value)}
+                          placeholder="Location (optional)..."
+                          className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none"
+                      />
+                      <textarea
+                          value={questDescription}
+                          onChange={e => setQuestDescription(e.target.value)}
+                          placeholder="Quest description..."
+                          className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none resize-none h-20 font-serif"
+                      />
+                      <textarea
+                          value={questObjectivesText}
+                          onChange={e => setQuestObjectivesText(e.target.value)}
+                          placeholder="Objectives (one per line)..."
+                          className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none resize-none h-20 font-serif"
+                      />
+                      <button
+                          onClick={handleAddQuestFromStory}
+                          disabled={!questTitle.trim() || typeof onGameUpdate !== 'function'}
+                          className="px-4 py-2 bg-skyrim-gold/90 hover:bg-skyrim-gold text-skyrim-dark rounded text-sm font-bold disabled:opacity-50"
+                      >
+                          Add Quest
+                      </button>
+                      {typeof onGameUpdate !== 'function' && (
+                        <div className="text-[11px] text-gray-500">Quest creation requires game update wiring.</div>
+                      )}
                   </div>
               </div>
 

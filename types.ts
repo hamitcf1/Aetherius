@@ -207,7 +207,13 @@ export const SKYRIM_RACES = [
 // AI Action Types
 export interface GameStateUpdate {
   narrative?: { title: string; content: string };
-  newQuests?: Array<{ title: string; description: string; location: string }>;
+  newQuests?: Array<{
+    title: string;
+    description: string;
+    location?: string;
+    dueDate?: string;
+    objectives?: Array<{ description: string; completed?: boolean }>;
+  }>;
   updateQuests?: Array<{ title: string; status: 'completed' | 'failed' | 'active' }>;
   newItems?: Array<{ name: string; type: string; description: string; quantity: number }>;
   removedItems?: Array<{ name: string; quantity: number }>;

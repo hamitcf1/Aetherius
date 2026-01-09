@@ -18,6 +18,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
   const [newDesc, setNewDesc] = useState('');
   const [newLocation, setNewLocation] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
+    const [newObjectivesText, setNewObjectivesText] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   
   // Edit State
@@ -25,9 +26,17 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
   const [editDesc, setEditDesc] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
+    const [editObjectivesText, setEditObjectivesText] = useState('');
 
   const addQuest = () => {
     if (!newTitle.trim()) return;
+
+        const objectives: QuestStep[] = (newObjectivesText || '')
+            .split('\n')
+            .map(s => s.trim())
+            .filter(Boolean)
+            .map(description => ({ id: uniqueId(), description, completed: false }));
+
     const quest: CustomQuest = {
       id: uniqueId(),
       characterId: '', // Handled by parent or ignored in local context
@@ -35,7 +44,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
       description: newDesc,
       location: newLocation,
       dueDate: newDueDate,
-      objectives: [],
+            objectives,
       status: 'active',
       createdAt: Date.now()
     };
@@ -44,8 +53,18 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
     setNewDesc('');
     setNewLocation('');
     setNewDueDate('');
+        setNewObjectivesText('');
     setIsAdding(false);
   };
+
+    const cancelAdd = () => {
+        setIsAdding(false);
+        setNewTitle('');
+        setNewDesc('');
+        setNewLocation('');
+        setNewDueDate('');
+        setNewObjectivesText('');
+    };
 
   const deleteQuest = (id: string) => {
     setQuests(quests.filter(q => q.id !== id));
@@ -56,12 +75,31 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
       setEditDesc(quest.description);
       setEditLocation(quest.location || '');
       setEditDueDate(quest.dueDate || '');
+            setEditObjectivesText((quest.objectives || []).map(o => o.description).join('\n'));
   };
 
   const saveEdit = (id: string) => {
       setQuests(quests.map(q => {
           if (q.id === id) {
-              return { ...q, description: editDesc, location: editLocation, dueDate: editDueDate };
+                            const existingObjectives = q.objectives || [];
+                            const nextLines = (editObjectivesText || '')
+                                .split('\n')
+                                .map(s => s.trim())
+                                .filter(Boolean);
+
+                            const nextObjectives: QuestStep[] = nextLines.map(line => {
+                                const match = existingObjectives.find(o => o.description.trim().toLowerCase() === line.toLowerCase());
+                                if (match) return match;
+                                return { id: uniqueId(), description: line, completed: false };
+                            });
+
+                            return {
+                                ...q,
+                                description: editDesc,
+                                location: editLocation,
+                                dueDate: editDueDate,
+                                objectives: nextObjectives
+                            };
           }
           return q;
       }));
@@ -210,8 +248,14 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                         value={newDesc}
                         onChange={e => setNewDesc(e.target.value)}
                     />
+                    <textarea 
+                        className="bg-black/30 border border-skyrim-border p-2 rounded text-gray-300 h-24 focus:outline-none font-serif"
+                        placeholder="Objectives (one per line)..."
+                        value={newObjectivesText}
+                        onChange={e => setNewObjectivesText(e.target.value)}
+                    />
                     <div className="flex justify-end gap-3 mt-2">
-                        <button onClick={() => setIsAdding(false)} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                        <button onClick={cancelAdd} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
                         <button onClick={addQuest} className="px-6 py-2 bg-skyrim-gold hover:bg-skyrim-goldHover text-skyrim-dark font-bold rounded">Create Quest</button>
                     </div>
                 </div>
@@ -294,11 +338,20 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                 </div>
                 
                 {editingQuestId === quest.id ? (
-                    <textarea 
-                        className="w-full bg-black/40 border border-skyrim-border rounded p-2 text-gray-300 font-serif text-sm h-24 mb-4"
-                        value={editDesc}
-                        onChange={(e) => setEditDesc(e.target.value)}
-                    />
+                    <div className="mb-4 grid gap-3">
+                      <textarea 
+                          className="w-full bg-black/40 border border-skyrim-border rounded p-2 text-gray-300 font-serif text-sm h-24"
+                          value={editDesc}
+                          onChange={(e) => setEditDesc(e.target.value)}
+                          placeholder="Description..."
+                      />
+                      <textarea
+                          className="w-full bg-black/40 border border-skyrim-border rounded p-2 text-gray-300 font-serif text-sm h-24"
+                          value={editObjectivesText}
+                          onChange={(e) => setEditObjectivesText(e.target.value)}
+                          placeholder="Objectives (one per line)..."
+                      />
+                    </div>
                 ) : (
                     <p className="text-gray-400 font-serif mb-4 text-sm whitespace-pre-wrap leading-relaxed">{quest.description}</p>
                 )}
