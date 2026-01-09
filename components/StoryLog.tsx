@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StoryChapter, Character, CustomQuest, JournalEntry, InventoryItem, GameStateUpdate } from '../types';
-import { Scroll, Calendar, Image as ImageIcon, Loader2, Plus, Download, Send, BookOpen, X } from 'lucide-react';
+import { Scroll, Calendar, Image as ImageIcon, Loader2, Plus, Download, Send, BookOpen, X, ArrowUpDown, Clock } from 'lucide-react';
 import { generateLoreImage, generateGameMasterResponse } from '../services/geminiService';
 
 interface AdventureMessage {
@@ -33,8 +33,6 @@ export const StoryLog: React.FC<StoryLogProps> = ({
     items = [],
     userId
 }) => {
-    // Filter out deleted chapters
-    const visibleChapters = chapters.filter(c => !c.deleted);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [creatingChapter, setCreatingChapter] = useState(false);
     const [isGeneratingChapter, setIsGeneratingChapter] = useState(false);
@@ -53,6 +51,56 @@ export const StoryLog: React.FC<StoryLogProps> = ({
     const [questLocation, setQuestLocation] = useState('');
     const [questDescription, setQuestDescription] = useState('');
     const [questObjectivesText, setQuestObjectivesText] = useState('');
+    
+    // Sort order state
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+
+  // Deduplicate and sort chapters
+  const sortedChapters = useMemo(() => {
+    // First, filter out deleted chapters
+    const visible = chapters.filter(c => !c.deleted);
+    
+    // Deduplicate by ID (keep the latest version)
+    const uniqueMap = new Map<string, StoryChapter>();
+    visible.forEach(chapter => {
+      const existing = uniqueMap.get(chapter.id);
+      if (!existing || (chapter.createdAt || 0) > (existing.createdAt || 0)) {
+        uniqueMap.set(chapter.id, chapter);
+      }
+    });
+    
+    // Also deduplicate by title+content hash (in case same chapter was added twice with different IDs)
+    const contentMap = new Map<string, StoryChapter>();
+    Array.from(uniqueMap.values()).forEach(chapter => {
+      const hash = `${chapter.title}::${chapter.content.substring(0, 100)}`;
+      const existing = contentMap.get(hash);
+      if (!existing || (chapter.createdAt || 0) > (existing.createdAt || 0)) {
+        contentMap.set(hash, chapter);
+      }
+    });
+    
+    const uniqueChapters = Array.from(contentMap.values());
+    
+    // Sort by createdAt
+    return uniqueChapters.sort((a, b) => {
+      const timeA = a.createdAt || 0;
+      const timeB = b.createdAt || 0;
+      return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+    });
+  }, [chapters, sortOrder]);
+
+  // Format timestamp for display
+  const formatTimestamp = (timestamp?: number): string => {
+    if (!timestamp) return 'Unknown date';
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   const handleVisualize = async (chapter: StoryChapter) => {
       setLoadingId(chapter.id);
@@ -513,13 +561,24 @@ Write the complete book now:`;
       }
   };
 
-  const sortedChapters = [...chapters].sort((a, b) => b.createdAt - a.createdAt);
-
   return (
     <div className="max-w-4xl mx-auto pb-24 px-2 sm:px-4">
     <div className="mb-8 p-4 sm:p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center">
         <h1 className="text-4xl font-serif text-skyrim-gold mb-2">The Chronicle</h1>
         <p className="text-gray-500 font-sans text-sm">The unfolding saga of your journey.</p>
+        
+        {/* Sort controls and chapter count */}
+        <div className="mt-4 flex items-center justify-center gap-4 text-sm">
+          <span className="text-gray-400">{sortedChapters.length} {sortedChapters.length === 1 ? 'entry' : 'entries'}</span>
+          <button
+            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-black/30 hover:bg-black/50 border border-skyrim-border rounded text-gray-300 hover:text-skyrim-gold transition-colors"
+            title={sortOrder === 'desc' ? 'Showing newest first' : 'Showing oldest first'}
+          >
+            <ArrowUpDown size={14} />
+            <span>{sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Finalize Modal */}
@@ -731,7 +790,7 @@ Write the complete book now:`;
       )}
 
             <div className="space-y-12">
-                {visibleChapters.map((chapter) => (
+                {sortedChapters.map((chapter) => (
           <div key={chapter.id} className="relative pl-8 md:pl-0">
              {/* Timeline Line */}
              <div className="absolute left-0 top-0 bottom-0 w-1 bg-skyrim-border/30 md:left-1/2 md:-ml-0.5"></div>
@@ -741,9 +800,15 @@ Write the complete book now:`;
                  <div className="flex justify-between items-center mb-6 border-b border-skyrim-border pb-4">
                      <div>
                          <h2 className="text-2xl font-serif text-skyrim-gold">{chapter.title}</h2>
-                         <div className="flex items-center gap-2 text-xs text-gray-500 mt-1 uppercase tracking-widest">
-                             <Calendar size={12} />
-                             <span>{chapter.date}</span>
+                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-xs text-gray-500 mt-1">
+                             <div className="flex items-center gap-2 uppercase tracking-widest">
+                                 <Calendar size={12} />
+                                 <span>{chapter.date}</span>
+                             </div>
+                             <div className="flex items-center gap-1 text-gray-600" title="Created timestamp">
+                                 <Clock size={11} />
+                                 <span className="text-[10px]">{formatTimestamp(chapter.createdAt)}</span>
+                             </div>
                          </div>
                      </div>
                      <div className="flex items-center gap-2">
