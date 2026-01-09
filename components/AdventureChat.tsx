@@ -482,7 +482,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
             disabled={loading || messages.length === 0}
             autoCapitalize="none"
             autoCorrect="off"
-            className="flex-1 bg-black/30 border border-skyrim-border rounded p-3 text-gray-200 placeholder-gray-500 resize-none focus:border-skyrim-gold focus:outline-none disabled:opacity-50 font-serif normal-case"
+            className="flex-1 bg-black/30 border border-skyrim-border rounded p-3 text-gray-200 placeholder-gray-500 resize-none focus:border-skyrim-gold focus:outline-none disabled:opacity-50 font-sans normal-case"
             rows={2}
           />
           <button

@@ -257,7 +257,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                         autoCorrect="off"
                     />
                     <textarea 
-                        className="bg-black/30 border border-skyrim-border p-2 rounded text-gray-300 h-24 focus:outline-none font-serif"
+                        className="bg-black/30 border border-skyrim-border p-2 rounded text-gray-300 h-24 focus:outline-none font-sans"
                         placeholder="Objectives (one per line)..."
                         value={newObjectivesText}
                         onChange={e => setNewObjectivesText(e.target.value)}
@@ -350,7 +350,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                 {editingQuestId === quest.id ? (
                     <div className="mb-4 grid gap-3">
                       <textarea 
-                          className="w-full bg-black/40 border border-skyrim-border rounded p-2 text-gray-300 font-serif text-sm h-24"
+                          className="w-full bg-black/40 border border-skyrim-border rounded p-2 text-gray-300 font-sans text-sm h-24"
                           value={editDesc}
                           onChange={(e) => setEditDesc(e.target.value)}
                           placeholder="Description..."
@@ -358,7 +358,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                           autoCorrect="off"
                       />
                       <textarea
-                          className="w-full bg-black/40 border border-skyrim-border rounded p-2 text-gray-300 font-serif text-sm h-24"
+                          className="w-full bg-black/40 border border-skyrim-border rounded p-2 text-gray-300 font-sans text-sm h-24"
                           value={editObjectivesText}
                           onChange={(e) => setEditObjectivesText(e.target.value)}
                           placeholder="Objectives (one per line)..."

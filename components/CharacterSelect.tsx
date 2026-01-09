@@ -374,7 +374,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                <h4 className="text-skyrim-gold font-serif text-lg mb-2">Import from Text</h4>
                                <p className="text-gray-400 text-sm mb-4">Paste your character backstory, description, or sheet below. The Scribe will interpret the details and fill in the blanks.</p>
                                <textarea 
-                                    className="flex-1 bg-black/50 border border-skyrim-border p-4 rounded text-gray-300 focus:outline-none focus:border-skyrim-gold mb-4 font-serif leading-relaxed resize-none"
+                                 className="flex-1 bg-black/50 border border-skyrim-border p-4 rounded text-gray-300 focus:outline-none focus:border-skyrim-gold mb-4 font-sans leading-relaxed resize-none"
                                     placeholder="My character is a Nord warrior named Ragnar who despises magic..."
                                     value={importText}
                                     onChange={e => setImportText(e.target.value)}

@@ -69,7 +69,7 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries }) => {
 
       <div className="bg-skyrim-paper/50 p-6 rounded border border-skyrim-border mb-8">
           <input 
-            className="w-full bg-transparent border-b border-skyrim-border/50 text-xl font-serif text-skyrim-gold placeholder-gray-600 mb-4 focus:outline-none focus:border-skyrim-gold p-2"
+            className="w-full bg-transparent border-b border-skyrim-border/50 text-xl font-sans text-skyrim-gold placeholder-gray-600 mb-4 focus:outline-none focus:border-skyrim-gold p-2"
             placeholder="Entry Title..."
             value={newEntryTitle}
             onChange={(e) => setNewEntryTitle(e.target.value)}
@@ -77,7 +77,7 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries }) => {
             autoCorrect="off"
           />
           <textarea
-            className="w-full bg-black/20 border border-skyrim-border/30 rounded p-4 text-gray-300 font-serif leading-relaxed focus:outline-none focus:border-skyrim-gold/50 h-40"
+            className="w-full bg-black/20 border border-skyrim-border/30 rounded p-4 text-gray-300 font-sans leading-relaxed focus:outline-none focus:border-skyrim-gold/50 h-40"
             placeholder="Write your thoughts here..."
             value={newEntryContent}
             onChange={(e) => setNewEntryContent(e.target.value)}

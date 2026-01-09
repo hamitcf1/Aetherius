@@ -277,7 +277,7 @@ export const StoryLog: React.FC<StoryLogProps> = ({
                       placeholder="Write your chapter or use AI..."
                       autoCapitalize="none"
                       autoCorrect="off"
-                      className="w-full bg-black/50 border border-skyrim-border rounded p-3 text-gray-300 focus:border-skyrim-gold focus:outline-none resize-none h-32 font-serif"
+                      className="w-full bg-black/50 border border-skyrim-border rounded p-3 text-gray-300 focus:border-skyrim-gold focus:outline-none resize-none h-32 font-sans"
                   />
               </div>
 
@@ -330,7 +330,7 @@ export const StoryLog: React.FC<StoryLogProps> = ({
                           placeholder="Quest description..."
                           autoCapitalize="none"
                           autoCorrect="off"
-                          className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none resize-none h-20 font-serif"
+                          className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none resize-none h-20 font-sans"
                       />
                       <textarea
                           value={questObjectivesText}
@@ -338,7 +338,7 @@ export const StoryLog: React.FC<StoryLogProps> = ({
                           placeholder="Objectives (one per line)..."
                           autoCapitalize="none"
                           autoCorrect="off"
-                          className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none resize-none h-20 font-serif"
+                          className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none resize-none h-20 font-sans"
                       />
                       <button
                           onClick={handleAddQuestFromStory}

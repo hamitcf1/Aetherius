@@ -66,7 +66,7 @@ const TextAreaField: React.FC<{
     <textarea
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-black/40 border border-skyrim-border/60 rounded p-3 text-gray-300 focus:border-skyrim-gold focus:ring-1 focus:ring-skyrim-gold/50 outline-none transition-all placeholder-gray-600 font-serif"
+            className="w-full bg-black/40 border border-skyrim-border/60 rounded p-3 text-gray-300 focus:border-skyrim-gold focus:ring-1 focus:ring-skyrim-gold/50 outline-none transition-all placeholder-gray-600 font-sans"
             autoCapitalize="none"
             autoCorrect="off"
       rows={rows}
