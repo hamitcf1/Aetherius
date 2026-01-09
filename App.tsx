@@ -31,6 +31,7 @@ import {
   loadUserProfiles,
   saveCharacter,
   saveInventoryItem,
+  deleteInventoryItem,
   saveQuest,
   saveJournalEntry,
   saveStoryChapter,
@@ -605,19 +606,80 @@ const App: React.FC = () => {
 
       // 4. New Items
       if (updates.newItems) {
-           const addedItems = updates.newItems.map(i => ({
-               id: uniqueId(),
-               characterId: currentCharacterId,
-               name: i.name,
-               type: i.type as any,
-               description: i.description,
-               quantity: i.quantity,
-               equipped: false
-           }));
-           setItems(prev => [...prev, ...addedItems]);
-           addedItems.forEach(item => {
-             setDirtyEntities(prev => new Set([...prev, item.id]));
+           setItems(prev => {
+             const next = [...prev];
+             for (const i of updates.newItems || []) {
+               const name = (i.name || '').trim();
+               if (!name) continue;
+
+               const idx = next.findIndex(it =>
+                 it.characterId === currentCharacterId &&
+                 (it.name || '').trim().toLowerCase() === name.toLowerCase()
+               );
+
+               const addQty = Math.max(1, Number(i.quantity || 1));
+
+               if (idx >= 0) {
+                 const existing = next[idx];
+                 const updated = {
+                   ...existing,
+                   quantity: (existing.quantity || 0) + addQty,
+                   description: existing.description || i.description || '',
+                   type: (existing.type || (i.type as any)) as any,
+                 };
+                 next[idx] = updated;
+                 setDirtyEntities(d => new Set([...d, updated.id]));
+               } else {
+                 const added = {
+                   id: uniqueId(),
+                   characterId: currentCharacterId,
+                   name,
+                   type: i.type as any,
+                   description: i.description || '',
+                   quantity: addQty,
+                   equipped: false
+                 };
+                 next.push(added);
+                 setDirtyEntities(d => new Set([...d, added.id]));
+               }
+             }
+             return next;
            });
+      }
+
+      // 4b. Removed Items
+      if (updates.removedItems) {
+        setItems(prev => {
+          const next = [...prev];
+          for (const r of updates.removedItems || []) {
+            const name = (r.name || '').trim();
+            if (!name) continue;
+
+            const idx = next.findIndex(it =>
+              it.characterId === currentCharacterId &&
+              (it.name || '').trim().toLowerCase() === name.toLowerCase()
+            );
+            if (idx < 0) continue;
+
+            const existing = next[idx];
+            const removeQty = Math.max(1, Number(r.quantity || 1));
+            const newQty = (existing.quantity || 0) - removeQty;
+
+            if (newQty > 0) {
+              const updated = { ...existing, quantity: newQty };
+              next[idx] = updated;
+              setDirtyEntities(d => new Set([...d, updated.id]));
+            } else {
+              const [removed] = next.splice(idx, 1);
+              if (currentUser?.uid) {
+                void deleteInventoryItem(currentUser.uid, removed.id).catch(err => {
+                  console.warn('Failed to delete inventory item from Firestore:', err);
+                });
+              }
+            }
+          }
+          return next;
+        });
       }
 
       // 5. Stats

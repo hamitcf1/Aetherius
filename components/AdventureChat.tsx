@@ -38,11 +38,16 @@ Return ONLY a JSON object:
 {
   "narrative": { "title": "Short title", "content": "Your story response here..." },
   "newItems": [{ "name": "Item", "type": "misc", "description": "...", "quantity": 1 }],
+  "removedItems": [{ "name": "Item", "quantity": 1 }],
   "newQuests": [{ "title": "Quest", "description": "...", "location": "..." }],
   "updateQuests": [{ "title": "Quest Title", "status": "completed" }],
   "goldChange": 0,
   "statUpdates": {}
 }
+
+CONTINUITY:
+- You MUST continue from CURRENT GAME STATE and recent chat. Do NOT restart the adventure unless the player explicitly asks to reset.
+- When the player gains loot, consumes items, crafts, trades, pays bribes, or loses gear, you MUST reflect it via newItems/removedItems and/or goldChange.
 
 Only include fields that changed. The narrative field is always required.`;
 
@@ -157,6 +162,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       quests: quests.slice(0, 20).map(q => ({ title: q.title, status: q.status, location: q.location, description: q.description })),
       journal: journal.slice(-10).map(j => ({ date: j.date, title: j.title, content: j.content.substring(0, 400) })),
       story: story.slice(-5).map(s => ({ title: s.title, summary: s.summary, date: s.date })),
+      storySnippets: story.slice(-2).map(s => ({ title: s.title, content: s.content.substring(0, 600) })),
       recentChat: messages.slice(-8).map(m => ({ role: m.role, content: m.content.substring(0, 250) }))
     });
   };
@@ -325,6 +331,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   const applyUpdates = (updates: GameStateUpdate) => {
     const toApply: GameStateUpdate = {};
     if (updates.newItems?.length) toApply.newItems = updates.newItems;
+    if (updates.removedItems?.length) toApply.removedItems = updates.removedItems;
     if (updates.newQuests?.length) toApply.newQuests = updates.newQuests;
     if (updates.updateQuests?.length) toApply.updateQuests = updates.updateQuests;
     if (updates.goldChange) toApply.goldChange = updates.goldChange;
