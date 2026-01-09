@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Character, InventoryItem, CustomQuest, JournalEntry, StoryChapter, GameStateUpdate } from '../types';
-import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X, AlertTriangle, Users } from 'lucide-react';
 import type { PreferredAIModel } from '../services/geminiService';
+import { getSimulationManager, processAISimulationUpdate, SimulationStateManager, NPC, PlayerFact } from '../services/stateManager';
 
 interface ChatMessage {
   id: string;
@@ -24,7 +25,7 @@ interface AdventureChatProps {
 
 const SYSTEM_PROMPT = `You are an immersive Game Master (GM) for a text-based Skyrim adventure. You control the world, NPCs, enemies, and outcomes. The player controls their character's actions.
 
-RULES:
+CORE RULES:
 1. Always stay in character as a Skyrim GM. Use Tamrielic lore, locations, factions, and NPCs.
 2. Describe scenes vividly but concisely (2-4 paragraphs max).
 3. React to player actions realistically. Combat has consequences. Choices matter.
@@ -32,6 +33,42 @@ RULES:
 5. Track the flow of the adventure and maintain continuity.
 6. If the player does something impossible or lore-breaking, gently redirect them.
 7. End responses with a clear situation the player can respond to.
+
+=== SIMULATION STATE RULES (CRITICAL) ===
+
+NPC IDENTITY CONSISTENCY:
+- When an NPC is introduced, their name and role are PERMANENT
+- NEVER change an NPC's name or role mid-scene
+- Reference NPCs by their established name consistently
+- If an NPC is listed in PRESENT NPCs, use their exact name and role
+
+SCENE STATE MACHINE:
+- Scenes progress through phases: exploration → encounter → questioning → negotiation/confrontation → resolution → exit
+- Track the current phase and advance it based on player actions
+- Do NOT reset scenes or restart dialogue without player request
+- Each interaction should ADVANCE the situation, not loop
+
+PLAYER FACT MEMORY:
+- If the player has ESTABLISHED FACTS listed, DO NOT ask for that information again
+- NPCs who have been told a fact should REMEMBER it
+- Reference known facts naturally in dialogue
+- Only contradict established facts if the player explicitly lies
+
+CONSEQUENCE ENFORCEMENT:
+- When tension with an NPC exceeds their tolerance, TRIGGER a consequence
+- Do not allow infinite escalation - force a resolution
+- Consequences include: entry granted, entry denied, arrest, combat, retreat
+- Once a scene is resolved, move forward - don't replay it
+
+DIALOGUE OPTION PRUNING:
+- Do not offer dialogue options for topics already resolved
+- If the player has explained something, don't show "Explain X" again
+- Track exhausted options and don't repeat them
+
+WORLD AUTHORITY:
+- Riverwood has NO Jarl (it's a village under Whiterun's jurisdiction)
+- Only Hold capitals have Jarls
+- Use canonical Skyrim lore unless specifically told otherwise
 
 RESPONSE FORMAT:
 Return ONLY a JSON object:
@@ -46,23 +83,53 @@ Return ONLY a JSON object:
   "timeAdvanceMinutes": 0,
   "needsChange": { "hunger": 0, "thirst": 0, "fatigue": 0 },
   "choices": [
-    { "label": "Short option shown as a button", "playerText": "Exact text to send as the player's next message" }
-  ]
+    { "label": "Short option shown as a button", "playerText": "Exact text to send as the player's next message", "topic": "optional_topic_key" }
+  ],
+  "simulationUpdate": {
+    "npcsIntroduced": [{ "name": "Guard Captain Hrolf", "role": "City Guard Captain", "disposition": "wary", "description": "A weathered Nord in steel plate" }],
+    "npcUpdates": [{ "name": "Guard Captain Hrolf", "tensionChange": 10, "newKnowledge": { "player_profession": "alchemist" } }],
+    "sceneStart": { "type": "checkpoint", "location": "Whiterun Gates" },
+    "phaseChange": "questioning",
+    "sceneResolution": "success",
+    "topicsResolved": ["profession", "travel_purpose"],
+    "optionsExhausted": ["Explain I'm an alchemist"],
+    "factsEstablished": [{ "category": "identity", "key": "profession", "value": "alchemist", "disclosedToNPCs": ["Guard Captain Hrolf"] }],
+    "newConsequences": [{ "type": "entry_denied", "description": "Guards will not allow entry", "triggerCondition": { "tensionThreshold": 80 } }]
+  }
 }
 
-CONTINUITY:
-- You MUST continue from CURRENT GAME STATE and recent chat. Do NOT restart the adventure unless the player explicitly asks to reset.
-- When the player gains loot, consumes items, crafts, trades, pays bribes, or loses gear, you MUST reflect it via newItems/removedItems and/or goldChange.
-
-PROGRESSION:
-- Advance time with each meaningful action using timeAdvanceMinutes (typically 5–60).
-- Use needsChange when the player rests, eats, drinks, is injured, travels, or exerts themselves.
-
-DIALOGUE OPTIONS:
-- Provide 2–4 clickable choices in "choices" at the end of each GM response when reasonable.
-- Keep labels short. Keep playerText in first-person.
+SIMULATION UPDATE GUIDELINES:
+- npcsIntroduced: Add when a new named NPC enters the scene
+- npcUpdates: Use for tension changes (+10 for suspicion, -10 for trust), disposition shifts, new knowledge
+- sceneStart: Use when entering a new location or encounter type
+- phaseChange: Advance the phase based on what's happening
+- sceneResolution: Set when an encounter concludes
+- topicsResolved: Mark topics that have been fully addressed
+- factsEstablished: When player reveals information about themselves
+- newConsequences: Set up triggers for automatic outcomes
 
 Only include fields that changed. The narrative field is always required.`;
+
+// Builds the enhanced system prompt with simulation context
+const buildSimulationSystemPrompt = (simulationContext: string): string => {
+  if (!simulationContext || simulationContext.trim() === '') {
+    return SYSTEM_PROMPT;
+  }
+  
+  return `${SYSTEM_PROMPT}
+
+=== ACTIVE SIMULATION STATE ===
+${simulationContext}
+=== END SIMULATION STATE ===
+
+IMPORTANT: The above simulation state shows:
+- Which NPCs are present and their current tension/disposition
+- What facts the player has already established (DO NOT RE-ASK)
+- What topics have been resolved (DO NOT REPEAT)
+- What consequences are pending (ENFORCE THEM)
+
+Maintain consistency with this state. Do not contradict it.`;
+};
 
 export const AdventureChat: React.FC<AdventureChatProps> = ({
   userId,
@@ -80,8 +147,11 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [autoApply, setAutoApply] = useState(true);
   const [showModelTip, setShowModelTip] = useState(true);
+  const [showSimulationPanel, setShowSimulationPanel] = useState(false);
+  const [simulationWarnings, setSimulationWarnings] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const simulationManagerRef = useRef<SimulationStateManager | null>(null);
 
   const storageKey = character ? `aetherius:adventureChat:${character.id}` : '';
 
@@ -95,6 +165,29 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         Boolean((character.identity || '').trim())
       )
   );
+
+  // Initialize simulation state manager
+  useEffect(() => {
+    if (!character) {
+      simulationManagerRef.current = null;
+      return;
+    }
+
+    const manager = getSimulationManager(character.id, userId || null);
+    simulationManagerRef.current = manager;
+    
+    // Load simulation state
+    manager.load().catch(e => {
+      console.warn('Failed to load simulation state:', e);
+    });
+
+    // Cleanup: save on unmount
+    return () => {
+      manager.forceSave().catch(e => {
+        console.warn('Failed to save simulation state on unmount:', e);
+      });
+    };
+  }, [character?.id, userId]);
 
   useEffect(() => {
     const key = userId ? `aetherius:hideAdventureModelTip:${userId}` : 'aetherius:hideAdventureModelTip';
@@ -176,6 +269,10 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
 
   const buildContext = () => {
     if (!character) return '';
+    
+    // Get simulation context if available
+    const simulationContext = simulationManagerRef.current?.buildContext() || '';
+    
     return JSON.stringify({
       character: {
         name: character.name,
@@ -196,8 +293,15 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       journal: journal.slice(-10).map(j => ({ date: j.date, title: j.title, content: j.content.substring(0, 400) })),
       story: story.slice(-5).map(s => ({ title: s.title, summary: s.summary, date: s.date })),
       storySnippets: story.slice(-2).map(s => ({ title: s.title, content: s.content.substring(0, 600) })),
-      recentChat: messages.slice(-8).map(m => ({ role: m.role, content: m.content.substring(0, 250) }))
+      recentChat: messages.slice(-8).map(m => ({ role: m.role, content: m.content.substring(0, 250) })),
+      simulationState: simulationContext
     });
+  };
+
+  // Get the dynamic system prompt with simulation context
+  const getSystemPrompt = (): string => {
+    const simulationContext = simulationManagerRef.current?.buildContext() || '';
+    return buildSimulationSystemPrompt(simulationContext);
   };
 
   const formatList = (items: string[], max: number) => {
@@ -270,6 +374,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     setMessages(prev => [...prev, playerMessage]);
     setInput('');
     setLoading(true);
+    setSimulationWarnings([]); // Clear previous warnings
 
     if (userId) {
       void import('../services/firestore')
@@ -280,7 +385,25 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     try {
       const { generateAdventureResponse } = await import('../services/geminiService');
       const context = buildContext();
-      const result = await generateAdventureResponse(trimmed, context, SYSTEM_PROMPT, { model });
+      const systemPrompt = getSystemPrompt(); // Use dynamic system prompt with simulation context
+      const result = await generateAdventureResponse(trimmed, context, systemPrompt, { model });
+      
+      // Process simulation state updates if present
+      if (result.simulationUpdate && simulationManagerRef.current) {
+        const { warnings, appliedChanges } = processAISimulationUpdate(
+          simulationManagerRef.current,
+          result.simulationUpdate
+        );
+        
+        if (warnings.length > 0) {
+          setSimulationWarnings(warnings);
+          console.warn('Simulation warnings:', warnings);
+        }
+        
+        if (appliedChanges.length > 0) {
+          console.log('Simulation changes applied:', appliedChanges);
+        }
+      }
       
       const gmMessage: ChatMessage = {
         id: Math.random().toString(36).substr(2, 9),
@@ -343,24 +466,41 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       timestamp: Date.now()
     };
     setMessages([intro]);
+    setSimulationWarnings([]);
+
+    // Reset simulation state for new adventure
+    if (simulationManagerRef.current) {
+      simulationManagerRef.current.reset();
+    }
 
     if (userId) {
       void import('../services/firestore')
         .then(async m => {
           await m.clearAdventureMessages(userId, character.id);
           await m.saveAdventureMessage(userId, character.id, intro);
+          // Also clear simulation state in Firestore
+          await m.clearSimulationState(userId, character.id);
         })
         .catch(e => console.warn('Failed to reset adventure messages in Firestore', e));
     }
   };
 
   const clearChat = () => {
-    if (confirm('Clear all messages and start fresh?')) {
+    if (confirm('Clear all messages and simulation state? This will reset NPCs, scenes, and tracked facts.')) {
       setMessages([]);
+      setSimulationWarnings([]);
+
+      // Reset simulation state
+      if (simulationManagerRef.current) {
+        simulationManagerRef.current.reset();
+      }
 
       if (userId && character) {
         void import('../services/firestore')
-          .then(m => m.clearAdventureMessages(userId, character.id))
+          .then(async m => {
+            await m.clearAdventureMessages(userId, character.id);
+            await m.clearSimulationState(userId, character.id);
+          })
           .catch(e => console.warn('Failed to clear adventure messages in Firestore', e));
       }
     }
@@ -380,6 +520,35 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     if (Object.keys(toApply).length > 0) {
       onUpdateState(toApply);
     }
+  };
+
+  // Get simulation state summary for display
+  const getSimulationSummary = () => {
+    if (!simulationManagerRef.current) return null;
+    const state = simulationManagerRef.current.getState();
+    const presentNPCs = (Object.values(state.npcs) as NPC[]).filter(npc => npc.isPresent);
+    const allFacts = simulationManagerRef.current.getAllFacts();
+    const scene = state.currentScene;
+    
+    return {
+      npcCount: presentNPCs.length,
+      npcs: presentNPCs.map(npc => ({
+        name: npc.name,
+        role: npc.role,
+        disposition: npc.disposition,
+        tension: npc.tension
+      })),
+      factCount: Object.keys(allFacts).length,
+      facts: allFacts as Record<string, PlayerFact>,
+      scene: scene ? {
+        type: scene.type,
+        location: scene.location,
+        phase: scene.phase,
+        attempts: scene.attempts,
+        resolvedTopics: scene.resolvedTopics
+      } : null,
+      pendingConsequences: state.pendingConsequences.filter(c => !c.applied).length
+    };
   };
 
   if (!character) {
@@ -443,13 +612,139 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
             <Trash2 size={14} /> Clear
           </button>
         </div>
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className="px-3 py-2 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-2 text-sm"
-        >
-          <Settings size={14} /> Settings {showSettings ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowSimulationPanel(!showSimulationPanel)}
+            className="px-3 py-2 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-2 text-sm"
+          >
+            <Users size={14} /> State {showSimulationPanel ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="px-3 py-2 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-2 text-sm"
+          >
+            <Settings size={14} /> Settings {showSettings ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+        </div>
       </div>
+
+      {/* Simulation Warnings */}
+      {simulationWarnings.length > 0 && (
+        <div className="mb-4 bg-yellow-900/20 border border-yellow-600/50 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={16} className="text-yellow-500 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-yellow-200 text-sm font-semibold mb-1">Simulation Warnings:</p>
+              <ul className="text-yellow-200/80 text-xs space-y-1">
+                {simulationWarnings.map((warning, idx) => (
+                  <li key={idx}>• {warning}</li>
+                ))}
+              </ul>
+            </div>
+            <button
+              onClick={() => setSimulationWarnings([])}
+              className="text-yellow-200/50 hover:text-yellow-200"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Simulation State Panel */}
+      {showSimulationPanel && (
+        <div className="mb-4 p-4 bg-black/40 border border-skyrim-border rounded animate-in fade-in">
+          <h3 className="text-skyrim-gold font-semibold mb-3 flex items-center gap-2">
+            <Users size={16} /> Simulation State
+          </h3>
+          {(() => {
+            const summary = getSimulationSummary();
+            if (!summary) return <p className="text-gray-500 text-sm">No simulation data available.</p>;
+            
+            return (
+              <div className="space-y-3 text-sm">
+                {/* Current Scene */}
+                {summary.scene && (
+                  <div className="bg-black/30 p-2 rounded">
+                    <p className="text-gray-400 text-xs uppercase mb-1">Current Scene</p>
+                    <p className="text-gray-200">
+                      <span className="text-skyrim-gold">{summary.scene.type}</span> at {summary.scene.location}
+                    </p>
+                    <p className="text-gray-400 text-xs">
+                      Phase: {summary.scene.phase} | Attempts: {summary.scene.attempts}
+                    </p>
+                    {summary.scene.resolvedTopics.length > 0 && (
+                      <p className="text-green-400/80 text-xs mt-1">
+                        ✓ Resolved: {summary.scene.resolvedTopics.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Present NPCs */}
+                {summary.npcs.length > 0 && (
+                  <div className="bg-black/30 p-2 rounded">
+                    <p className="text-gray-400 text-xs uppercase mb-1">Present NPCs ({summary.npcCount})</p>
+                    <div className="space-y-1">
+                      {summary.npcs.map((npc, idx) => (
+                        <div key={idx} className="flex justify-between items-center">
+                          <span className="text-gray-200">
+                            <span className="text-skyrim-gold">{npc.name}</span>
+                            <span className="text-gray-500 text-xs ml-1">({npc.role})</span>
+                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            npc.disposition === 'hostile' ? 'bg-red-900/50 text-red-400' :
+                            npc.disposition === 'wary' ? 'bg-yellow-900/50 text-yellow-400' :
+                            npc.disposition === 'friendly' ? 'bg-green-900/50 text-green-400' :
+                            npc.disposition === 'allied' ? 'bg-blue-900/50 text-blue-400' :
+                            'bg-gray-700/50 text-gray-400'
+                          }`}>
+                            {npc.disposition} ({npc.tension}%)
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Established Facts */}
+                {summary.factCount > 0 && (
+                  <div className="bg-black/30 p-2 rounded">
+                    <p className="text-gray-400 text-xs uppercase mb-1">Established Facts ({summary.factCount})</p>
+                    <div className="space-y-1">
+                      {Object.entries(summary.facts).slice(0, 5).map(([key, fact]) => (
+                        <p key={key} className="text-xs text-gray-300">
+                          <span className="text-skyrim-gold">{key}:</span> {fact.value}
+                          {fact.disclosedTo.length > 0 && (
+                            <span className="text-gray-500 ml-1">(known by {fact.disclosedTo.length})</span>
+                          )}
+                        </p>
+                      ))}
+                      {summary.factCount > 5 && (
+                        <p className="text-gray-500 text-xs">...and {summary.factCount - 5} more</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Pending Consequences */}
+                {summary.pendingConsequences > 0 && (
+                  <div className="bg-red-900/20 border border-red-900/30 p-2 rounded">
+                    <p className="text-red-400 text-xs">
+                      ⚠ {summary.pendingConsequences} pending consequence(s)
+                    </p>
+                  </div>
+                )}
+                
+                {/* Empty state */}
+                {summary.npcs.length === 0 && summary.factCount === 0 && !summary.scene && (
+                  <p className="text-gray-500 text-sm">No active simulation state. Start an adventure to begin tracking.</p>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Settings Panel */}
       {showSettings && (

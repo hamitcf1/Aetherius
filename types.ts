@@ -249,7 +249,7 @@ export interface GameStateUpdate {
   needsChange?: Partial<SurvivalNeeds>;
 
   // Dialogue choices to present as clickable options
-  choices?: Array<{ label: string; playerText: string }>;
+  choices?: Array<{ label: string; playerText: string; topic?: string }>;
 
   // Character detail updates (hero sheet fields)
   characterUpdates?: {
@@ -269,5 +269,65 @@ export interface GameStateUpdate {
     forcedBehavior?: string;
     longTermEvolution?: string;
     backstory?: string;
+  };
+
+  // ============================================================================
+  // SIMULATION STATE UPDATES (for persistent NPC/scene/fact tracking)
+  // ============================================================================
+  simulationUpdate?: {
+    // NPC operations
+    npcsIntroduced?: Array<{
+      name: string;
+      role: string;
+      location?: string;
+      disposition?: 'hostile' | 'wary' | 'neutral' | 'friendly' | 'allied';
+      description?: string;
+      personality?: string;
+      faction?: string;
+    }>;
+    npcUpdates?: Array<{
+      name: string;
+      tensionChange?: number;
+      dispositionChange?: number;
+      newKnowledge?: Record<string, string>;
+      interactionState?: 'idle' | 'conversing' | 'suspicious' | 'hostile' | 'resolved';
+      dismissed?: boolean;
+    }>;
+    
+    // Scene operations
+    sceneStart?: {
+      type: 'checkpoint' | 'dialogue' | 'combat' | 'exploration' | 'trade' | 'quest' | 'random_encounter';
+      location: string;
+    };
+    phaseChange?: 'exploration' | 'encounter' | 'questioning' | 'negotiation' | 'confrontation' | 'combat' | 'resolution' | 'exit';
+    sceneResolution?: 'none' | 'success' | 'failure' | 'compromise' | 'retreat' | 'escalation' | 'bribe' | 'persuasion' | 'intimidation' | 'combat_victory' | 'combat_defeat' | 'arrested' | 'fled';
+    topicsResolved?: string[];
+    optionsExhausted?: string[];
+    sceneEvents?: string[];
+    
+    // Player facts
+    factsEstablished?: Array<{
+      category: 'identity' | 'situation' | 'relationships' | 'claims';
+      key: string;
+      value: string;
+      disclosedToNPCs?: string[];
+    }>;
+    factsDisclosed?: Array<{
+      factKey: string;
+      toNPCNames: string[];
+    }>;
+    
+    // Consequences
+    consequencesTriggered?: Array<'entry_granted' | 'entry_denied' | 'arrest_attempt' | 'combat_initiated' | 'bounty_added' | 'reputation_change' | 'item_confiscated' | 'gold_paid' | 'quest_updated' | 'npc_disposition_change' | 'forced_retreat' | 'death'>;
+    newConsequences?: Array<{
+      type: 'entry_granted' | 'entry_denied' | 'arrest_attempt' | 'combat_initiated' | 'bounty_added' | 'reputation_change' | 'item_confiscated' | 'gold_paid' | 'quest_updated' | 'npc_disposition_change' | 'forced_retreat' | 'death';
+      description: string;
+      triggerCondition: {
+        tensionThreshold?: number;
+        attemptsExceeded?: boolean;
+        phaseReached?: string;
+        playerAction?: string;
+      };
+    }>;
   };
 }

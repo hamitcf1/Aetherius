@@ -578,3 +578,31 @@ export const clearAdventureMessages = async (uid: string, characterId: string): 
   snapshot.docs.forEach(d => batch.delete(d.ref));
   await batch.commit();
 };
+
+// ===== SIMULATION STATE (Persistent NPC/Scene/Fact Tracking) =====
+
+export const saveSimulationState = async (
+  uid: string,
+  characterId: string,
+  state: any
+): Promise<void> => {
+  const db = getDb();
+  const docRef = doc(db, 'users', uid, 'characters', characterId, 'simulation', 'state');
+  await setDoc(docRef, removeUndefinedDeep(state), { merge: false });
+};
+
+export const loadSimulationState = async (
+  uid: string,
+  characterId: string
+): Promise<any | null> => {
+  const db = getDb();
+  const docRef = doc(db, 'users', uid, 'characters', characterId, 'simulation', 'state');
+  const snapshot = await getDoc(docRef);
+  return snapshot.exists() ? snapshot.data() : null;
+};
+
+export const clearSimulationState = async (uid: string, characterId: string): Promise<void> => {
+  const db = getDb();
+  const docRef = doc(db, 'users', uid, 'characters', characterId, 'simulation', 'state');
+  await deleteDoc(docRef);
+};
