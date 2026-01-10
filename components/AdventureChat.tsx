@@ -1,6 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Character, InventoryItem, CustomQuest, JournalEntry, StoryChapter, GameStateUpdate } from '../types';
-import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X, AlertTriangle, Users, Sun, Moon, Sunrise, Sunset, Clock } from 'lucide-react';
+import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X, AlertTriangle, Users, Sun, Moon, Sunrise, Sunset, Clock, Map, Lock, Key } from 'lucide-react';
+import { EquipmentHUD, getDefaultSlotForItem, SLOT_CONFIGS_EXPORT } from './EquipmentHUD';
+import { LockpickingMinigame, LockDifficulty } from './LockpickingMinigame';
+import { SkyrimMap, findLocationByName } from './SkyrimMap';
+import type { EquipmentSlot } from '../types';
+import { saveInventoryItem } from '../services/firestore';
 import type { PreferredAIModel } from '../services/geminiService';
 import { getSimulationManager, processAISimulationUpdate, SimulationStateManager, NPC, PlayerFact } from '../services/stateManager';
 import { getTransactionLedger, filterDuplicateTransactions } from '../services/transactionLedger';
@@ -442,7 +447,20 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   const [autoApply, setAutoApply] = useState(true);
   const [showModelTip, setShowModelTip] = useState(true);
   const [showSimulationPanel, setShowSimulationPanel] = useState(false);
+  const [showEquipment, setShowEquipment] = useState(false);
+  const [equipModalOpen, setEquipModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<EquipmentSlot | null>(null);
+  const [localInventory, setLocalInventory] = useState<InventoryItem[]>(inventory || []);
   const [simulationWarnings, setSimulationWarnings] = useState<string[]>([]);
+  
+  // Lockpicking state
+  const [showLockpicking, setShowLockpicking] = useState(false);
+  const [lockpickingDifficulty, setLockpickingDifficulty] = useState<LockDifficulty>('novice');
+  const [lockpickingName, setLockpickingName] = useState('Lock');
+  
+  // Map state
+  const [showMap, setShowMap] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<string>('Riverwood');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -487,6 +505,206 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       });
     };
   }, [character?.id, userId]);
+
+  // Keep local inventory in sync with prop updates
+  useEffect(() => {
+    setLocalInventory(inventory || []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inventory]);
+
+  // Equip an item locally and persist change
+  const equipItem = async (item: InventoryItem, slot?: EquipmentSlot) => {
+    const targetSlot = slot || getDefaultSlotForItem(item) || undefined;
+    if (!targetSlot) return;
+
+    setLocalInventory(prev => {
+      return prev.map(i => {
+        if (i.id === item.id) return { ...i, equipped: true, slot: targetSlot };
+        if (i.equipped && i.slot === targetSlot) return { ...i, equipped: false, slot: undefined };
+        return i;
+      });
+    });
+
+    if (userId) {
+      try {
+        // Persist changed items: the equipped item and any previously equipped in same slot
+        const changed = [item];
+        // Attempt to persist any previously equipped item in same slot
+        const prevEquipped = localInventory.find(i => i.equipped && i.slot === targetSlot && i.id !== item.id);
+        if (prevEquipped) changed.push({ ...prevEquipped, equipped: false, slot: undefined });
+        await Promise.all(changed.map(c => saveInventoryItem(userId, { ...c, characterId: (character?.id || '') } as any)));
+        try { (window as any).aetheriusUtils?.reloadItems?.(); } catch { /* ignore */ }
+      } catch (e) {
+        console.warn('Failed to save equipped item:', e);
+      }
+    }
+  };
+
+  const unequipItem = async (item: InventoryItem) => {
+    setLocalInventory(prev => prev.map(i => i.id === item.id ? { ...i, equipped: false, slot: undefined } : i));
+    if (userId) {
+      try {
+        await saveInventoryItem(userId, { ...item, equipped: false, slot: undefined, characterId: (character?.id || '') } as any);
+        try { (window as any).aetheriusUtils?.reloadItems?.(); } catch { /* ignore */ }
+      } catch (e) {
+        console.warn('Failed to save unequipped item:', e);
+      }
+    }
+  };
+
+  const getEquippableItemsForSlot = (slot: EquipmentSlot) => {
+    const slotConfig = SLOT_CONFIGS_EXPORT.find(s => s.slot === slot);
+    if (!slotConfig) return [] as InventoryItem[];
+
+    return localInventory.filter(item => {
+      if (item.equipped) return false;
+      if (!slotConfig.allowedTypes.includes(item.type)) return false;
+      const defaultSlot = getDefaultSlotForItem(item);
+      return defaultSlot === slot || !defaultSlot;
+    });
+  };
+
+  // ============================================================================
+  // LOCKPICKING SYSTEM
+  // ============================================================================
+  
+  // Count lockpicks in inventory
+  const lockpickCount = localInventory
+    .filter(i => i.name.toLowerCase().includes('lockpick'))
+    .reduce((sum, i) => sum + (i.quantity || 0), 0);
+
+  // Get lockpicking skill level
+  const lockpickingSkill = character?.skills?.find(s => s.name === 'Lockpicking')?.level || 15;
+
+  // Start lockpicking attempt
+  const startLockpicking = useCallback((difficulty: LockDifficulty, lockName?: string) => {
+    if (lockpickCount <= 0) {
+      // No lockpicks - show message in chat
+      const noPicksMessage: ChatMessage = {
+        id: Math.random().toString(36).substr(2, 9),
+        role: 'gm',
+        content: `*You reach for your lockpicks, but find none.* You don't have any lockpicks! You'll need to find or purchase some before attempting to pick this lock.`,
+        timestamp: Date.now()
+      };
+      setMessages(prev => [...prev, noPicksMessage]);
+      return;
+    }
+    
+    setLockpickingDifficulty(difficulty);
+    setLockpickingName(lockName || `${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} Lock`);
+    setShowLockpicking(true);
+  }, [lockpickCount]);
+
+  // Handle lockpicking success
+  const handleLockpickSuccess = useCallback(() => {
+    setShowLockpicking(false);
+    const successMessage: ChatMessage = {
+      id: Math.random().toString(36).substr(2, 9),
+      role: 'gm',
+      content: `*Click!* The lock opens with a satisfying sound. Your lockpicking skills have served you well.`,
+      timestamp: Date.now(),
+      updates: {
+        xpChange: lockpickingDifficulty === 'master' ? 25 : lockpickingDifficulty === 'expert' ? 20 : lockpickingDifficulty === 'adept' ? 15 : lockpickingDifficulty === 'apprentice' ? 10 : 5,
+      }
+    };
+    setMessages(prev => [...prev, successMessage]);
+    
+    // Apply XP if auto-apply is on
+    if (autoApply && successMessage.updates) {
+      onUpdateState(successMessage.updates);
+    }
+  }, [lockpickingDifficulty, autoApply, onUpdateState]);
+
+  // Handle lockpicking failure
+  const handleLockpickFailure = useCallback((lockpicksBroken: number) => {
+    setShowLockpicking(false);
+    
+    // Remove broken lockpicks from inventory
+    if (lockpicksBroken > 0) {
+      const lockpickItem = localInventory.find(i => i.name.toLowerCase().includes('lockpick'));
+      if (lockpickItem) {
+        onUpdateState({
+          removedItems: [{ name: lockpickItem.name, quantity: lockpicksBroken }]
+        });
+      }
+    }
+    
+    const failMessage: ChatMessage = {
+      id: Math.random().toString(36).substr(2, 9),
+      role: 'gm',
+      content: lockpicksBroken > 0 
+        ? `*Snap!* ${lockpicksBroken > 1 ? `${lockpicksBroken} lockpicks break` : 'Your lockpick breaks'} in the lock. The mechanism remains stubbornly closed.`
+        : `You step back from the lock, unable to open it this time.`,
+      timestamp: Date.now()
+    };
+    setMessages(prev => [...prev, failMessage]);
+  }, [localInventory, onUpdateState]);
+
+  // Handle no lockpicks
+  const handleNoLockpicks = useCallback(() => {
+    setShowLockpicking(false);
+  }, []);
+
+  // ============================================================================
+  // MAP & LOCATION TRACKING
+  // ============================================================================
+  
+  // Extract current location from recent story/messages
+  useEffect(() => {
+    // Try to find location from recent messages or story chapters
+    const recentContent = [
+      ...messages.slice(-5).map(m => m.content),
+      ...story.slice(-3).map(s => s.content)
+    ].join(' ');
+    
+    // Look for location patterns
+    const locationPatterns = [
+      /(?:arrive[ds]? (?:at|in)|enter[s]?|reach[es]?|approach[es]?|(?:you are|you're) (?:in|at)|inside|within)\s+(?:the\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/gi,
+      /(?:in|at|near|outside|inside)\s+(?:the\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:tavern|inn|city|town|village|hold|keep|temple|barrow|cave|mine|camp)/gi,
+    ];
+    
+    for (const pattern of locationPatterns) {
+      const matches = [...recentContent.matchAll(pattern)];
+      for (const match of matches.reverse()) {
+        const potentialLocation = match[1];
+        if (potentialLocation && findLocationByName(potentialLocation)) {
+          setCurrentLocation(potentialLocation);
+          return;
+        }
+      }
+    }
+    
+    // Check for direct city/town mentions
+    const knownLocations = ['Whiterun', 'Solitude', 'Windhelm', 'Riften', 'Markarth', 'Falkreath', 'Morthal', 'Dawnstar', 'Winterhold', 'Riverwood', 'Rorikstead', 'Ivarstead', 'Helgen', 'Dragon Bridge'];
+    for (const loc of knownLocations) {
+      if (recentContent.toLowerCase().includes(loc.toLowerCase())) {
+        setCurrentLocation(loc);
+        return;
+      }
+    }
+  }, [messages, story]);
+
+  // Get visited locations from story
+  const visitedLocations = React.useMemo(() => {
+    const visited = new Set<string>();
+    const allContent = [...story.map(s => s.content), ...journal.map(j => j.content)].join(' ');
+    
+    const knownLocations = ['Whiterun', 'Solitude', 'Windhelm', 'Riften', 'Markarth', 'Falkreath', 'Morthal', 'Dawnstar', 'Winterhold', 'Riverwood', 'Rorikstead', 'Ivarstead', 'Helgen', 'Dragon Bridge', 'High Hrothgar', 'Bleak Falls Barrow'];
+    for (const loc of knownLocations) {
+      if (allContent.toLowerCase().includes(loc.toLowerCase())) {
+        visited.add(loc);
+      }
+    }
+    
+    return Array.from(visited);
+  }, [story, journal]);
+
+  // Get quest locations
+  const questLocations = React.useMemo(() => {
+    return quests
+      .filter(q => q.status === 'active' && q.location)
+      .map(q => ({ name: q.location!, questName: q.title }));
+  }, [quests]);
 
   useEffect(() => {
     const key = userId ? `aetherius:hideAdventureModelTip:${userId}` : 'aetherius:hideAdventureModelTip';
@@ -1115,6 +1333,20 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
             <Users size={14} /> State {showSimulationPanel ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
           <button
+            onClick={() => setShowEquipment(true)}
+            className="px-3 py-2 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-2 text-sm"
+            title="Open Equipment"
+          >
+            <User size={14} /> Equipment
+          </button>
+          <button
+            onClick={() => setShowMap(true)}
+            className="px-3 py-2 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-2 text-sm"
+            title="View Skyrim Map"
+          >
+            <Map size={14} /> Map
+          </button>
+          <button
             onClick={() => setShowSettings(!showSettings)}
             className="px-3 py-2 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-2 text-sm"
           >
@@ -1238,6 +1470,94 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {/* Equipment Modal */}
+      {showEquipment && (
+        <div className="fixed inset-0 bg-black/80 flex items-start justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-skyrim-paper border-2 border-skyrim-gold rounded-lg shadow-2xl p-6 w-full max-w-4xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-serif text-skyrim-gold">Equipment</h3>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setShowEquipment(false)} className="px-3 py-1 bg-gray-600 text-white rounded">Close</button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div>
+                <EquipmentHUD
+                  items={localInventory}
+                  onUnequip={(it) => unequipItem(it)}
+                  onEquipFromSlot={(slot) => { setSelectedSlot(slot); setEquipModalOpen(true); }}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="bg-black/30 p-3 rounded border border-skyrim-border">
+                  <p className="text-gray-300 text-sm mb-2">Inventory</p>
+                  <div className="space-y-2 max-h-[48vh] overflow-y-auto pr-2">
+                    {localInventory.map(item => (
+                      <div key={item.id} className="flex items-center justify-between p-2 bg-black/40 rounded border border-skyrim-border">
+                        <div>
+                          <div className="text-skyrim-gold font-semibold">{item.name} <span className="text-xs text-gray-400">x{item.quantity}</span></div>
+                          <div className="text-xs text-gray-400">{item.description}</div>
+                          <div className="flex gap-2 mt-1 text-xs">
+                            {item.damage ? <span className="text-red-400">Damage: {item.damage}</span> : null}
+                            {item.armor ? <span className="text-blue-400">Armor: {item.armor}</span> : null}
+                            {item.slot ? <span className="text-gray-400">Slot: {item.slot}</span> : null}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {item.equipped ? (
+                            <button onClick={() => unequipItem(item)} className="px-3 py-1 bg-red-700/60 text-white rounded text-xs">Unequip</button>
+                          ) : (
+                            <>
+                              <button onClick={() => equipItem(item)} className="px-3 py-1 bg-green-700/60 text-white rounded text-xs">Equip</button>
+                              <button onClick={() => { const slot = getDefaultSlotForItem(item); if (slot) { setSelectedSlot(slot); setEquipModalOpen(true); } }} className="px-2 py-1 bg-gray-700 text-white rounded text-xs">Slot…</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Equip-from-slot modal (sub-modal) */}
+            {equipModalOpen && selectedSlot && (
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-60 p-4">
+                <div className="bg-skyrim-paper border-2 border-skyrim-gold rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
+                  <h4 className="text-lg font-serif text-skyrim-gold mb-3">Select item for {selectedSlot}</h4>
+                  {getEquippableItemsForSlot(selectedSlot).length > 0 ? (
+                    <div className="space-y-2">
+                      {getEquippableItemsForSlot(selectedSlot).map(it => (
+                        <button key={it.id} onClick={() => { equipItem(it, selectedSlot); setEquipModalOpen(false); setSelectedSlot(null); }} className="w-full p-3 bg-black/40 border border-skyrim-border rounded hover:border-skyrim-gold hover:bg-black/60 transition-colors text-left flex items-center gap-3">
+                          <div className="flex-1">
+                            <div className="text-skyrim-gold font-serif">{it.name}</div>
+                            <div className="text-xs text-gray-400">{it.description}</div>
+                          </div>
+                          {(it.armor || it.damage) && (
+                            <div className="text-xs text-gray-400">
+                              {it.armor && <div>Armor: {it.armor}</div>}
+                              {it.damage && <div>Damage: {it.damage}</div>}
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 italic text-center py-4">No suitable items for this slot</p>
+                  )}
+
+                  <div className="mt-4">
+                    <button onClick={() => { setEquipModalOpen(false); setSelectedSlot(null); }} className="w-full py-2 bg-gray-600 text-white rounded">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1471,6 +1791,28 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
           Tip: Describe your actions in detail for richer responses. "I search the chest" → "I carefully examine the ancient chest for traps before attempting to pick the lock."
         </p>
       </div>
+
+      {/* Lockpicking Minigame Modal */}
+      <LockpickingMinigame
+        isOpen={showLockpicking}
+        onClose={() => setShowLockpicking(false)}
+        difficulty={lockpickingDifficulty}
+        lockpickCount={lockpickCount}
+        lockpickingSkill={lockpickingSkill}
+        onSuccess={handleLockpickSuccess}
+        onFailure={handleLockpickFailure}
+        onNoLockpicks={handleNoLockpicks}
+        lockName={lockpickingName}
+      />
+
+      {/* Skyrim Map Modal */}
+      <SkyrimMap
+        isOpen={showMap}
+        onClose={() => setShowMap(false)}
+        currentLocation={currentLocation}
+        visitedLocations={visitedLocations}
+        questLocations={questLocations}
+      />
     </div>
   );
 };
