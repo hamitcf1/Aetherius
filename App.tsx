@@ -47,8 +47,6 @@ import {
   batchSaveGameState,
   saveUserMetadata,
   removeDuplicateItems,
-  deleteItemByName,
-  
 } from './services/firestore';
 import {
   setUserOnline,
@@ -279,7 +277,6 @@ const App: React.FC = () => {
         userId: currentUser.uid,
         characterId: currentCharacterId,
         removeDuplicateItems: () => removeDuplicateItems(currentUser.uid, currentCharacterId || undefined),
-        deleteItemByName: (name: string) => deleteItemByName(currentUser.uid, name, currentCharacterId || undefined),
         reloadItems: async () => {
           const userItems = await loadInventoryItems(currentUser.uid);
           setItems(userItems);
@@ -288,7 +285,6 @@ const App: React.FC = () => {
       };
       console.log('🔧 Database utils available via window.aetheriusUtils');
       console.log('  - removeDuplicateItems() - removes items with duplicate names');
-      console.log('  - deleteItemByName("lockpicks") - deletes all items with that name');
       console.log('  - reloadItems() - reloads inventory from database');
     }
   }, [currentUser?.uid, currentCharacterId]);
