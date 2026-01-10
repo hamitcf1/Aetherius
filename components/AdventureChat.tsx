@@ -933,6 +933,65 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     }
   };
 
+  // Skyrim/Tamrielic Calendar System
+  const TAMRIEL_DAYS = ['Sundas', 'Morndas', 'Tirdas', 'Middas', 'Turdas', 'Fredas', 'Loredas'];
+  const TAMRIEL_MONTHS = [
+    { name: 'Morning Star', days: 31 },   // January
+    { name: "Sun's Dawn", days: 28 },      // February
+    { name: 'First Seed', days: 31 },      // March
+    { name: "Rain's Hand", days: 30 },     // April
+    { name: 'Second Seed', days: 31 },     // May
+    { name: 'Midyear', days: 30 },         // June
+    { name: "Sun's Height", days: 31 },    // July
+    { name: 'Last Seed', days: 31 },       // August
+    { name: 'Hearthfire', days: 30 },      // September
+    { name: 'Frostfall', days: 31 },       // October
+    { name: "Sun's Dusk", days: 30 },      // November
+    { name: 'Evening Star', days: 31 }     // December
+  ];
+
+  const getTamrielDate = (totalDays: number): { dayName: string; dayOfMonth: number; monthName: string; year: number } => {
+    // Start at 4E 201 (Skyrim's year), 17th of Last Seed (game start)
+    const baseYear = 201;
+    const startMonth = 7; // Last Seed (August, 0-indexed)
+    const startDay = 17;
+    
+    // Calculate starting point in days from year start
+    let daysFromYearStart = startDay - 1;
+    for (let i = 0; i < startMonth; i++) {
+      daysFromYearStart += TAMRIEL_MONTHS[i].days;
+    }
+    
+    // Add player's elapsed days
+    let currentDays = daysFromYearStart + (totalDays - 1);
+    let year = baseYear;
+    
+    // Handle year overflow
+    const daysInYear = TAMRIEL_MONTHS.reduce((sum, m) => sum + m.days, 0);
+    while (currentDays >= daysInYear) {
+      currentDays -= daysInYear;
+      year++;
+    }
+    
+    // Find month and day
+    let monthIndex = 0;
+    while (currentDays >= TAMRIEL_MONTHS[monthIndex].days) {
+      currentDays -= TAMRIEL_MONTHS[monthIndex].days;
+      monthIndex++;
+      if (monthIndex >= 12) monthIndex = 0;
+    }
+    
+    const dayOfMonth = currentDays + 1;
+    const dayName = TAMRIEL_DAYS[(totalDays - 1) % 7];
+    
+    return {
+      dayName,
+      dayOfMonth,
+      monthName: TAMRIEL_MONTHS[monthIndex].name,
+      year
+    };
+  };
+
   const formatTime = (hour: number, minute: number): string => {
     const h = hour % 12 || 12;
     const m = minute.toString().padStart(2, '0');
@@ -940,31 +999,43 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     return `${h}:${m} ${ampm}`;
   };
 
-  const getOrdinalDay = (day: number): string => {
+  const getOrdinalSuffix = (n: number): string => {
     const s = ['th', 'st', 'nd', 'rd'];
-    const v = day % 100;
-    return day + (s[(v - 20) % 10] || s[v] || s[0]);
+    const v = n % 100;
+    return s[(v - 20) % 10] || s[v] || s[0];
   };
 
   // Time display component
   const TimeDisplay = () => {
     const time = character?.time || { day: 1, hour: 8, minute: 0 };
     const { period, icon, bgClass } = getTimeOfDay(time.hour);
+    const tamrielDate = getTamrielDate(time.day);
     
     return (
-      <div className={`flex items-center gap-3 px-4 py-2 rounded-lg border border-skyrim-gold/30 ${bgClass}`}>
+      <div className={`flex flex-col sm:flex-row items-center gap-2 sm:gap-3 px-4 py-2 rounded-lg border border-skyrim-gold/30 ${bgClass}`}>
+        {/* Time of day */}
         <div className="flex items-center gap-2">
           {icon}
           <span className="text-sm font-medium text-gray-200">{period}</span>
         </div>
-        <div className="h-4 w-px bg-skyrim-gold/30" />
+        
+        <div className="hidden sm:block h-4 w-px bg-skyrim-gold/30" />
+        
+        {/* Clock */}
         <div className="flex items-center gap-2 text-sm">
           <Clock size={14} className="text-gray-400" />
           <span className="text-gray-300 font-mono">{formatTime(time.hour, time.minute)}</span>
         </div>
-        <div className="h-4 w-px bg-skyrim-gold/30" />
-        <div className="text-sm text-gray-400">
-          Day {getOrdinalDay(time.day)}
+        
+        <div className="hidden sm:block h-4 w-px bg-skyrim-gold/30" />
+        
+        {/* Tamrielic Date */}
+        <div className="text-xs sm:text-sm text-center sm:text-left">
+          <span className="text-skyrim-gold">{tamrielDate.dayName}</span>
+          <span className="text-gray-400">, </span>
+          <span className="text-gray-300">{tamrielDate.dayOfMonth}{getOrdinalSuffix(tamrielDate.dayOfMonth)} of </span>
+          <span className="text-skyrim-gold">{tamrielDate.monthName}</span>
+          <span className="text-gray-500 text-xs ml-1">4E {tamrielDate.year}</span>
         </div>
       </div>
     );

@@ -1,0 +1,209 @@
+/**
+ * Changelog Component - Subtle, minimal changelog viewer
+ * Accessed via a small icon, reveals version history
+ */
+
+import React, { useState } from 'react';
+import { ScrollText, X, Sparkles, Swords, Clock, Bug, Zap } from 'lucide-react';
+
+interface ChangelogEntry {
+  version: string;
+  date: string;
+  title: string;
+  changes: {
+    type: 'feature' | 'improvement' | 'fix' | 'combat';
+    text: string;
+  }[];
+}
+
+const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.4.0',
+    date: '2026-01-10',
+    title: 'Combat & Time Overhaul',
+    changes: [
+      { type: 'combat', text: 'Pokemon-style turn-based combat system with abilities, status effects, and enemy AI' },
+      { type: 'combat', text: 'Dynamic enemy generation - each enemy is unique with randomized stats, abilities, and personalities' },
+      { type: 'combat', text: 'New enemy types: Troll, Bear, Sabre Cat, Vampire, Hostile Mage' },
+      { type: 'feature', text: 'In-game Skyrim calendar with Tamrielic day names and months' },
+      { type: 'feature', text: 'Real-time time of day display in Adventure tab (Dawn/Morning/Noon/Evening/Night)' },
+      { type: 'improvement', text: 'Realistic time flow - actions now take appropriate amounts of time' },
+      { type: 'improvement', text: 'AI no longer repeats itself - better narrative continuity' },
+      { type: 'feature', text: 'Changelog viewer (you\'re looking at it!)' },
+    ]
+  },
+  {
+    version: '0.3.5',
+    date: '2026-01-09',
+    title: 'AI Resilience Update',
+    changes: [
+      { type: 'improvement', text: 'Seamless AI model fallback system - automatically switches models on errors' },
+      { type: 'improvement', text: 'Support for 3 API keys with rotation' },
+      { type: 'fix', text: 'Better JSON parsing for Gemma model responses' },
+      { type: 'improvement', text: 'Updated to latest Gemini/Gemma models' },
+    ]
+  },
+  {
+    version: '0.3.0',
+    date: '2026-01-08',
+    title: 'Simulation State System',
+    changes: [
+      { type: 'feature', text: 'NPC memory and relationship tracking' },
+      { type: 'feature', text: 'Scene state machine for consistent encounters' },
+      { type: 'feature', text: 'Player fact memory - NPCs remember what you tell them' },
+      { type: 'improvement', text: 'Transaction ledger prevents double-charging' },
+    ]
+  },
+  {
+    version: '0.2.0',
+    date: '2026-01-05',
+    title: 'Survival & Immersion',
+    changes: [
+      { type: 'feature', text: 'Hunger, thirst, and fatigue survival system' },
+      { type: 'feature', text: 'Ambient music system with context-aware tracks' },
+      { type: 'feature', text: 'Equipment HUD showing equipped gear' },
+      { type: 'improvement', text: 'Better item management and equipment slots' },
+    ]
+  },
+  {
+    version: '0.1.0',
+    date: '2026-01-01',
+    title: 'Initial Release',
+    changes: [
+      { type: 'feature', text: 'Character creation with Skyrim races and archetypes' },
+      { type: 'feature', text: 'AI-powered text adventure gameplay' },
+      { type: 'feature', text: 'Inventory, quest log, and journal systems' },
+      { type: 'feature', text: 'Character persistence with cloud sync' },
+    ]
+  }
+];
+
+const getChangeIcon = (type: string) => {
+  switch (type) {
+    case 'feature': return <Sparkles size={12} className="text-green-400" />;
+    case 'improvement': return <Zap size={12} className="text-blue-400" />;
+    case 'fix': return <Bug size={12} className="text-orange-400" />;
+    case 'combat': return <Swords size={12} className="text-red-400" />;
+    default: return <Clock size={12} className="text-gray-400" />;
+  }
+};
+
+const getChangeColor = (type: string) => {
+  switch (type) {
+    case 'feature': return 'border-green-900/50 bg-green-900/10';
+    case 'improvement': return 'border-blue-900/50 bg-blue-900/10';
+    case 'fix': return 'border-orange-900/50 bg-orange-900/10';
+    case 'combat': return 'border-red-900/50 bg-red-900/10';
+    default: return 'border-gray-800 bg-gray-900/10';
+  }
+};
+
+export const Changelog: React.FC = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const latestVersion = CHANGELOG[0]?.version || '0.0.0';
+
+  return (
+    <>
+      {/* Subtle trigger button - bottom left corner */}
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-4 left-4 z-40 group flex items-center gap-2 px-3 py-1.5 bg-black/60 hover:bg-black/80 border border-skyrim-border/50 hover:border-skyrim-gold/50 rounded-full transition-all duration-300 backdrop-blur-sm"
+        title="View Changelog"
+      >
+        <ScrollText size={14} className="text-gray-500 group-hover:text-skyrim-gold transition-colors" />
+        <span className="text-[10px] text-gray-500 group-hover:text-gray-300 font-mono transition-colors">
+          v{latestVersion}
+        </span>
+      </button>
+
+      {/* Changelog Modal */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsOpen(false)}
+        >
+          <div 
+            className="relative w-full max-w-lg max-h-[80vh] bg-gradient-to-b from-gray-900 to-black border border-skyrim-gold/30 rounded-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-gradient-to-b from-gray-900 via-gray-900 to-transparent px-6 py-4 border-b border-skyrim-gold/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-skyrim-gold/10 rounded-lg border border-skyrim-gold/30">
+                    <ScrollText size={20} className="text-skyrim-gold" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-serif text-skyrim-gold">Changelog</h2>
+                    <p className="text-xs text-gray-500">What's new in Aetherius</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-2 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-4 overflow-y-auto max-h-[calc(80vh-80px)] custom-scrollbar">
+              <div className="space-y-6">
+                {CHANGELOG.map((entry, idx) => (
+                  <div key={entry.version} className="relative">
+                    {/* Timeline connector */}
+                    {idx < CHANGELOG.length - 1 && (
+                      <div className="absolute left-[7px] top-8 bottom-0 w-px bg-gradient-to-b from-skyrim-gold/30 to-transparent" />
+                    )}
+                    
+                    {/* Version header */}
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className={`w-4 h-4 rounded-full border-2 ${idx === 0 ? 'bg-skyrim-gold border-skyrim-gold' : 'bg-gray-800 border-gray-600'} flex-shrink-0 mt-1`} />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`font-mono text-sm ${idx === 0 ? 'text-skyrim-gold' : 'text-gray-400'}`}>
+                            v{entry.version}
+                          </span>
+                          {idx === 0 && (
+                            <span className="px-2 py-0.5 text-[10px] bg-skyrim-gold/20 text-skyrim-gold rounded-full border border-skyrim-gold/30">
+                              LATEST
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-600">{entry.date}</span>
+                        </div>
+                        <h3 className="text-sm font-medium text-gray-200 mt-0.5">{entry.title}</h3>
+                      </div>
+                    </div>
+
+                    {/* Changes list */}
+                    <div className="ml-7 space-y-1.5">
+                      {entry.changes.map((change, changeIdx) => (
+                        <div 
+                          key={changeIdx}
+                          className={`flex items-start gap-2 px-2.5 py-1.5 rounded border ${getChangeColor(change.type)}`}
+                        >
+                          <span className="mt-0.5 flex-shrink-0">{getChangeIcon(change.type)}</span>
+                          <span className="text-xs text-gray-300 leading-relaxed">{change.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="mt-8 pt-4 border-t border-gray-800/50 text-center">
+                <p className="text-[10px] text-gray-600">
+                  Made with ❤️ for Skyrim fans
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default Changelog;

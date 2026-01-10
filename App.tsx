@@ -14,6 +14,7 @@ import { AdventureChat } from './components/AdventureChat';
 import { CharacterSelect } from './components/CharacterSelect';
 import { OnboardingModal } from './components/OnboardingModal';
 import { CombatModal } from './components/CombatModal';
+import { Changelog } from './components/Changelog';
 import UpdateNotification from './components/UpdateNotification';
 import { User, Scroll, BookOpen, Skull, Package, Feather, LogOut, Users, Loader, Save, Swords } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -2106,6 +2107,9 @@ const App: React.FC = () => {
 
         {/* Update Notification */}
         <UpdateNotification position="bottom" />
+
+        {/* Changelog - subtle bottom left */}
+        <Changelog />
 
       </div>
     </AppContext.Provider>
