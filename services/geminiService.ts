@@ -131,11 +131,17 @@ const extractJsonObject = (text: string): string | null => {
   const trimmed = (text || '').trim();
   if (!trimmed) return null;
 
-  // Remove common markdown fences
-  const unfenced = trimmed
-    .replace(/^```(?:json)?/i, '')
-    .replace(/```$/i, '')
+  // Remove markdown code fences more aggressively
+  // Handles: ```json\n...\n```, ```\n...\n```, and variations with extra whitespace
+  let unfenced = trimmed
+    .replace(/^```+\s*(?:json)?\s*\n?/i, '')  // Opening fence with optional 'json' label
+    .replace(/\n?```+\s*$/i, '')               // Closing fence
     .trim();
+  
+  // Also handle cases where fence might have extra backticks or spaces
+  if (unfenced.startsWith('`')) {
+    unfenced = unfenced.replace(/^`+\s*/, '').replace(/\s*`+$/, '').trim();
+  }
 
   // If it's already a JSON object/array
   if ((unfenced.startsWith('{') && unfenced.endsWith('}')) || (unfenced.startsWith('[') && unfenced.endsWith(']'))) {
