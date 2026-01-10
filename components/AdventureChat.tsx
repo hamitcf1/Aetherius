@@ -4,6 +4,7 @@ import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, Chevr
 import { EquipmentHUD, getDefaultSlotForItem, SLOT_CONFIGS_EXPORT } from './EquipmentHUD';
 import { LockpickingMinigame, LockDifficulty } from './LockpickingMinigame';
 import { SkyrimMap, findLocationByName } from './SkyrimMap';
+import { ThinkingBubble } from './ThinkingBubble';
 import type { EquipmentSlot } from '../types';
 import { saveInventoryItem } from '../services/firestore';
 import type { PreferredAIModel } from '../services/geminiService';
@@ -1802,6 +1803,10 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                 </div>
               </div>
             ))}
+            
+            {/* Thinking bubble while AI is processing */}
+            {loading && <ThinkingBubble />}
+            
             <div ref={messagesEndRef} />
           </div>
         )}

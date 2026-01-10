@@ -276,15 +276,18 @@ ${quests.length > 0 ? `\n=== QUESTS ===\n${quests.map(q => `- ${q.title} (${q.st
 TASK:
 Write a compelling narrative book (like a novel) about ${sourceMaterial.character.name}'s journey. 
 
+CRITICAL: You MUST cover ALL the source material provided above from the BEGINNING to the LATEST events. Do not skip any major story chapters or events. Create a complete chronicle that spans the entire journey chronologically.
+
 RULES:
 1. Write in third-person narrative prose, like a fantasy novel
 2. Transform the raw events into flowing, dramatic storytelling
 3. Include vivid descriptions, dialogue, and emotional depth
-4. Organize into clear chapters with titles
+4. Organize into clear chapters with titles (create ${Math.max(sortedChapters.length, 3)}-${sortedChapters.length + 5} chapters to cover everything)
 5. Each chapter should be 2-4 paragraphs
 6. Maintain the character's personality and decisions
 7. Use proper Skyrim lore and terminology
 8. Make it feel like an Elder Scrolls book you'd find in-game
+9. IMPORTANT: Cover events from the character's earliest adventures to their most recent experiences
 
 FORMAT YOUR RESPONSE AS:
 ===CHAPTER: [Title]===
@@ -293,9 +296,9 @@ FORMAT YOUR RESPONSE AS:
 ===CHAPTER: [Title]===
 [Chapter content here...]
 
-(Continue with all chapters)
+(Continue with ALL chapters covering the complete journey)
 
-Write the complete book now:`;
+Write the complete book now, ensuring you cover ALL the provided chapters and adventures from start to finish:`;
 
       const response = await generateGameMasterResponse(bookPrompt, JSON.stringify(sourceMaterial));
       
