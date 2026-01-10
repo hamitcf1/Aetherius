@@ -72,17 +72,30 @@ const getGemmaApiKey = () =>
   process.env.gemma_api_key ||
   '';
 
-// Get all available API keys
+// Get all available API keys (dynamically checks for unlimited keys)
 const getAllApiKeys = (): string[] => {
   const keys: string[] = [];
+  
+  // Add primary keys
   const key1 = getGeminiApiKey1();
   const key2 = getGeminiApiKey2();
   const key3 = getGeminiApiKey3();
-  const gemmaKey = getGemmaApiKey();
   
   if (key1) keys.push(key1);
   if (key2) keys.push(key2);
   if (key3) keys.push(key3);
+  
+  // Dynamically check for additional keys (KEY_4, KEY_5, etc.)
+  for (let i = 4; i <= 20; i++) {
+    const key = viteEnv[`VITE_GEMINI_API_KEY_${i}`] || 
+                process.env[`GEMINI_API_KEY_${i}`] ||
+                viteEnv[`VITE_API_KEY_${i}`] ||
+                process.env[`API_KEY_${i}`];
+    if (key) keys.push(key);
+  }
+  
+  // Add Gemma key if different
+  const gemmaKey = getGemmaApiKey();
   if (gemmaKey && !keys.includes(gemmaKey)) keys.push(gemmaKey);
   
   return keys;
@@ -235,8 +248,8 @@ const executeWithFallback = async <T>(
   const errors: Array<{ model: string; error: any }> = [];
   
   for (const model of modelsToTry) {
-    const forGemma = isGemmaModel(model);
-    const allKeys = forGemma ? [getGemmaApiKey()] : getAllApiKeys();
+    // Use all available keys for both Gemini and Gemma models
+    const allKeys = getAllApiKeys();
     
     for (const apiKey of allKeys) {
       if (!apiKey || exhaustedApiKeys.has(apiKey)) continue;
