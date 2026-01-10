@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { X, Compass, ZoomIn, ZoomOut, Navigation, Castle, Mountain, Skull, Home, Shield, Flame, Eye, EyeOff, TreePine, Waves } from 'lucide-react';
 
 // Location types with lore and rumors
@@ -94,6 +94,7 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
   const [showLabels, setShowLabels] = useState(true);
   const [showHolds, setShowHolds] = useState(true);
   const [filterType, setFilterType] = useState<string>('all');
+  const mapContainerRef = useRef<HTMLDivElement>(null);
 
   const currentLocationObj = currentLocation ? findLocationByName(currentLocation) : undefined;
 
@@ -112,10 +113,19 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
 
   const handleMouseUp = () => setIsDragging(false);
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    setZoom(prev => Math.max(0.5, Math.min(3, prev + (e.deltaY > 0 ? -0.1 : 0.1))));
-  };
+  // Setup wheel event listener with passive: false to allow preventDefault
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom(prev => Math.max(0.5, Math.min(3, prev + (e.deltaY > 0 ? -0.1 : 0.1))));
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, []);
 
   // Merge base locations with discovered locations
   const allLocations = useMemo(() => {
@@ -246,13 +256,13 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
       </div>
 
       {/* Map Container */}
-      <div 
+      <div
+        ref={mapContainerRef}
         className="flex-1 overflow-hidden cursor-grab active:cursor-grabbing relative flex items-center justify-center"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
       >
         <div 
           className="transition-transform duration-100"
