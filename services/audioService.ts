@@ -47,34 +47,34 @@ const DEFAULT_CONFIG: AudioConfig = {
 
 // Sound effect paths (to be populated with actual sound files)
 const SOUND_EFFECTS: Record<SoundEffect, string | null> = {
-  purchase: null,       // '/sounds/sfx/purchase.mp3'
-  sell: null,           // '/sounds/sfx/sell.mp3'
-  gold_gain: null,      // '/sounds/sfx/gold_gain.mp3'
-  gold_spend: null,     // '/sounds/sfx/gold_spend.mp3'
-  item_pickup: null,    // '/sounds/sfx/item_pickup.mp3'
-  item_equip: null,     // '/sounds/sfx/item_equip.mp3'
-  item_unequip: null,   // '/sounds/sfx/item_unequip.mp3'
-  level_up: null,       // '/sounds/sfx/level_up.mp3'
-  quest_complete: null, // '/sounds/sfx/quest_complete.mp3'
-  quest_start: null,    // '/sounds/sfx/quest_start.mp3'
-  eat: null,            // '/sounds/sfx/eat.mp3'
-  drink: null,          // '/sounds/sfx/drink.mp3'
-  rest: null,           // '/sounds/sfx/rest.mp3'
-  menu_open: null,      // '/sounds/sfx/menu_open.mp3'
-  menu_close: null,     // '/sounds/sfx/menu_close.mp3'
-  button_click: null,   // '/sounds/sfx/button_click.mp3'
-  error: null,          // '/sounds/sfx/error.mp3'
-  success: null,        // '/sounds/sfx/success.mp3'
+  purchase: '/audio/sfx/purchase.mp3',       // drop at public/audio/sfx/
+  sell: '/audio/sfx/sell.mp3',
+  gold_gain: '/audio/sfx/gold_gain.mp3',
+  gold_spend: '/audio/sfx/gold_spend.mp3',
+  item_pickup: '/audio/sfx/item_pickup.mp3',
+  item_equip: '/audio/sfx/item_equip.mp3',
+  item_unequip: '/audio/sfx/item_unequip.mp3',
+  level_up: '/audio/sfx/level_up.mp3',
+  quest_complete: '/audio/sfx/quest_complete.mp3',
+  quest_start: '/audio/sfx/quest_start.mp3',
+  eat: '/audio/sfx/eat.mp3',
+  drink: '/audio/sfx/drink.mp3',
+  rest: '/audio/sfx/rest.mp3',
+  menu_open: '/audio/sfx/menu_open.mp3',
+  menu_close: '/audio/sfx/menu_close.mp3',
+  button_click: '/audio/sfx/button_click.mp3',
+  error: '/audio/sfx/error.mp3',
+  success: '/audio/sfx/success.mp3',
 };
 
 // Music track paths (to be populated with actual music files)
 const MUSIC_TRACKS: Record<MusicTrack, string | null> = {
-  main_menu: null,      // '/sounds/music/main_menu.mp3'
-  exploration: null,    // '/sounds/music/exploration.mp3'
-  tavern: null,         // '/sounds/music/tavern.mp3'
-  combat: null,         // '/sounds/music/combat.mp3'
-  peaceful: null,       // '/sounds/music/peaceful.mp3'
-  night: null,          // '/sounds/music/night.mp3'
+  main_menu: '/audio/music/main_menu.mp3',
+  exploration: '/audio/music/exploration.mp3',
+  tavern: '/audio/music/tavern.mp3',
+  combat: '/audio/music/combat.mp3',
+  peaceful: '/audio/music/peaceful.mp3',
+  night: '/audio/music/night.mp3',
 };
 
 class AudioService {
@@ -341,4 +341,72 @@ export function playMusic(track: MusicTrack, fadeIn?: boolean): void {
 
 export function stopMusic(fadeOut?: boolean): void {
   audioService.stopMusic(fadeOut);
+}
+
+// ============================================================================
+// AUTOMATIC MUSIC SELECTION BASED ON GAME STATE
+// ============================================================================
+
+export interface AmbientContext {
+  localeType?: 'wilderness' | 'tavern' | 'city' | 'dungeon' | 'interior' | 'road';
+  inCombat?: boolean;
+  mood?: 'peaceful' | 'tense' | 'mysterious' | 'triumphant';
+  timeOfDay?: number; // 0-23 hour
+}
+
+/**
+ * Selects the appropriate music track based on current game context.
+ * Priority: Combat > Locale Type > Time of Day > Default
+ */
+export function selectMusicTrack(context: AmbientContext): MusicTrack {
+  // Combat takes highest priority
+  if (context.inCombat) {
+    return 'combat';
+  }
+
+  // Locale-based music
+  if (context.localeType) {
+    switch (context.localeType) {
+      case 'tavern':
+        return 'tavern';
+      case 'dungeon':
+        // Dungeons get exploration or tense music
+        return context.mood === 'tense' ? 'combat' : 'exploration';
+      case 'city':
+      case 'interior':
+        return 'peaceful';
+      case 'wilderness':
+      case 'road':
+        // Check time of day for wilderness
+        const hour = context.timeOfDay ?? 12;
+        if (hour >= 20 || hour < 5) {
+          return 'night';
+        }
+        return 'exploration';
+    }
+  }
+
+  // Time-based fallback
+  const hour = context.timeOfDay ?? 12;
+  if (hour >= 20 || hour < 5) {
+    return 'night';
+  }
+
+  // Default exploration
+  return 'exploration';
+}
+
+/**
+ * Automatically updates music based on game state.
+ * Call this after processing GameStateUpdate.
+ */
+export function updateMusicForContext(context: AmbientContext): void {
+  const track = selectMusicTrack(context);
+  const currentTrack = audioService.getCurrentTrack();
+  
+  // Only change if different (playMusic already checks, but this avoids console spam)
+  if (currentTrack !== track) {
+    console.log(`🎵 Music change: ${currentTrack || 'none'} → ${track} (context: ${JSON.stringify(context)})`);
+    audioService.playMusic(track, true); // fade in
+  }
 }

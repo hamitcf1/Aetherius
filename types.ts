@@ -271,6 +271,13 @@ export interface GameStateUpdate {
   // Vitals (health, magicka, stamina) changes for adventure
   vitalsChange?: Partial<CurrentVitals>;
 
+  // Ambient context for automatic music selection
+  ambientContext?: {
+    localeType?: 'wilderness' | 'tavern' | 'city' | 'dungeon' | 'interior' | 'road';
+    inCombat?: boolean;
+    mood?: 'peaceful' | 'tense' | 'mysterious' | 'triumphant';
+  };
+
   // Transaction tracking - prevents duplicate charges
   transactionId?: string;  // Unique ID for this specific transaction
   isPreview?: boolean;     // If true, this response is showing OPTIONS, not executing a transaction

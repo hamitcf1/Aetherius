@@ -58,6 +58,7 @@ import {
 } from './services/realtime';
 import { getFoodNutrition, getDrinkNutrition } from './services/nutritionData';
 import { getItemStats, shouldHaveStats } from './services/itemStats';
+import { updateMusicForContext, AmbientContext, audioService, playMusic } from './services/audioService';
 import type { PreferredAIModel } from './services/geminiService';
 import type { UserSettings } from './services/firestore';
 
@@ -457,6 +458,49 @@ const App: React.FC = () => {
 
     return () => unsubscribe();
   }, []);
+
+  // Initialize audio service on first user interaction
+  useEffect(() => {
+    const initAudio = () => {
+      audioService.initialize();
+      // Remove listener after first interaction
+      document.removeEventListener('click', initAudio);
+      document.removeEventListener('keydown', initAudio);
+    };
+    document.addEventListener('click', initAudio);
+    document.addEventListener('keydown', initAudio);
+    return () => {
+      document.removeEventListener('click', initAudio);
+      document.removeEventListener('keydown', initAudio);
+    };
+  }, []);
+
+  // Start music based on game state - defined later after activeCharacter is available
+  // Music initialization is handled in a separate useEffect below after activeCharacter definition
+
+  // Music initialization based on character selection
+  useEffect(() => {
+    const char = characters.find(c => c.id === currentCharacterId);
+    if (currentCharacterId && char) {
+      // Initialize audio if not already done
+      audioService.initialize();
+      
+      // Determine initial music based on character's current state
+      const hour = char.time?.hour ?? 12;
+      const isNight = hour >= 20 || hour < 5;
+      
+      // Start with exploration or night music
+      const initialTrack = isNight ? 'night' : 'exploration';
+      playMusic(initialTrack, true);
+      
+      console.log(`🎵 Started ${initialTrack} music for ${char.name} (hour: ${hour})`);
+    } else if (!currentCharacterId) {
+      // Play main menu music when no character selected
+      audioService.initialize();
+      playMusic('main_menu', true);
+      console.log('🎵 Playing main menu music');
+    }
+  }, [currentCharacterId, characters]);
 
   const completeOnboarding = async () => {
     if (!currentUser?.uid) {
@@ -1222,6 +1266,7 @@ const App: React.FC = () => {
   
   // Helper to get active data
   const activeCharacter = characters.find(c => c.id === currentCharacterId);
+
   const getCharacterItems = () => items.filter((i: any) => i.characterId === currentCharacterId);
   
   const setCharacterItems = (newCharItems: InventoryItem[]) => {
@@ -1736,6 +1781,41 @@ const App: React.FC = () => {
       };
       setJournalEntries(prev => [...prev, entry]);
       setDirtyEntities(prev => new Set([...prev, entry.id]));
+
+      // 8. Automatic Music Update based on ambient context
+      if (updates.ambientContext || updates.simulationUpdate?.sceneStart) {
+        const ambientCtx: AmbientContext = {
+          localeType: updates.ambientContext?.localeType,
+          inCombat: updates.ambientContext?.inCombat || updates.simulationUpdate?.phaseChange === 'combat',
+          mood: updates.ambientContext?.mood,
+          timeOfDay: (activeCharacter as any)?.time?.hour ?? 12
+        };
+        // Also check sceneStart for locale hints
+        if (updates.simulationUpdate?.sceneStart) {
+          const loc = updates.simulationUpdate.sceneStart.location?.toLowerCase() || '';
+          const sceneType = updates.simulationUpdate.sceneStart.type;
+          
+          // Infer locale type from scene info if not explicitly set
+          if (!ambientCtx.localeType) {
+            if (sceneType === 'combat') {
+              ambientCtx.inCombat = true;
+            } else if (loc.includes('tavern') || loc.includes('inn') || loc.includes('bar')) {
+              ambientCtx.localeType = 'tavern';
+            } else if (loc.includes('dungeon') || loc.includes('cave') || loc.includes('ruin') || loc.includes('crypt')) {
+              ambientCtx.localeType = 'dungeon';
+            } else if (loc.includes('city') || loc.includes('whiterun') || loc.includes('solitude') || loc.includes('riften') || loc.includes('windhelm') || loc.includes('markarth')) {
+              ambientCtx.localeType = 'city';
+            } else if (loc.includes('road') || loc.includes('path') || loc.includes('trail')) {
+              ambientCtx.localeType = 'road';
+            } else if (loc.includes('house') || loc.includes('shop') || loc.includes('hall') || loc.includes('temple')) {
+              ambientCtx.localeType = 'interior';
+            } else {
+              ambientCtx.localeType = 'wilderness';
+            }
+          }
+        }
+        updateMusicForContext(ambientCtx);
+      }
   };
 
   const getAIContext = () => {

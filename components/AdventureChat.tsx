@@ -184,6 +184,42 @@ Item Type Guidelines:
 Example weapon: { "name": "Steel Sword", "type": "weapon", "description": "A fine steel blade", "quantity": 1, "damage": 11, "slot": "weapon" }
 Example armor: { "name": "Leather Armor", "type": "apparel", "description": "Light leather cuirass", "quantity": 1, "armor": 14, "slot": "chest" }
 
+=== AMBIENT MUSIC CONTEXT (IMPORTANT) ===
+
+Include "ambientContext" in EVERY response to control background music:
+{
+  "ambientContext": {
+    "localeType": "wilderness|tavern|city|dungeon|interior|road",
+    "inCombat": true/false,
+    "mood": "peaceful|tense|mysterious|triumphant"
+  }
+}
+
+LOCALE TYPE GUIDE:
+- "tavern": Inns, taverns, bars, The Bannered Mare, Bee and Barb, etc.
+- "city": Inside city walls - Whiterun, Solitude, Riften, Windhelm, Markarth
+- "dungeon": Dungeons, caves, ruins, crypts, Dwemer ruins, Nordic tombs
+- "interior": Shops, houses, temples, halls (non-tavern indoors)
+- "road": Roads, paths, traveling between locations
+- "wilderness": Forests, mountains, plains, outside areas
+
+COMBAT STATE:
+- Set inCombat: true when combat begins or continues
+- Set inCombat: false when combat ends or during peaceful scenes
+- Combat music takes priority over all other music
+
+MOOD HINTS:
+- "peaceful": Safe areas, friendly NPCs, rest
+- "tense": Danger nearby, suspicious situations, stealth
+- "mysterious": Ruins, magic, unknown areas
+- "triumphant": Victory, quest completion, major achievement
+
+Example responses:
+- Entering tavern: "ambientContext": { "localeType": "tavern", "inCombat": false, "mood": "peaceful" }
+- Starting combat: "ambientContext": { "localeType": "wilderness", "inCombat": true, "mood": "tense" }
+- Exploring ruins: "ambientContext": { "localeType": "dungeon", "inCombat": false, "mood": "mysterious" }
+- Night travel: "ambientContext": { "localeType": "road", "inCombat": false, "mood": "tense" }
+
 === SIMULATION STATE RULES (CRITICAL) ===
 
 NPC IDENTITY CONSISTENCY:
@@ -262,6 +298,7 @@ Return ONLY a JSON object:
   "timeAdvanceMinutes": 0,
   "needsChange": { "hunger": 0, "thirst": 0, "fatigue": 0 },
   "vitalsChange": { "currentHealth": 0, "currentMagicka": 0, "currentStamina": 0 },
+  "ambientContext": { "localeType": "wilderness|tavern|city|dungeon|interior|road", "inCombat": false, "mood": "peaceful|tense|mysterious|triumphant" },
   "choices": [
     { "label": "Short option shown as button", "playerText": "Exact text to send", "topic": "optional_topic", "previewCost": { "gold": 10 } }
   ],
