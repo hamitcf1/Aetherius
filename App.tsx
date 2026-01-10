@@ -479,26 +479,23 @@ const App: React.FC = () => {
   // Music initialization is handled in a separate useEffect below after activeCharacter definition
 
   // Music initialization based on character selection
+  // Note: playMusic() will queue the track if user hasn't interacted yet
   useEffect(() => {
     const char = characters.find(c => c.id === currentCharacterId);
     if (currentCharacterId && char) {
-      // Initialize audio if not already done
-      audioService.initialize();
-      
       // Determine initial music based on character's current state
       const hour = char.time?.hour ?? 12;
       const isNight = hour >= 20 || hour < 5;
       
-      // Start with exploration or night music
+      // Start with exploration or night music (will queue if not ready)
       const initialTrack = isNight ? 'night' : 'exploration';
       playMusic(initialTrack, true);
       
-      console.log(`🎵 Started ${initialTrack} music for ${char.name} (hour: ${hour})`);
+      console.log(`🎵 Requested ${initialTrack} music for ${char.name} (hour: ${hour})`);
     } else if (!currentCharacterId) {
-      // Play main menu music when no character selected
-      audioService.initialize();
+      // Play main menu music when no character selected (will queue if not ready)
       playMusic('main_menu', true);
-      console.log('🎵 Playing main menu music');
+      console.log('🎵 Requested main menu music');
     }
   }, [currentCharacterId, characters]);
 

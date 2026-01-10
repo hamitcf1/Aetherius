@@ -83,6 +83,7 @@ class AudioService {
   private currentTrack: MusicTrack | null = null;
   private soundEffectCache: Map<string, HTMLAudioElement> = new Map();
   private isInitialized: boolean = false;
+  private pendingTrack: MusicTrack | null = null; // Track to play after user interaction
 
   constructor() {
     this.config = this.loadConfig();
@@ -115,6 +116,18 @@ class AudioService {
     if (this.isInitialized) return;
     this.isInitialized = true;
     console.log('🔊 Audio service initialized');
+    
+    // Play any pending track that was requested before user interaction
+    if (this.pendingTrack) {
+      const track = this.pendingTrack;
+      this.pendingTrack = null;
+      this.playMusic(track, true);
+    }
+  }
+
+  // Check if user has interacted (audio can play)
+  public isReady(): boolean {
+    return this.isInitialized;
   }
 
   // Play a sound effect
@@ -152,6 +165,13 @@ class AudioService {
     const path = MUSIC_TRACKS[track];
     if (!path) {
       console.debug(`🔇 Music track "${track}" not yet added`);
+      return;
+    }
+
+    // If not yet initialized (no user interaction), queue the track for later
+    if (!this.isInitialized) {
+      console.log(`🎵 Queuing "${track}" music (waiting for user interaction)`);
+      this.pendingTrack = track;
       return;
     }
 
