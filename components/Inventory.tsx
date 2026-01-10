@@ -4,6 +4,7 @@ import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Ap
 import { EquipmentHUD, getDefaultSlotForItem, SLOT_CONFIGS_EXPORT } from './EquipmentHUD';
 import { ShopModal } from './ShopModal';
 import { useAppContext } from '../AppContext';
+import { getItemStats, shouldHaveStats } from '../services/itemStats';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -110,26 +111,42 @@ const InventoryItemCard: React.FC<{
                           )}
                         </div>
                         <p className="text-sm text-gray-400 truncate">{item.description}</p>
-                        {/* Stats display */}
-                        {(item.armor || item.damage || item.value) && (
-                          <div className="flex gap-3 mt-1 text-xs flex-wrap">
-                            {item.armor && (
-                              <span className="text-blue-400 flex items-center gap-1">
-                                <Shield size={12} /> {item.armor}
-                              </span>
-                            )}
-                            {item.damage && (
-                              <span className="text-red-400 flex items-center gap-1">
-                                <Sword size={12} /> {item.damage}
-                              </span>
-                            )}
-                            {item.value && (
-                              <span className="text-yellow-500 flex items-center gap-1">
-                                <Coins size={12} /> {item.value}g
-                              </span>
-                            )}
-                          </div>
-                        )}
+                        {/* Stats display - get from item or itemStats service */}
+                        {(() => {
+                          let displayArmor = item.armor;
+                          let displayDamage = item.damage;
+                          let displayValue = item.value;
+                          
+                          // If item doesn't have stats but should, get from itemStats
+                          if ((displayArmor === undefined || displayDamage === undefined) && shouldHaveStats(item.type)) {
+                            const stats = getItemStats(item.name, item.type);
+                            if (displayArmor === undefined) displayArmor = stats.armor;
+                            if (displayDamage === undefined) displayDamage = stats.damage;
+                            if (displayValue === undefined) displayValue = stats.value;
+                          }
+                          
+                          if (!displayArmor && !displayDamage && !displayValue) return null;
+                          
+                          return (
+                            <div className="flex gap-3 mt-1 text-xs flex-wrap">
+                              {displayDamage && (
+                                <span className="text-red-400 flex items-center gap-1">
+                                  <Sword size={12} /> {displayDamage}
+                                </span>
+                              )}
+                              {displayArmor && (
+                                <span className="text-blue-400 flex items-center gap-1">
+                                  <Shield size={12} /> {displayArmor}
+                                </span>
+                              )}
+                              {displayValue && (
+                                <span className="text-yellow-500 flex items-center gap-1">
+                                  <Coins size={12} /> {displayValue}g
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                         <div className="flex gap-2 mt-2 flex-wrap">
                             {canEquip && (
                               <button 

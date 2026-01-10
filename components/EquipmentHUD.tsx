@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { InventoryItem, EquipmentSlot } from '../types';
 import { Sword, Shield, Crown, Shirt, Hand, Footprints, CircleDot, Gem, X, Swords } from 'lucide-react';
+import { getItemStats, shouldHaveStats } from '../services/itemStats';
 
 interface EquipmentHUDProps {
   items: InventoryItem[];
@@ -60,8 +61,18 @@ export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, on
     let damage = 0;
     
     items.filter(i => i.equipped).forEach(item => {
-      armor += item.armor || 0;
-      damage += item.damage || 0;
+      // Get stats from item, or fall back to itemStats service
+      let itemArmor = item.armor;
+      let itemDamage = item.damage;
+      
+      if ((itemArmor === undefined || itemDamage === undefined) && shouldHaveStats(item.type)) {
+        const stats = getItemStats(item.name, item.type);
+        if (itemArmor === undefined) itemArmor = stats.armor;
+        if (itemDamage === undefined) itemDamage = stats.damage;
+      }
+      
+      armor += itemArmor || 0;
+      damage += itemDamage || 0;
     });
     
     return { armor, damage };

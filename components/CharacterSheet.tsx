@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, User, Brain, ShieldBan, Zap, Map, Activity, 
 import { generateCharacterProfileImage } from '../services/geminiService';
 import { RestModal, EatModal, DrinkModal, type RestOptions } from './SurvivalModals';
 import { formatSkyrimDateShort } from '../App';
+import { getItemStats, shouldHaveStats } from '../services/itemStats';
 
 interface CharacterSheetProps {
   character: Character;
@@ -199,8 +200,18 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
     const equippedItems: InventoryItem[] = [];
     
     inventory.filter(i => i.equipped).forEach(item => {
-      armor += item.armor || 0;
-      damage += item.damage || 0;
+      // Get stats from item, or fall back to itemStats service
+      let itemArmor = item.armor;
+      let itemDamage = item.damage;
+      
+      if ((itemArmor === undefined || itemDamage === undefined) && shouldHaveStats(item.type)) {
+        const stats = getItemStats(item.name, item.type);
+        if (itemArmor === undefined) itemArmor = stats.armor;
+        if (itemDamage === undefined) itemDamage = stats.damage;
+      }
+      
+      armor += itemArmor || 0;
+      damage += itemDamage || 0;
       equippedItems.push(item);
     });
     
