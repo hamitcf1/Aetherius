@@ -3,7 +3,7 @@ import { Character, Milestone, Perk, InventoryItem, CustomQuest, JournalEntry, S
 import { ChevronDown, ChevronRight, User, Brain, ShieldBan, Zap, Map, Activity, Info, Heart, Droplets, BicepsFlexed, CheckCircle, Circle, Trash2, Plus, Star, LayoutList, Layers, Ghost, Sparkles, ScrollText, Download, Image as ImageIcon, Loader2, Moon, Apple, Shield, Sword, Swords, Calendar } from 'lucide-react';
 import { generateCharacterProfileImage } from '../services/geminiService';
 import { RestModal, EatModal, DrinkModal, type RestOptions } from './SurvivalModals';
-import { formatSkyrimDateShort } from '../App';
+import { formatSkyrimDateShort } from '../utils/skyrimCalendar';
 import { getItemStats, shouldHaveStats } from '../services/itemStats';
 
 interface CharacterSheetProps {

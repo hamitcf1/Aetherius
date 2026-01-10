@@ -30,6 +30,14 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
   const [lastResponse, setLastResponse] = useState<GameStateUpdate | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [mode, setMode] = useState<'action' | 'hero'>('action'); // Mode toggle
+  
+  // Draggable button position
+  const [buttonPos, setButtonPos] = useState({ x: window.innerWidth - 200, y: window.innerHeight - 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [hasDragged, setHasDragged] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [collapsedSide, setCollapsedSide] = useState<'left' | 'right' | 'top' | 'bottom' | null>(null);
 
   // ESC key and body scroll lock
   const handleEscape = useCallback((e: KeyboardEvent) => {
@@ -45,6 +53,90 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
       document.removeEventListener('keydown', handleEscape);
     };
   }, [isOpen, handleEscape]);
+  
+  // Handle drag events
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      setHasDragged(true);
+      
+      const newX = e.clientX - dragOffset.x;
+      const newY = e.clientY - dragOffset.y;
+      
+      // Button dimensions (approximate)
+      const buttonWidth = 200;
+      const buttonHeight = 60;
+      const edgeThreshold = -50; // How far off screen before collapsing
+      
+      // Check if pushed to edges
+      if (newX < edgeThreshold) {
+        setIsCollapsed(true);
+        setCollapsedSide('left');
+        setButtonPos({ x: -buttonWidth + 30, y: Math.max(0, Math.min(window.innerHeight - buttonHeight, newY)) });
+      } else if (newX > window.innerWidth - buttonWidth + 50) {
+        setIsCollapsed(true);
+        setCollapsedSide('right');
+        setButtonPos({ x: window.innerWidth - 30, y: Math.max(0, Math.min(window.innerHeight - buttonHeight, newY)) });
+      } else if (newY < edgeThreshold) {
+        setIsCollapsed(true);
+        setCollapsedSide('top');
+        setButtonPos({ x: Math.max(0, Math.min(window.innerWidth - buttonWidth, newX)), y: -buttonHeight + 30 });
+      } else if (newY > window.innerHeight - buttonHeight + 50) {
+        setIsCollapsed(true);
+        setCollapsedSide('bottom');
+        setButtonPos({ x: Math.max(0, Math.min(window.innerWidth - buttonWidth, newX)), y: window.innerHeight - 30 });
+      } else {
+        setIsCollapsed(false);
+        setCollapsedSide(null);
+        setButtonPos({
+          x: Math.max(0, Math.min(window.innerWidth - buttonWidth, newX)),
+          y: Math.max(0, Math.min(window.innerHeight - buttonHeight, newY))
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, dragOffset]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+    setIsDragging(true);
+    setHasDragged(false);
+  };
+
+  const handleButtonClick = (e: React.MouseEvent) => {
+    if (!hasDragged) {
+      if (isCollapsed) {
+        // Uncollapse button
+        setIsCollapsed(false);
+        setCollapsedSide(null);
+        const buttonWidth = 200;
+        const buttonHeight = 60;
+        setButtonPos({
+          x: Math.max(50, Math.min(window.innerWidth - buttonWidth - 50, buttonPos.x)),
+          y: Math.max(50, Math.min(window.innerHeight - buttonHeight - 50, buttonPos.y))
+        });
+      } else {
+        setIsOpen(true);
+      }
+    }
+  };
 
   const parseBatchInput = (text: string): GameStateUpdate | null => {
     const raw = (text || '').trim();
@@ -159,12 +251,21 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
   if (!isOpen) {
     return (
       <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 p-4 bg-skyrim-gold hover:bg-skyrim-goldHover text-skyrim-dark rounded-full shadow-lg border-2 border-skyrim-dark transition-transform hover:scale-105 z-50 flex items-center gap-2 font-serif font-bold"
-        title="Consult the Game Master"
+        onMouseDown={handleMouseDown}
+        onClick={handleButtonClick}
+        style={{
+          left: `${buttonPos.x}px`,
+          top: `${buttonPos.y}px`,
+          cursor: isDragging ? 'grabbing' : 'grab',
+          transition: isDragging ? 'none' : 'all 0.3s ease'
+        }}
+        className={`fixed p-4 bg-skyrim-gold hover:bg-skyrim-goldHover text-skyrim-dark rounded-full shadow-lg border-2 border-skyrim-dark transition-transform hover:scale-105 z-50 flex items-center gap-2 font-serif font-bold ${
+          isCollapsed ? 'opacity-70 scale-75' : ''
+        }`}
+        title={isCollapsed ? 'Click to restore' : 'Consult the Game Master (drag to move)'}
       >
         <Sparkles size={20} />
-        <span className="hidden md:inline">Consult Game Master</span>
+        {!isCollapsed && <span className="hidden md:inline">Consult Game Master</span>}
       </button>
     );
   }
