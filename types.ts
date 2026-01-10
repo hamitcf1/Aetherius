@@ -375,4 +375,119 @@ export interface GameStateUpdate {
       };
     }>;
   };
+
+  // ============================================================================
+  // COMBAT SYSTEM (triggers turn-based combat)
+  // ============================================================================
+  combatStart?: {
+    enemies: CombatEnemy[];
+    location: string;
+    ambush?: boolean; // Enemy gets first turn
+    fleeAllowed?: boolean;
+    surrenderAllowed?: boolean;
+  };
+}
+
+// ============================================================================
+// COMBAT SYSTEM TYPES
+// ============================================================================
+
+export type CombatActionType = 'attack' | 'power_attack' | 'magic' | 'shout' | 'item' | 'defend' | 'flee' | 'surrender';
+
+export interface CombatAbility {
+  id: string;
+  name: string;
+  type: 'melee' | 'ranged' | 'magic' | 'shout';
+  damage: number;
+  cost: number; // stamina for melee, magicka for magic
+  cooldown?: number; // turns until can use again
+  effects?: CombatEffect[];
+  description: string;
+  animation?: string; // for UI flavor
+}
+
+export interface CombatEffect {
+  type: 'damage' | 'heal' | 'buff' | 'debuff' | 'dot' | 'stun' | 'drain';
+  stat?: 'health' | 'magicka' | 'stamina' | 'armor' | 'damage';
+  value: number;
+  duration?: number; // turns
+  chance?: number; // 0-100
+}
+
+export interface CombatEnemy {
+  id: string;
+  name: string;
+  type: 'humanoid' | 'beast' | 'undead' | 'daedra' | 'dragon' | 'automaton';
+  level: number;
+  maxHealth: number;
+  currentHealth: number;
+  maxMagicka?: number;
+  currentMagicka?: number;
+  maxStamina?: number;
+  currentStamina?: number;
+  armor: number;
+  damage: number;
+  abilities: CombatAbility[];
+  weaknesses?: string[]; // e.g., 'fire', 'silver'
+  resistances?: string[]; // e.g., 'frost', 'poison'
+  loot?: Array<{ name: string; type: string; description: string; quantity: number; dropChance: number }>;
+  xpReward: number;
+  goldReward?: number;
+  isBoss?: boolean;
+  description?: string;
+  // Combat AI behavior
+  behavior: 'aggressive' | 'defensive' | 'tactical' | 'support' | 'berserker';
+  // Status effects currently on this enemy
+  activeEffects?: Array<{ effect: CombatEffect; turnsRemaining: number }>;
+}
+
+export interface CombatState {
+  active: boolean;
+  turn: number;
+  currentTurnActor: 'player' | string; // 'player' or enemy id
+  turnOrder: string[]; // IDs in initiative order
+  enemies: CombatEnemy[];
+  location: string;
+  fleeAllowed: boolean;
+  surrenderAllowed: boolean;
+  combatLog: CombatLogEntry[];
+  playerDefending: boolean;
+  playerActiveEffects: Array<{ effect: CombatEffect; turnsRemaining: number }>;
+  // Cooldowns for player abilities
+  abilityCooldowns: Record<string, number>;
+  // Combat result when finished
+  result?: 'victory' | 'defeat' | 'fled' | 'surrendered';
+  rewards?: {
+    xp: number;
+    gold: number;
+    items: Array<{ name: string; type: string; description: string; quantity: number }>;
+  };
+}
+
+export interface CombatLogEntry {
+  turn: number;
+  actor: string;
+  action: string;
+  target?: string;
+  damage?: number;
+  healing?: number;
+  effect?: string;
+  narrative: string;
+  timestamp: number;
+}
+
+export interface PlayerCombatStats {
+  // Calculated from character stats + equipment
+  maxHealth: number;
+  currentHealth: number;
+  maxMagicka: number;
+  currentMagicka: number;
+  maxStamina: number;
+  currentStamina: number;
+  armor: number;
+  weaponDamage: number;
+  critChance: number;
+  dodgeChance: number;
+  magicResist: number;
+  abilities: CombatAbility[];
 }

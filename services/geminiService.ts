@@ -645,3 +645,185 @@ export const generateCharacterProfileImage = async (
     return null;
   }
 };
+
+// ============================================================================
+// COMBAT NARRATION
+// ============================================================================
+
+export interface CombatNarrationRequest {
+  action: string;
+  actor: string;
+  target?: string;
+  damage?: number;
+  isCrit?: boolean;
+  effect?: string;
+  context: {
+    location: string;
+    turn: number;
+    playerHealth: number;
+    playerMaxHealth: number;
+    enemyName?: string;
+    enemyHealth?: number;
+    enemyMaxHealth?: number;
+  };
+}
+
+export const generateCombatNarration = async (
+  request: CombatNarrationRequest
+): Promise<string> => {
+  const prompt = `You are a dramatic combat narrator for a Skyrim RPG. Write a SHORT, vivid 1-2 sentence description of this combat action.
+
+ACTION: ${request.actor} uses "${request.action}"${request.target ? ` against ${request.target}` : ''}
+${request.damage ? `DAMAGE DEALT: ${request.damage}${request.isCrit ? ' (CRITICAL HIT!)' : ''}` : ''}
+${request.effect ? `SPECIAL EFFECT: ${request.effect}` : ''}
+
+CONTEXT:
+- Location: ${request.context.location}
+- Turn: ${request.context.turn}
+- Player Health: ${request.context.playerHealth}/${request.context.playerMaxHealth}
+${request.context.enemyName ? `- Enemy: ${request.context.enemyName} (${request.context.enemyHealth}/${request.context.enemyMaxHealth} HP)` : ''}
+
+Write ONLY the narration, no quotes or extra formatting. Be dramatic but brief. Use Skyrim-appropriate language.`;
+
+  try {
+    return await executeWithFallback(async (model, apiKey) => {
+      const ai = getClientForModel(model, apiKey);
+      const response = await ai.models.generateContent({
+        model: model,
+        contents: prompt
+      });
+      return response.text?.trim() || `${request.actor} attacks!`;
+    }, { preferredModel: 'gemini-2.5-flash-lite', fallbackChain: TEXT_MODEL_FALLBACK_CHAIN });
+  } catch (error) {
+    console.error("Combat narration error:", error);
+    // Fallback to simple narration
+    if (request.damage) {
+      return `${request.actor} strikes ${request.target || 'the enemy'} for ${request.damage} damage!`;
+    }
+    return `${request.actor} ${request.action}!`;
+  }
+};
+
+// Generate enemies for combat encounter based on context
+export const generateCombatEncounter = async (
+  context: string,
+  difficulty: 'easy' | 'medium' | 'hard' | 'boss' = 'medium',
+  playerLevel: number = 1
+): Promise<GameStateUpdate> => {
+  const prompt = `You are a Game Master for a Skyrim RPG. Generate a combat encounter based on the context.
+
+CONTEXT: ${context}
+DIFFICULTY: ${difficulty}
+PLAYER LEVEL: ${playerLevel}
+
+Generate 1-3 enemies appropriate for the situation. For ${difficulty} difficulty:
+- easy: 1 weak enemy or 2 very weak enemies
+- medium: 1-2 moderate enemies
+- hard: 2-3 strong enemies or 1 very strong enemy
+- boss: 1 boss enemy with high stats
+
+Return JSON with this structure:
+{
+  "narrative": { "title": "Combat Title", "content": "Description of enemies appearing..." },
+  "combatStart": {
+    "enemies": [
+      {
+        "name": "Enemy Name",
+        "type": "humanoid|beast|undead|daedra|dragon|automaton",
+        "level": number,
+        "maxHealth": number,
+        "currentHealth": number,
+        "armor": number,
+        "damage": number,
+        "behavior": "aggressive|defensive|tactical|support|berserker",
+        "abilities": [
+          { "id": "unique_id", "name": "Ability Name", "type": "melee|ranged|magic", "damage": number, "cost": number, "description": "..." }
+        ],
+        "weaknesses": ["fire", "silver", etc] or [],
+        "resistances": ["frost", "poison", etc] or [],
+        "xpReward": number,
+        "goldReward": number,
+        "loot": [
+          { "name": "Item", "type": "weapon|apparel|misc|ingredient", "description": "...", "quantity": 1, "dropChance": 50 }
+        ],
+        "isBoss": boolean
+      }
+    ],
+    "location": "Location name",
+    "ambush": boolean,
+    "fleeAllowed": boolean,
+    "surrenderAllowed": boolean
+  },
+  "ambientContext": { "inCombat": true, "mood": "tense" }
+}
+
+Scale enemy stats appropriately:
+- Level should be within 2 of player level
+- Health: 30-50 (weak), 50-80 (medium), 80-150 (strong), 150+ (boss)
+- Armor: 5-15 (light), 15-35 (medium), 35-60 (heavy)
+- Damage: 8-15 (low), 15-25 (medium), 25-40 (high)
+- XP: 15-30 (weak), 30-60 (medium), 60-150 (strong), 150+ (boss)
+
+Return ONLY valid JSON.`;
+
+  try {
+    return await executeWithFallback(async (model, apiKey) => {
+      const ai = getClientForModel(model, apiKey);
+      
+      const run = async (useJsonMode: boolean) => {
+        const config = useJsonMode
+          ? { responseMimeType: 'application/json' as const }
+          : undefined;
+        return await ai.models.generateContent({
+          model: model,
+          contents: prompt,
+          ...(config ? { config } : {})
+        });
+      };
+
+      let response: any;
+      try {
+        response = await run(supportsJsonMimeType(model));
+      } catch (e) {
+        if (isJsonModeNotEnabledError(e)) {
+          response = await run(false);
+        } else {
+          throw e;
+        }
+      }
+
+      const text = response.text || "{}";
+      const json = extractJsonObject(text) || "{}";
+      return JSON.parse(json);
+    }, { preferredModel: 'gemini-3-flash', fallbackChain: TEXT_MODEL_FALLBACK_CHAIN });
+  } catch (error) {
+    console.error("Combat encounter generation error:", error);
+    // Return a default bandit encounter
+    return {
+      narrative: { title: "Ambush!", content: "A bandit emerges from the shadows, weapon drawn!" },
+      combatStart: {
+        enemies: [{
+          id: `bandit_${Date.now()}`,
+          name: "Bandit",
+          type: "humanoid",
+          level: Math.max(1, playerLevel - 1),
+          maxHealth: 50,
+          currentHealth: 50,
+          armor: 15,
+          damage: 12,
+          behavior: "aggressive",
+          abilities: [
+            { id: 'slash', name: 'Slash', type: 'melee', damage: 12, cost: 10, description: 'A quick slash' }
+          ],
+          xpReward: 25,
+          goldReward: 10
+        }],
+        location: "Unknown",
+        ambush: false,
+        fleeAllowed: true,
+        surrenderAllowed: false
+      },
+      ambientContext: { inCombat: true, mood: "tense" }
+    };
+  }
+};

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    INITIAL_CHARACTER_TEMPLATE, Character, CustomQuest, JournalEntry, UserProfile, InventoryItem, StoryChapter, GameStateUpdate, GeneratedCharacterData 
+    INITIAL_CHARACTER_TEMPLATE, Character, CustomQuest, JournalEntry, UserProfile, InventoryItem, StoryChapter, GameStateUpdate, GeneratedCharacterData, CombatState, CombatEnemy 
 } from './types';
 import { CharacterSheet } from './components/CharacterSheet';
 import ActionBar, { ActionBarToggle } from './components/ActionBar';
@@ -13,10 +13,15 @@ import { AIScribe } from './components/AIScribe';
 import { AdventureChat } from './components/AdventureChat';
 import { CharacterSelect } from './components/CharacterSelect';
 import { OnboardingModal } from './components/OnboardingModal';
+import { CombatModal } from './components/CombatModal';
 import UpdateNotification from './components/UpdateNotification';
 import { User, Scroll, BookOpen, Skull, Package, Feather, LogOut, Users, Loader, Save, Swords } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { setCurrentUser as setFeatureFlagUser } from './featureFlags';
+import { 
+  initializeCombat,
+  calculatePlayerCombatStats
+} from './services/combatService';
 import { 
   auth,
   onAuthChange, 
@@ -234,6 +239,9 @@ const App: React.FC = () => {
   const [quests, setQuests] = useState<CustomQuest[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [storyChapters, setStoryChapters] = useState<StoryChapter[]>([]);
+
+  // Combat State
+  const [combatState, setCombatState] = useState<CombatState | null>(null);
 
   // Onboarding (shown to new users)
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
@@ -1572,6 +1580,22 @@ const App: React.FC = () => {
           }));
       }
 
+      // 5c. Combat Start - Initialize turn-based combat
+      if (updates.combatStart && updates.combatStart.enemies?.length) {
+        const combatData = updates.combatStart;
+        const initializedCombat = initializeCombat(
+          combatData.enemies as CombatEnemy[],
+          combatData.location,
+          combatData.ambush ?? false,
+          combatData.fleeAllowed ?? true,
+          combatData.surrenderAllowed ?? false
+        );
+        setCombatState(initializedCombat);
+        
+        // Switch to combat music
+        updateMusicForContext({ inCombat: true, mood: 'tense' });
+      }
+
       // 6. Gold
       if (typeof updates.goldChange === 'number' && updates.goldChange !== 0) {
          setCharacters(prev => prev.map(c => {
@@ -2004,6 +2028,81 @@ const App: React.FC = () => {
 
         {/* AI Game Master */}
         <AIScribe contextData={getAIContext()} onUpdateState={handleGameUpdate} model={aiModel} />
+
+        {/* Combat Modal - Full screen overlay when combat is active */}
+        {combatState && activeCharacter && (
+          <CombatModal
+            character={activeCharacter}
+            inventory={getCharacterItems()}
+            initialCombatState={combatState}
+            onCombatEnd={(result, rewards, finalVitals) => {
+              // Close combat modal
+              setCombatState(null);
+              
+              // Return to peaceful music
+              updateMusicForContext({ inCombat: false, mood: result === 'victory' ? 'triumphant' : 'peaceful' });
+              
+              // Apply combat results
+              if (result === 'victory' && rewards) {
+                // Apply rewards
+                handleGameUpdate({
+                  narrative: {
+                    title: 'Victory!',
+                    content: `You have emerged victorious from combat! Gained ${rewards.xp} experience${rewards.gold > 0 ? ` and ${rewards.gold} gold` : ''}.`
+                  },
+                  xpChange: rewards.xp,
+                  goldChange: rewards.gold,
+                  newItems: rewards.items.length > 0 ? rewards.items : undefined,
+                  vitalsChange: finalVitals ? {
+                    currentHealth: finalVitals.health - (activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health),
+                    currentMagicka: finalVitals.magicka - (activeCharacter.currentVitals?.currentMagicka ?? activeCharacter.stats.magicka),
+                    currentStamina: finalVitals.stamina - (activeCharacter.currentVitals?.currentStamina ?? activeCharacter.stats.stamina)
+                  } : undefined
+                });
+              } else if (result === 'defeat') {
+                // Handle defeat - character might die or be captured
+                handleGameUpdate({
+                  narrative: {
+                    title: 'Defeated...',
+                    content: 'You have fallen in battle. The world grows dark as consciousness slips away...'
+                  },
+                  vitalsChange: {
+                    currentHealth: -(activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health) + 1 // Leave at 1 HP
+                  }
+                });
+              } else if (result === 'fled') {
+                handleGameUpdate({
+                  narrative: {
+                    title: 'Escaped!',
+                    content: 'You managed to escape from the battle, but the threat may still linger...'
+                  },
+                  vitalsChange: finalVitals ? {
+                    currentHealth: finalVitals.health - (activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health),
+                    currentMagicka: finalVitals.magicka - (activeCharacter.currentVitals?.currentMagicka ?? activeCharacter.stats.magicka),
+                    currentStamina: finalVitals.stamina - (activeCharacter.currentVitals?.currentStamina ?? activeCharacter.stats.stamina)
+                  } : undefined
+                });
+              } else if (result === 'surrendered') {
+                handleGameUpdate({
+                  narrative: {
+                    title: 'Surrender',
+                    content: 'You lay down your weapons and surrender to your foes...'
+                  },
+                  vitalsChange: finalVitals ? {
+                    currentHealth: finalVitals.health - (activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health),
+                    currentMagicka: finalVitals.magicka - (activeCharacter.currentVitals?.currentMagicka ?? activeCharacter.stats.magicka),
+                    currentStamina: finalVitals.stamina - (activeCharacter.currentVitals?.currentStamina ?? activeCharacter.stats.stamina)
+                  } : undefined
+                });
+              }
+            }}
+            onNarrativeUpdate={(narrative) => {
+              // Optionally log combat narratives to story
+              // For now, just console log
+              console.log('[Combat Narrative]', narrative);
+            }}
+          />
+        )}
 
         {/* Update Notification */}
         <UpdateNotification position="bottom" />
