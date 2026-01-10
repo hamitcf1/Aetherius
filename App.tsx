@@ -1712,10 +1712,16 @@ const App: React.FC = () => {
       setDirtyEntities(prev => new Set([...prev, entry.id]));
 
       // 8. Automatic Music Update based on ambient context (only when explicitly provided)
-      if (updates.ambientContext) {
+      // BUT: Don't override if combat was just started in this same update
+      if (updates.ambientContext && !updates.combatStart) {
+        // Check if we're in combat from multiple sources
+        const isInCombat = updates.ambientContext.inCombat 
+          ?? (updates.simulationUpdate?.phaseChange === 'combat')
+          ?? Boolean(combatState); // Also check existing combat state
+        
         const ambientCtx: AmbientContext = {
           localeType: updates.ambientContext.localeType,
-          inCombat: updates.ambientContext.inCombat ?? (updates.simulationUpdate?.phaseChange === 'combat'),
+          inCombat: isInCombat,
           mood: updates.ambientContext.mood,
           timeOfDay: (activeCharacter as any)?.time?.hour ?? 12
         };
