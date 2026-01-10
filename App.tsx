@@ -1800,38 +1800,14 @@ const App: React.FC = () => {
       setJournalEntries(prev => [...prev, entry]);
       setDirtyEntities(prev => new Set([...prev, entry.id]));
 
-      // 8. Automatic Music Update based on ambient context
-      if (updates.ambientContext || updates.simulationUpdate?.sceneStart) {
+      // 8. Automatic Music Update based on ambient context (only when explicitly provided)
+      if (updates.ambientContext) {
         const ambientCtx: AmbientContext = {
-          localeType: updates.ambientContext?.localeType,
-          inCombat: updates.ambientContext?.inCombat || updates.simulationUpdate?.phaseChange === 'combat',
-          mood: updates.ambientContext?.mood,
+          localeType: updates.ambientContext.localeType,
+          inCombat: updates.ambientContext.inCombat ?? (updates.simulationUpdate?.phaseChange === 'combat'),
+          mood: updates.ambientContext.mood,
           timeOfDay: (activeCharacter as any)?.time?.hour ?? 12
         };
-        // Also check sceneStart for locale hints
-        if (updates.simulationUpdate?.sceneStart) {
-          const loc = updates.simulationUpdate.sceneStart.location?.toLowerCase() || '';
-          const sceneType = updates.simulationUpdate.sceneStart.type;
-          
-          // Infer locale type from scene info if not explicitly set
-          if (!ambientCtx.localeType) {
-            if (sceneType === 'combat') {
-              ambientCtx.inCombat = true;
-            } else if (loc.includes('tavern') || loc.includes('inn') || loc.includes('bar')) {
-              ambientCtx.localeType = 'tavern';
-            } else if (loc.includes('dungeon') || loc.includes('cave') || loc.includes('ruin') || loc.includes('crypt')) {
-              ambientCtx.localeType = 'dungeon';
-            } else if (loc.includes('city') || loc.includes('whiterun') || loc.includes('solitude') || loc.includes('riften') || loc.includes('windhelm') || loc.includes('markarth')) {
-              ambientCtx.localeType = 'city';
-            } else if (loc.includes('road') || loc.includes('path') || loc.includes('trail')) {
-              ambientCtx.localeType = 'road';
-            } else if (loc.includes('house') || loc.includes('shop') || loc.includes('hall') || loc.includes('temple')) {
-              ambientCtx.localeType = 'interior';
-            } else {
-              ambientCtx.localeType = 'wilderness';
-            }
-          }
-        }
         updateMusicForContext(ambientCtx);
       }
   };

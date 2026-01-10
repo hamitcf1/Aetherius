@@ -404,19 +404,19 @@ export interface AmbientContext {
  * Priority: Combat > Locale Type > Time of Day > Default
  */
 export function selectMusicTrack(context: AmbientContext): MusicTrack {
-  // Combat takes highest priority
-  if (context.inCombat) {
+  // Combat takes highest priority - ALWAYS override locale
+  if (context.inCombat === true) {
     return 'combat';
   }
 
-  // Locale-based music
+  // Locale-based music (only if not in combat)
   if (context.localeType) {
     switch (context.localeType) {
       case 'tavern':
         return 'tavern';
       case 'dungeon':
-        // Dungeons get exploration or tense music
-        return context.mood === 'tense' ? 'combat' : 'exploration';
+        // Dungeons get exploration or mysterious music (combat handled above)
+        return context.mood === 'mysterious' ? 'exploration' : 'exploration';
       case 'city':
       case 'interior':
         return 'peaceful';
