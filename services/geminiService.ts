@@ -2,36 +2,116 @@
 import { GoogleGenAI } from "@google/genai";
 import { GameStateUpdate, GeneratedCharacterData } from "../types";
 
-export type PreferredAIModel =
-  | 'gemini-2.0-flash'
-  | 'gemma-3-27b-it'
-  | 'gemma-3-4b-it';
+// ========== AVAILABLE MODELS ==========
+// Only these models are available and should be used:
+const AVAILABLE_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-3-flash',
+  'gemma-3-12b',
+  'gemma-3-2b',
+  'gemma-3-1b',
+  'gemma-3-27b',
+  'gemma-3-4b',
+] as const;
+
+type AvailableModel = typeof AVAILABLE_MODELS[number];
+
+// Fallback chains for different use cases
+const TEXT_MODEL_FALLBACK_CHAIN: AvailableModel[] = [
+  'gemini-3-flash',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemma-3-27b',
+  'gemma-3-12b',
+  'gemma-3-4b',
+  'gemma-3-2b',
+  'gemma-3-1b',
+];
+
+const IMAGE_MODEL_FALLBACK_CHAIN: AvailableModel[] = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-3-flash',
+];
+
+export type PreferredAIModel = AvailableModel;
 
 export const PREFERRED_AI_MODELS: Array<{ id: PreferredAIModel; label: string }> = [
-  { id: 'gemini-2.0-flash', label: 'Gemini Flash (latest)' },
-  { id: 'gemma-3-27b-it', label: 'Gemma 3 27B' },
-  { id: 'gemma-3-4b-it', label: 'Gemma 3 4B' },
+  { id: 'gemini-3-flash', label: 'Gemini 3 Flash (Latest)' },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite' },
+  { id: 'gemma-3-27b', label: 'Gemma 3 27B' },
+  { id: 'gemma-3-12b', label: 'Gemma 3 12B' },
+  { id: 'gemma-3-4b', label: 'Gemma 3 4B' },
 ];
 
 const viteEnv: any = (import.meta as any).env || {};
 
-const getGeminiApiKey = () =>
+// ========== API KEY MANAGEMENT (3 keys) ==========
+const getGeminiApiKey1 = () =>
   viteEnv.VITE_API_KEY ||
   viteEnv.VITE_GEMINI_API_KEY ||
-  // These are injected by Vite `define` in vite.config.ts
   process.env.API_KEY ||
   process.env.GEMINI_API_KEY ||
   '';
 
+const getGeminiApiKey2 = () =>
+  viteEnv.VITE_GEMINI_API_KEY_2 ||
+  process.env.GEMINI_API_KEY_2 ||
+  '';
+
+const getGeminiApiKey3 = () =>
+  viteEnv.VITE_GEMINI_API_KEY_3 ||
+  process.env.GEMINI_API_KEY_3 ||
+  '';
+
 const getGemmaApiKey = () =>
   viteEnv.VITE_GEMMA_API_KEY ||
-  // These are injected by Vite `define` in vite.config.ts
   process.env.GEMMA_API_KEY ||
   process.env.gemma_api_key ||
   '';
 
-let aiGemini: GoogleGenAI | null = null;
-let aiGemma: GoogleGenAI | null = null;
+// Get all available API keys
+const getAllApiKeys = (): string[] => {
+  const keys: string[] = [];
+  const key1 = getGeminiApiKey1();
+  const key2 = getGeminiApiKey2();
+  const key3 = getGeminiApiKey3();
+  const gemmaKey = getGemmaApiKey();
+  
+  if (key1) keys.push(key1);
+  if (key2) keys.push(key2);
+  if (key3) keys.push(key3);
+  if (gemmaKey && !keys.includes(gemmaKey)) keys.push(gemmaKey);
+  
+  return keys;
+};
+
+// Track exhausted API keys to avoid retrying them
+const exhaustedApiKeys = new Set<string>();
+const keyExhaustionTimeout = 60000; // Reset after 1 minute
+
+const markKeyExhausted = (key: string) => {
+  exhaustedApiKeys.add(key);
+  setTimeout(() => exhaustedApiKeys.delete(key), keyExhaustionTimeout);
+};
+
+const getAvailableApiKey = (forGemma: boolean = false): string | null => {
+  if (forGemma) {
+    const gemmaKey = getGemmaApiKey();
+    if (gemmaKey && !exhaustedApiKeys.has(gemmaKey)) return gemmaKey;
+  }
+  
+  const allKeys = getAllApiKeys();
+  for (const key of allKeys) {
+    if (!exhaustedApiKeys.has(key)) return key;
+  }
+  return null;
+};
+
+// Client cache with API key tracking
+const clientCache = new Map<string, GoogleGenAI>();
 
 const isGemmaModel = (modelId: string) => modelId.toLowerCase().startsWith('gemma');
 
@@ -71,18 +151,19 @@ const extractJsonObject = (text: string): string | null => {
   return null;
 };
 
-const getClientForModel = (modelId: string): GoogleGenAI => {
-  if (isGemmaModel(modelId)) {
-    const key = getGemmaApiKey();
-    if (!key) throw new Error('GEMMA_API_KEY not found.');
-    aiGemma ??= new GoogleGenAI({ apiKey: key });
-    return aiGemma;
+const getClientForModel = (modelId: string, specificKey?: string): GoogleGenAI => {
+  const forGemma = isGemmaModel(modelId);
+  const key = specificKey || getAvailableApiKey(forGemma);
+  
+  if (!key) {
+    throw new Error(forGemma ? 'No available GEMMA API key found.' : 'No available GEMINI API key found.');
   }
-
-  const key = getGeminiApiKey();
-  if (!key) throw new Error('API_KEY/GEMINI_API_KEY not found.');
-  aiGemini ??= new GoogleGenAI({ apiKey: key });
-  return aiGemini;
+  
+  if (!clientCache.has(key)) {
+    clientCache.set(key, new GoogleGenAI({ apiKey: key }));
+  }
+  
+  return clientCache.get(key)!;
 };
 
 const isQuotaError = (error: any): boolean => {
@@ -98,106 +179,175 @@ const isQuotaError = (error: any): boolean => {
   );
 };
 
+const isRetryableError = (error: any): boolean => {
+  const msg = String(error?.message || '').toLowerCase();
+  const raw = String(error?.toString?.() || '').toLowerCase();
+  return (
+    isQuotaError(error) ||
+    msg.includes('500') ||
+    msg.includes('503') ||
+    msg.includes('unavailable') ||
+    msg.includes('overloaded') ||
+    msg.includes('internal') ||
+    raw.includes('internal_error') ||
+    raw.includes('service_unavailable')
+  );
+};
+
+// ========== SEAMLESS FALLBACK EXECUTION ==========
+interface FallbackOptions {
+  preferredModel?: string;
+  fallbackChain?: AvailableModel[];
+  isImageGeneration?: boolean;
+}
+
+const executeWithFallback = async <T>(
+  operation: (model: string, apiKey: string) => Promise<T>,
+  options: FallbackOptions = {}
+): Promise<T> => {
+  const { 
+    preferredModel, 
+    fallbackChain = TEXT_MODEL_FALLBACK_CHAIN,
+    isImageGeneration = false 
+  } = options;
+  
+  // Build the model list to try
+  const modelsToTry: AvailableModel[] = [];
+  
+  // Add preferred model first if it's in available models
+  if (preferredModel && AVAILABLE_MODELS.includes(preferredModel as AvailableModel)) {
+    modelsToTry.push(preferredModel as AvailableModel);
+  }
+  
+  // Add rest of fallback chain
+  for (const model of fallbackChain) {
+    if (!modelsToTry.includes(model)) {
+      modelsToTry.push(model);
+    }
+  }
+  
+  const errors: Array<{ model: string; error: any }> = [];
+  
+  for (const model of modelsToTry) {
+    const forGemma = isGemmaModel(model);
+    const allKeys = forGemma ? [getGemmaApiKey()] : getAllApiKeys();
+    
+    for (const apiKey of allKeys) {
+      if (!apiKey || exhaustedApiKeys.has(apiKey)) continue;
+      
+      try {
+        console.log(`[Gemini Service] Trying model: ${model}`);
+        const result = await operation(model, apiKey);
+        return result;
+      } catch (error: any) {
+        console.warn(`[Gemini Service] Model ${model} failed:`, error?.message || error);
+        errors.push({ model, error });
+        
+        if (isQuotaError(error)) {
+          markKeyExhausted(apiKey);
+          console.warn(`[Gemini Service] API key exhausted, trying next...`);
+        }
+        
+        if (!isRetryableError(error)) {
+          // Non-retryable error, skip to next model
+          break;
+        }
+      }
+    }
+  }
+  
+  // All models failed
+  const lastError = errors[errors.length - 1]?.error;
+  throw lastError || new Error('All models failed. Please try again later.');
+};
+
 export const generateGameMasterResponse = async (
   playerInput: string,
   context: string,
   options?: { model?: string }
 ): Promise<GameStateUpdate> => {
-  const selectedModel = options?.model || 'gemini-3-flash-preview';
-  const ai = getClientForModel(selectedModel);
+  const preferredModel = options?.model || 'gemini-3-flash';
+
+  const fullPrompt = `
+    You are the Game Master (GM) and Scribe for a Skyrim roleplay campaign.
+    
+    CURRENT GAME STATE CONTEXT:
+    ${context}
+
+    PLAYER REQUEST/ACTION:
+    ${playerInput}
+
+    YOUR TASK:
+    1. Write a narrative response (Story Chapter) describing the outcome of the action or filling in the lore details requested.
+    2. Determine if the game state changes (new items found, quests started/completed, stats changed).
+    3. If the player asks to fill in, generate, or modify character details (backstory, psychology, fears, talents, etc.), provide those in the characterUpdates field.
+    
+    OUTPUT FORMAT:
+    Return ONLY a JSON object. Do not wrap in markdown code blocks.
+    Structure:
+    {
+      "narrative": { "title": "Short Title", "content": "The story text..." },
+      "newQuests": [ { "title": "Quest Name", "description": "...", "location": "...", "dueDate": "...", "objectives": [ { "description": "...", "completed": false } ] } ],
+      "updateQuests": [ { "title": "Existing Quest Name", "status": "completed" } ],
+      "newItems": [ { "name": "Item Name", "type": "weapon/potion/etc", "description": "...", "quantity": 1 } ],
+      "removedItems": [ { "name": "Item Name", "quantity": 1 } ],
+      "statUpdates": { "health": 90 },
+      "characterUpdates": {
+        "identity": "Who they are at their core...",
+        "psychology": "Mental state and quirks...",
+        "breakingPoint": "What makes them snap...",
+        "moralCode": "Lines they won't cross...",
+        "fears": "Deep fears...",
+        "weaknesses": "Physical or mental flaws...",
+        "talents": "Natural aptitudes...",
+        "magicApproach": "Attitude toward magic...",
+        "factionAllegiance": "Guild/faction loyalties...",
+        "worldview": "How they see Tamriel...",
+        "daedricPerception": "View of Daedra...",
+        "forcedBehavior": "Compulsive behaviors...",
+        "longTermEvolution": "Character arc over time...",
+        "backstory": "Full backstory narrative..."
+      }
+    }
+    
+    If a field is not needed (e.g., no new items, no character updates), omit it.
+    For characterUpdates, only include fields the player asked to generate or modify.
+    Keep the tone immersive (Tamrielic).
+  `;
 
   try {
-    const model = ai.models;
-    const fullPrompt = `
-      You are the Game Master (GM) and Scribe for a Skyrim roleplay campaign.
+    return await executeWithFallback(async (model, apiKey) => {
+      const ai = getClientForModel(model, apiKey);
       
-      CURRENT GAME STATE CONTEXT:
-      ${context}
-
-      PLAYER REQUEST/ACTION:
-      ${playerInput}
-
-      YOUR TASK:
-      1. Write a narrative response (Story Chapter) describing the outcome of the action or filling in the lore details requested.
-      2. Determine if the game state changes (new items found, quests started/completed, stats changed).
-      3. If the player asks to fill in, generate, or modify character details (backstory, psychology, fears, talents, etc.), provide those in the characterUpdates field.
-      
-      OUTPUT FORMAT:
-      Return ONLY a JSON object. Do not wrap in markdown code blocks.
-      Structure:
-      {
-        "narrative": { "title": "Short Title", "content": "The story text..." },
-        "newQuests": [ { "title": "Quest Name", "description": "...", "location": "...", "dueDate": "...", "objectives": [ { "description": "...", "completed": false } ] } ],
-        "updateQuests": [ { "title": "Existing Quest Name", "status": "completed" } ],
-        "newItems": [ { "name": "Item Name", "type": "weapon/potion/etc", "description": "...", "quantity": 1 } ],
-        "removedItems": [ { "name": "Item Name", "quantity": 1 } ],
-        "statUpdates": { "health": 90 },
-        "characterUpdates": {
-          "identity": "Who they are at their core...",
-          "psychology": "Mental state and quirks...",
-          "breakingPoint": "What makes them snap...",
-          "moralCode": "Lines they won't cross...",
-          "fears": "Deep fears...",
-          "weaknesses": "Physical or mental flaws...",
-          "talents": "Natural aptitudes...",
-          "magicApproach": "Attitude toward magic...",
-          "factionAllegiance": "Guild/faction loyalties...",
-          "worldview": "How they see Tamriel...",
-          "daedricPerception": "View of Daedra...",
-          "forcedBehavior": "Compulsive behaviors...",
-          "longTermEvolution": "Character arc over time...",
-          "backstory": "Full backstory narrative..."
-        }
-      }
-      
-      If a field is not needed (e.g., no new items, no character updates), omit it.
-      For characterUpdates, only include fields the player asked to generate or modify.
-      Keep the tone immersive (Tamrielic).
-    `;
-
-    const run = async (useJsonMode: boolean) => {
-      const config = useJsonMode
-        ? { responseMimeType: 'application/json' as const }
-        : undefined;
-      return await model.generateContent({
-        model: selectedModel,
-        contents: fullPrompt,
-        ...(config ? { config } : {})
-      });
-    };
-
-    let response: any;
-    try {
-      response = await run(supportsJsonMimeType(selectedModel));
-    } catch (e) {
-      // Some models (e.g., Gemma) reject JSON mode. Retry without it.
-      if (isJsonModeNotEnabledError(e)) {
-        response = await run(false);
-      } else {
-        throw e;
-      }
-    }
-
-    const text = response.text || "{}";
-    try {
-        const json = extractJsonObject(text) || "{}";
-        return JSON.parse(json);
-    } catch (e) {
-        console.error("Failed to parse JSON from AI", text);
-        return { narrative: { title: "Error", content: "The Scribe muttered incoherently." } };
-    }
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    if (isQuotaError(error)) {
-      return {
-        narrative: {
-          title: "Quota Exceeded",
-          content:
-            "*The threads of Aetherius tighten...* (API quota exceeded. Open Actions → AI Model and switch to a Gemma model if you have a Gemma key configured.)"
-        }
+      const run = async (useJsonMode: boolean) => {
+        const config = useJsonMode
+          ? { responseMimeType: 'application/json' as const }
+          : undefined;
+        return await ai.models.generateContent({
+          model: model,
+          contents: fullPrompt,
+          ...(config ? { config } : {})
+        });
       };
-    }
-    return { narrative: { title: "Connection Lost", content: "The connection to Aetherius is severed." } };
+
+      let response: any;
+      try {
+        response = await run(supportsJsonMimeType(model));
+      } catch (e) {
+        if (isJsonModeNotEnabledError(e)) {
+          response = await run(false);
+        } else {
+          throw e;
+        }
+      }
+
+      const text = response.text || "{}";
+      const json = extractJsonObject(text) || "{}";
+      return JSON.parse(json);
+    }, { preferredModel, fallbackChain: TEXT_MODEL_FALLBACK_CHAIN });
+  } catch (error) {
+    console.error("Gemini API Error (all models failed):", error);
+    return { narrative: { title: "Connection Lost", content: "The connection to Aetherius is severed. All models exhausted." } };
   }
 };
 
@@ -208,11 +358,9 @@ export const generateAdventureResponse = async (
   systemPrompt: string,
   options?: { model?: PreferredAIModel | string }
 ): Promise<GameStateUpdate> => {
-  const selectedModel = options?.model || 'gemini-2.0-flash';
-  const ai = getClientForModel(String(selectedModel));
+  const preferredModel = String(options?.model || 'gemini-2.5-flash');
 
-  try {
-    const fullPrompt = `${systemPrompt}
+  const fullPrompt = `${systemPrompt}
 
   CURRENT GAME STATE:
   ${context}
@@ -223,32 +371,36 @@ export const generateAdventureResponse = async (
   Remember: Return ONLY valid JSON.
   The "narrative" field MUST be an object: { "title": "...", "content": "..." }.`;
 
-    const run = async (useJsonMode: boolean) => {
-      const config = useJsonMode
-        ? { responseMimeType: 'application/json' as const }
-        : undefined;
-      return await ai.models.generateContent({
-        model: String(selectedModel),
-        contents: fullPrompt,
-        ...(config ? { config } : {})
-      });
-    };
+  try {
+    return await executeWithFallback(async (model, apiKey) => {
+      const ai = getClientForModel(model, apiKey);
 
-    let response: any;
-    try {
-      response = await run(supportsJsonMimeType(String(selectedModel)));
-    } catch (e) {
-      if (isJsonModeNotEnabledError(e)) {
-        response = await run(false);
-      } else {
-        throw e;
+      const run = async (useJsonMode: boolean) => {
+        const config = useJsonMode
+          ? { responseMimeType: 'application/json' as const }
+          : undefined;
+        return await ai.models.generateContent({
+          model: model,
+          contents: fullPrompt,
+          ...(config ? { config } : {})
+        });
+      };
+
+      let response: any;
+      try {
+        response = await run(supportsJsonMimeType(model));
+      } catch (e) {
+        if (isJsonModeNotEnabledError(e)) {
+          response = await run(false);
+        } else {
+          throw e;
+        }
       }
-    }
 
-    const text = response.text || "{}";
-    try {
+      const text = response.text || "{}";
       const json = extractJsonObject(text) || "{}";
       const parsed = JSON.parse(json);
+      
       if (!parsed?.narrative) {
         return { narrative: { title: 'Adventure', content: 'The winds carry no response...' } };
       }
@@ -256,60 +408,39 @@ export const generateAdventureResponse = async (
         return { ...parsed, narrative: { title: 'Adventure', content: parsed.narrative } };
       }
       return parsed;
-    } catch (e) {
-      console.error("Failed to parse adventure response:", text);
-      return { narrative: { title: 'Connection Lost', content: '*The connection to Mundus wavers...* Please try again.' } };
-    }
+    }, { preferredModel, fallbackChain: TEXT_MODEL_FALLBACK_CHAIN });
   } catch (error) {
-    console.error("Adventure API Error:", error);
-    if (isQuotaError(error)) {
-      return {
-        narrative: {
-          title: 'Quota Exceeded',
-          content:
-            '*The connection to Aetherius is sealed by unseen limits...* (API quota exceeded. Switch AI Model to a Gemma model, or wait and retry.)',
-        },
-      };
-    }
-    return { narrative: { title: 'A Dragon Break', content: '*A dragon break disrupts the flow of time...* (API Error)' } };
+    console.error("Adventure API Error (all models failed):", error);
+    return { narrative: { title: 'A Dragon Break', content: '*A dragon break disrupts the flow of time...* All models exhausted.' } };
   }
 };
 
 export const generateLoreImage = async (prompt: string): Promise<string | null> => {
-  const ai = (() => {
-    try {
-      return getClientForModel('gemini-2.5-flash-image');
-    } catch {
-      return null;
-    }
-  })();
-  if (!ai) return null;
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [{ text: `Skyrim fantasy art style, high quality, concept art: ${prompt}` }]
-      },
-      config: {
-        imageConfig: {
+    return await executeWithFallback(async (model, apiKey) => {
+      const ai = getClientForModel(model, apiKey);
+      const response = await ai.models.generateContent({
+        model: model,
+        contents: {
+          parts: [{ text: `Skyrim fantasy art style, high quality, concept art: ${prompt}` }]
+        },
+        config: {
+          imageConfig: {
             aspectRatio: "16:9",
+          }
+        }
+      });
+      
+      // Iterate through parts to find image
+      for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) {
+          return `data:image/png;base64,${part.inlineData.data}`;
         }
       }
-    });
-    
-    // Iterate through parts to find image
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-    return null;
+      throw new Error('No image generated');
+    }, { preferredModel: 'gemini-2.5-flash', fallbackChain: IMAGE_MODEL_FALLBACK_CHAIN, isImageGeneration: true });
   } catch (error: any) {
-    console.error("Image Generation Error:", error);
-    // Handle quota exceeded errors gracefully
-    if (error.message?.includes('429') || error.message?.includes('quota') || error.message?.includes('RESOURCE_EXHAUSTED')) {
-      console.warn("Image generation quota exceeded. Skipping visualization.");
-    }
+    console.error("Image Generation Error (all models failed):", error);
     return null;
   }
 };
@@ -318,13 +449,6 @@ export const generateCharacterProfile = async (
     prompt: string, 
     mode: 'random' | 'chat_result' | 'text_import' = 'random'
 ): Promise<GeneratedCharacterData | null> => {
-    let ai: GoogleGenAI;
-    try {
-      ai = getClientForModel('gemini-3-flash-preview');
-    } catch {
-      return null;
-    }
-
     const baseSchema = `
     {
         "name": "String",
@@ -410,34 +534,73 @@ export const generateCharacterProfile = async (
     }
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: contents,
-            config: { responseMimeType: 'application/json' }
-        });
-        
-        const text = response.text;
-        if (!text) return null;
-        return JSON.parse(text) as GeneratedCharacterData;
+        return await executeWithFallback(async (model, apiKey) => {
+            const ai = getClientForModel(model, apiKey);
+            
+            const run = async (useJsonMode: boolean) => {
+                const config = useJsonMode
+                    ? { responseMimeType: 'application/json' as const }
+                    : undefined;
+                return await ai.models.generateContent({
+                    model: model,
+                    contents: contents,
+                    ...(config ? { config } : {})
+                });
+            };
+
+            let response: any;
+            try {
+                response = await run(supportsJsonMimeType(model));
+            } catch (e) {
+                if (isJsonModeNotEnabledError(e)) {
+                    response = await run(false);
+                } else {
+                    throw e;
+                }
+            }
+            
+            const text = response.text;
+            if (!text) throw new Error('No response text');
+            const json = extractJsonObject(text) || text;
+            return JSON.parse(json) as GeneratedCharacterData;
+        }, { preferredModel: 'gemini-3-flash', fallbackChain: TEXT_MODEL_FALLBACK_CHAIN });
     } catch (e) {
-        console.error("Character Gen Error", e);
+        console.error("Character Gen Error (all models failed)", e);
         return null;
     }
 };
 
 export const chatWithScribe = async (history: {role: 'user' | 'model', parts: [{ text: string }]}[], message: string) => {
-  const ai = getClientForModel('gemini-3-flash-preview');
+    // chatWithScribe uses fallback but keeps chat context, so we try models sequentially
+    const modelsToTry: AvailableModel[] = ['gemini-3-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
     
-    const chat = ai.chats.create({
-        model: 'gemini-3-flash-preview',
-        history: history,
-        config: {
-            systemInstruction: "You are the Character Creation Scribe for a Skyrim RPG app. Your goal is to help the user create a character by asking them questions one by one. \n\nIMPORTANT: You MUST ask for the character's NAME at some point if the user hasn't provided it.\n\nStart by asking about their preferred playstyle or race. Ask 3-4 probing questions about their morality, background, gender, or goals. Keep responses short and immersive. Once you have enough info, or if the user asks to 'finish' or 'generate', output a SPECIAL TOKEN '[[GENERATE_CHARACTER]]' at the end of your message to signal the UI to trigger generation."
-        }
-    });
+    for (const model of modelsToTry) {
+        try {
+            const apiKey = getAvailableApiKey(isGemmaModel(model));
+            if (!apiKey) continue;
+            
+            const ai = getClientForModel(model, apiKey);
+            const chat = ai.chats.create({
+                model: model,
+                history: history,
+                config: {
+                    systemInstruction: "You are the Character Creation Scribe for a Skyrim RPG app. Your goal is to help the user create a character by asking them questions one by one. \n\nIMPORTANT: You MUST ask for the character's NAME at some point if the user hasn't provided it.\n\nStart by asking about their preferred playstyle or race. Ask 3-4 probing questions about their morality, background, gender, or goals. Keep responses short and immersive. Once you have enough info, or if the user asks to 'finish' or 'generate', output a SPECIAL TOKEN '[[GENERATE_CHARACTER]]' at the end of your message to signal the UI to trigger generation."
+                }
+            });
 
-    const result = await chat.sendMessage({ message });
-    return result.text;
+            const result = await chat.sendMessage({ message });
+            return result.text;
+        } catch (error: any) {
+            console.warn(`[chatWithScribe] Model ${model} failed:`, error?.message);
+            if (isQuotaError(error)) {
+                const apiKey = getAvailableApiKey(isGemmaModel(model));
+                if (apiKey) markKeyExhausted(apiKey);
+            }
+            continue;
+        }
+    }
+    
+    throw new Error('All models failed for chatWithScribe');
 };
 
 export const generateCharacterProfileImage = async (
@@ -446,42 +609,33 @@ export const generateCharacterProfileImage = async (
     gender: string,
     archetype: string
 ): Promise<string | null> => {
-  const ai = (() => {
-    try {
-      return getClientForModel('gemini-2.5-flash-image');
-    } catch {
-      return null;
-    }
-  })();
-  if (!ai) return null;
+  const imagePrompt = `A detailed character portrait of a ${gender.toLowerCase()} ${race.split(' ')[0].toLowerCase()} ${archetype.toLowerCase()} named ${characterName} from Skyrim. Fantasy art style, high quality, heroic pose, detailed armor and features, professional fantasy game character design, no text, plain background.`;
+  
   try {
-    const prompt = `A detailed character portrait of a ${gender.toLowerCase()} ${race.split(' ')[0].toLowerCase()} ${archetype.toLowerCase()} named ${characterName} from Skyrim. Fantasy art style, high quality, heroic pose, detailed armor and features, professional fantasy game character design, no text, plain background.`;
-    
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [{ text: prompt }]
-      },
-      config: {
-        imageConfig: {
+    return await executeWithFallback(async (model, apiKey) => {
+      const ai = getClientForModel(model, apiKey);
+      const response = await ai.models.generateContent({
+        model: model,
+        contents: {
+          parts: [{ text: imagePrompt }]
+        },
+        config: {
+          imageConfig: {
             aspectRatio: "1:1",
+          }
+        }
+      });
+      
+      // Iterate through parts to find image
+      for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) {
+          return `data:image/png;base64,${part.inlineData.data}`;
         }
       }
-    });
-    
-    // Iterate through parts to find image
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-    return null;
+      throw new Error('No image generated');
+    }, { preferredModel: 'gemini-2.5-flash', fallbackChain: IMAGE_MODEL_FALLBACK_CHAIN, isImageGeneration: true });
   } catch (error: any) {
-    console.error("Profile Image Generation Error:", error);
-    // Handle quota exceeded errors gracefully
-    if (error.message?.includes('429') || error.message?.includes('quota') || error.message?.includes('RESOURCE_EXHAUSTED')) {
-      console.warn("Profile image generation quota exceeded. Skipping image generation.");
-    }
+    console.error("Profile Image Generation Error (all models failed):", error);
     return null;
   }
 };

@@ -367,6 +367,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   const [showSimulationPanel, setShowSimulationPanel] = useState(false);
   const [simulationWarnings, setSimulationWarnings] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const simulationManagerRef = useRef<SimulationStateManager | null>(null);
 
@@ -481,11 +482,16 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   }, [messages, character, storageKey, userId]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll only within the chat container, not the whole page
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // Small delay to ensure content is rendered before scrolling
+    const timer = setTimeout(scrollToBottom, 50);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   // XP threshold for leveling - 100 XP per level
@@ -1042,7 +1048,10 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       )}
 
       {/* Chat Messages */}
-      <div className="bg-black/30 border border-skyrim-border rounded-lg mb-4 min-h-[400px] max-h-[60vh] overflow-y-auto">
+      <div 
+        ref={chatContainerRef}
+        className="bg-black/30 border border-skyrim-border rounded-lg mb-4 min-h-[400px] max-h-[60vh] overflow-y-auto scroll-smooth"
+      >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[400px] text-gray-500">
             <Scroll size={48} className="mb-4 opacity-50" />

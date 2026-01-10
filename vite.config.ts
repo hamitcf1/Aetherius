@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   const geminiApiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || '';
+  const geminiApiKey2 = env.VITE_GEMINI_API_KEY_2 || env.GEMINI_API_KEY_2 || '';
+  const geminiApiKey3 = env.VITE_GEMINI_API_KEY_3 || env.GEMINI_API_KEY_3 || '';
   const gemmaApiKey = env.VITE_GEMMA_API_KEY || env.GEMMA_API_KEY || env.gemma_api_key || '';
   
   return {
@@ -35,6 +37,8 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env.API_KEY': JSON.stringify(geminiApiKey),
       'process.env.GEMINI_API_KEY': JSON.stringify(geminiApiKey),
+      'process.env.GEMINI_API_KEY_2': JSON.stringify(geminiApiKey2),
+      'process.env.GEMINI_API_KEY_3': JSON.stringify(geminiApiKey3),
       'process.env.GEMMA_API_KEY': JSON.stringify(gemmaApiKey),
       'process.env.gemma_api_key': JSON.stringify(gemmaApiKey)
     },
