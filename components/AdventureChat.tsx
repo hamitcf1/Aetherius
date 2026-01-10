@@ -1746,6 +1746,38 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                               {msg.updates.xpChange > 0 ? '+' : ''}{msg.updates.xpChange} XP ✨
                             </span>
                           )}
+                          {/* Vitals changes (damage/healing) */}
+                          {msg.updates.vitalsChange && (
+                            <>
+                              {typeof msg.updates.vitalsChange.currentHealth === 'number' && msg.updates.vitalsChange.currentHealth !== 0 && (
+                                <span className={`px-2 py-0.5 rounded border ${
+                                  msg.updates.vitalsChange.currentHealth > 0 
+                                    ? 'text-green-400 bg-green-900/20 border-green-900/30' 
+                                    : 'text-red-400 bg-red-900/20 border-red-900/30'
+                                }`}>
+                                  {msg.updates.vitalsChange.currentHealth > 0 ? '💚 +' : '💔 '}{msg.updates.vitalsChange.currentHealth} HP
+                                </span>
+                              )}
+                              {typeof msg.updates.vitalsChange.currentMagicka === 'number' && msg.updates.vitalsChange.currentMagicka !== 0 && (
+                                <span className={`px-2 py-0.5 rounded border ${
+                                  msg.updates.vitalsChange.currentMagicka > 0 
+                                    ? 'text-blue-400 bg-blue-900/20 border-blue-900/30' 
+                                    : 'text-purple-400 bg-purple-900/20 border-purple-900/30'
+                                }`}>
+                                  {msg.updates.vitalsChange.currentMagicka > 0 ? '🔵 +' : '🔮 '}{msg.updates.vitalsChange.currentMagicka} MP
+                                </span>
+                              )}
+                              {typeof msg.updates.vitalsChange.currentStamina === 'number' && msg.updates.vitalsChange.currentStamina !== 0 && (
+                                <span className={`px-2 py-0.5 rounded border ${
+                                  msg.updates.vitalsChange.currentStamina > 0 
+                                    ? 'text-green-400 bg-green-900/20 border-green-900/30' 
+                                    : 'text-yellow-400 bg-yellow-900/20 border-yellow-900/30'
+                                }`}>
+                                  {msg.updates.vitalsChange.currentStamina > 0 ? '⚡ +' : '💨 '}{msg.updates.vitalsChange.currentStamina} SP
+                                </span>
+                              )}
+                            </>
+                          )}
                           {/* Survival needs changes */}
                           {msg.updates.needsChange && (
                             <>
