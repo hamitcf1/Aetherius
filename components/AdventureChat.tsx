@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Character, InventoryItem, CustomQuest, JournalEntry, StoryChapter, GameStateUpdate } from '../types';
-import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X, AlertTriangle, Users } from 'lucide-react';
+import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X, AlertTriangle, Users, Sun, Moon, Sunrise, Sunset, Clock } from 'lucide-react';
 import type { PreferredAIModel } from '../services/geminiService';
 import { getSimulationManager, processAISimulationUpdate, SimulationStateManager, NPC, PlayerFact } from '../services/stateManager';
 import { getTransactionLedger, filterDuplicateTransactions } from '../services/transactionLedger';
@@ -35,6 +35,81 @@ CORE RULES:
 6. If the player does something impossible or lore-breaking, gently redirect them.
 7. End responses with a clear situation the player can respond to.
 
+=== ANTI-REPETITION RULES (CRITICAL) ===
+
+NEVER REPEAT YOURSELF! This is a continuous flowing narrative.
+
+DO NOT:
+- Re-describe scenes you already described in your previous messages
+- Re-introduce NPCs or enemies that are already present
+- Repeat the same environmental details (smells, sounds, weather)
+- Echo back what the player just said or did
+- Start responses with summaries of what happened before
+- Use the same phrases or sentence structures repeatedly
+
+DO:
+- Build upon the previous scene seamlessly
+- Show consequences and changes from the player's actions
+- Introduce NEW details, reactions, or developments
+- Move the story FORWARD with each response
+- Vary your writing style and vocabulary
+- Focus on what's DIFFERENT or CHANGED
+
+Example of BAD continuation (don't do this):
+Previous: "The tavern is warm and crowded. A bard plays in the corner."
+Player: "I order an ale"
+BAD: "The tavern is warm and crowded. The bard continues playing. The innkeeper brings you ale."
+
+Example of GOOD continuation:
+Player: "I order an ale"
+GOOD: "The innkeeper slides a frothy tankard across the worn counter, wiping her hands on her apron. 'Two septims, friend.' A drunk Nord at the next table eyes you curiously."
+
+=== TIME FLOW SYSTEM (REALISTIC PACING) ===
+
+Time passes based on the ACTION TYPE. Use timeAdvanceMinutes appropriately:
+
+INSTANT ACTIONS (0-2 minutes):
+- Single line of dialogue: 0-1 min
+- Quick observation/looking around: 1-2 min
+- Simple reaction or short exchange: 1-2 min
+
+QUICK ACTIONS (2-10 minutes):
+- Brief conversation: 3-5 min
+- Searching a small area: 5-8 min
+- Picking a simple lock: 3-5 min
+- Reading a short note: 2-3 min
+- Drinking/eating at a table: 5-10 min
+
+MODERATE ACTIONS (10-30 minutes):
+- Extended conversation: 10-20 min
+- Detailed search of a room: 15-25 min
+- Combat encounter (few enemies): 10-20 min
+- Shopping/trading: 15-25 min
+- Crafting a simple item: 20-30 min
+
+LONG ACTIONS (30-120 minutes):
+- Major combat encounter: 30-60 min
+- Exploring a dungeon level: 45-90 min
+- Traveling between nearby locations: 30-60 min
+- Detailed crafting: 60-120 min
+- Full meal at inn: 30-45 min
+
+EXTENDED ACTIONS (2+ hours):
+- Traveling between distant locations: 120-480 min (use actual travel time)
+- Sleeping/resting: 360-480 min (6-8 hours)
+- Training a skill: 120-240 min
+- Major quest activities: 180-360 min
+
+IMPORTANT: Most dialogue and simple actions should be 1-10 minutes MAX!
+Don't add an hour for a quick conversation - that's unrealistic.
+
+Example time applications:
+- "I look at the barkeep" → timeAdvanceMinutes: 1
+- "I ask about rumors" → timeAdvanceMinutes: 3
+- "I have a long discussion about the civil war" → timeAdvanceMinutes: 15
+- "I search the entire house for clues" → timeAdvanceMinutes: 25
+- "I travel to Whiterun from Riverwood" → timeAdvanceMinutes: 90
+
 === SURVIVAL NEEDS SYSTEM (IMPORTANT) ===
 
 The character has survival needs tracked on a 0-100 scale:
@@ -43,14 +118,16 @@ The character has survival needs tracked on a 0-100 scale:
 - fatigue: 0 = rested, 100 = exhausted
 
 TIME & NEEDS PROGRESSION (be conservative!):
-- Dialogue, talking, basic interactions: hunger/thirst/fatigue +0.2 to +1 MAX (very minor)
-- Light activity (walking, shopping, exploring town): hunger/thirst +0.5-2, fatigue +0.3-1.5
-- Moderate activity (hiking, light combat, searching): hunger/thirst +2-4, fatigue +1-3
-- Heavy exertion (intense combat, running, climbing): hunger/thirst +4-8, fatigue +3-6
-- Extended travel (hours of walking): hunger/thirst +6-12, fatigue +5-10
+- Dialogue, talking, basic interactions: hunger/thirst/fatigue +0.2 to +0.5 MAX (very minor)
+- Light activity (walking, shopping, exploring town): hunger/thirst +0.5-1.5, fatigue +0.3-1
+- Moderate activity (hiking, light combat, searching): hunger/thirst +1-3, fatigue +1-2
+- Heavy exertion (intense combat, running, climbing): hunger/thirst +2-5, fatigue +2-4
+- Extended travel (hours of walking): hunger/thirst +4-8, fatigue +3-6
 
-IMPORTANT: Don't add significant hunger/thirst/fatigue for simple conversations or minor actions!
-Only add meaningful need increases for physically demanding activities.
+CRITICAL: Scale needs changes to TIME! If only 5 minutes pass, needs barely change.
+- 5 min of talking = hunger +0.2, thirst +0.2, fatigue +0.1
+- 30 min of searching = hunger +1, thirst +1.5, fatigue +0.8
+- 1 hour of travel = hunger +2, thirst +3, fatigue +1.5
 
 AUTO-CONSUMPTION RULES:
 - When hunger > 70: If player has food items, automatically suggest/consume food
@@ -837,6 +914,62 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     };
   };
 
+  // Time of day helper functions
+  const getTimeOfDay = (hour: number): { period: string; icon: React.ReactNode; bgClass: string } => {
+    if (hour >= 5 && hour < 7) {
+      return { period: 'Dawn', icon: <Sunrise size={16} className="text-orange-400" />, bgClass: 'bg-gradient-to-r from-orange-900/30 to-yellow-900/30' };
+    } else if (hour >= 7 && hour < 12) {
+      return { period: 'Morning', icon: <Sun size={16} className="text-yellow-400" />, bgClass: 'bg-gradient-to-r from-yellow-900/20 to-blue-900/20' };
+    } else if (hour >= 12 && hour < 14) {
+      return { period: 'Noon', icon: <Sun size={16} className="text-yellow-300" />, bgClass: 'bg-gradient-to-r from-yellow-800/30 to-yellow-900/30' };
+    } else if (hour >= 14 && hour < 17) {
+      return { period: 'Afternoon', icon: <Sun size={16} className="text-yellow-500" />, bgClass: 'bg-gradient-to-r from-yellow-900/20 to-orange-900/20' };
+    } else if (hour >= 17 && hour < 20) {
+      return { period: 'Evening', icon: <Sunset size={16} className="text-orange-500" />, bgClass: 'bg-gradient-to-r from-orange-900/30 to-purple-900/30' };
+    } else if (hour >= 20 && hour < 22) {
+      return { period: 'Dusk', icon: <Moon size={16} className="text-purple-400" />, bgClass: 'bg-gradient-to-r from-purple-900/30 to-indigo-900/30' };
+    } else {
+      return { period: 'Night', icon: <Moon size={16} className="text-blue-300" />, bgClass: 'bg-gradient-to-r from-indigo-900/40 to-slate-900/40' };
+    }
+  };
+
+  const formatTime = (hour: number, minute: number): string => {
+    const h = hour % 12 || 12;
+    const m = minute.toString().padStart(2, '0');
+    const ampm = hour < 12 ? 'AM' : 'PM';
+    return `${h}:${m} ${ampm}`;
+  };
+
+  const getOrdinalDay = (day: number): string => {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = day % 100;
+    return day + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+
+  // Time display component
+  const TimeDisplay = () => {
+    const time = character?.time || { day: 1, hour: 8, minute: 0 };
+    const { period, icon, bgClass } = getTimeOfDay(time.hour);
+    
+    return (
+      <div className={`flex items-center gap-3 px-4 py-2 rounded-lg border border-skyrim-gold/30 ${bgClass}`}>
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="text-sm font-medium text-gray-200">{period}</span>
+        </div>
+        <div className="h-4 w-px bg-skyrim-gold/30" />
+        <div className="flex items-center gap-2 text-sm">
+          <Clock size={14} className="text-gray-400" />
+          <span className="text-gray-300 font-mono">{formatTime(time.hour, time.minute)}</span>
+        </div>
+        <div className="h-4 w-px bg-skyrim-gold/30" />
+        <div className="text-sm text-gray-400">
+          Day {getOrdinalDay(time.day)}
+        </div>
+      </div>
+    );
+  };
+
   if (!character) {
     return (
       <div className="max-w-4xl mx-auto pb-24 px-2 sm:px-4">
@@ -856,7 +989,12 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
           <Swords size={32} />
           Adventure
         </h1>
-        <p className="text-gray-500 font-sans text-sm">A text-based journey through Skyrim</p>
+        <p className="text-gray-500 font-sans text-sm mb-4">A text-based journey through Skyrim</p>
+        
+        {/* Time Display */}
+        <div className="flex justify-center">
+          <TimeDisplay />
+        </div>
       </div>
 
       {/* AI Model Tip */}
@@ -1124,6 +1262,21 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                   {/* Game state changes indicator */}
                   {msg.role === 'gm' && msg.updates && (
                     <>
+                      {/* Time passage indicator - show prominently when time advances */}
+                      {typeof msg.updates.timeAdvanceMinutes === 'number' && msg.updates.timeAdvanceMinutes > 0 && (
+                        <div className="mt-2 flex items-center gap-2 text-xs font-sans">
+                          <div className="flex items-center gap-1 px-2 py-1 rounded bg-indigo-900/30 border border-indigo-700/50 text-indigo-300">
+                            <Clock size={12} />
+                            <span>
+                              {msg.updates.timeAdvanceMinutes >= 60 
+                                ? `${Math.floor(msg.updates.timeAdvanceMinutes / 60)}h ${msg.updates.timeAdvanceMinutes % 60}m passed`
+                                : `${msg.updates.timeAdvanceMinutes} min passed`
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      
                       {/* Inline item changes (always show) */}
                       {(msg.updates.removedItems?.length || msg.updates.newItems?.length || 
                         (typeof msg.updates.goldChange === 'number' && msg.updates.goldChange !== 0) ||

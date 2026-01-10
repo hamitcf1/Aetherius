@@ -16,6 +16,48 @@ import {
 } from '../types';
 
 // ============================================================================
+// DYNAMIC ENEMY NAME POOLS - For variation
+// ============================================================================
+
+const ENEMY_NAME_PREFIXES: Record<string, string[]> = {
+  bandit: ['Savage', 'Ruthless', 'Desperate', 'Scarred', 'One-Eyed', 'Grizzled', 'Sneering', 'Bloodthirsty', 'Cunning', 'Vicious'],
+  bandit_chief: ['Chief', 'Boss', 'Warlord', 'Captain', 'Leader', 'Scourge', 'Terror of'],
+  wolf: ['Grey', 'White', 'Black', 'Timber', 'Dire', 'Frost', 'Starving', 'Alpha', 'Rabid', 'Wild'],
+  skeleton: ['Ancient', 'Shambling', 'Cursed', 'Corrupted', 'Risen', 'Bound', 'Restless', 'Decrepit'],
+  draugr: ['Ancient', 'Restless', 'Cursed', 'Dread', 'Wight', 'Scourge', 'Death', 'Frost-Touched'],
+  frost_spider: ['Giant', 'Venomous', 'Frost', 'Albino', 'Corrupted', 'Nest Guardian', 'Broodmother'],
+  troll: ['Cave', 'Frost', 'Unyielding', 'Massive', 'Rampaging', 'Savage', 'Ancient'],
+  bear: ['Cave', 'Snow', 'Raging', 'Wounded', 'Massive', 'Territorial', 'Starving'],
+  sabre_cat: ['Snowy', 'Vale', 'Frost', 'Prowling', 'Hunting', 'Alpha', 'Scarred'],
+  vampire: ['Ancient', 'Feral', 'Blood-Starved', 'Noble', 'Thrall', 'Master', 'Corrupted'],
+  mage: ['Rogue', 'Corrupt', 'Apostate', 'Flame', 'Frost', 'Storm', 'Necromancer'],
+  default: ['Fierce', 'Deadly', 'Dangerous', 'Menacing', 'Threatening']
+};
+
+const ENEMY_PERSONALITY_TRAITS = [
+  'battle-scarred', 'cunning', 'reckless', 'cautious', 'vengeful', 
+  'hungry', 'territorial', 'desperate', 'confident', 'fearless'
+];
+
+// Randomization helper functions
+const randomRange = (min: number, max: number): number => 
+  Math.floor(Math.random() * (max - min + 1)) + min;
+
+const randomVariation = (base: number, variance: number): number => 
+  Math.floor(base * (1 + (Math.random() - 0.5) * 2 * variance));
+
+const randomChoice = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+const shuffleArray = <T>(arr: T[]): T[] => {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+// ============================================================================
 // PLAYER COMBAT STATS CALCULATION
 // ============================================================================
 
@@ -739,142 +781,475 @@ export const checkCombatEnd = (state: CombatState, playerStats: PlayerCombatStat
 // ENEMY TEMPLATES
 // ============================================================================
 
-export const ENEMY_TEMPLATES: Record<string, Omit<CombatEnemy, 'id'>> = {
+// ============================================================================
+// BASE ENEMY TEMPLATES - Used as foundation for dynamic generation
+// ============================================================================
+
+interface BaseEnemyTemplate {
+  baseName: string;
+  type: 'humanoid' | 'beast' | 'undead' | 'daedra' | 'automaton';
+  baseLevel: number;
+  baseHealth: number;
+  baseArmor: number;
+  baseDamage: number;
+  behaviors: ('aggressive' | 'defensive' | 'tactical' | 'berserker')[];
+  possibleAbilities: CombatAbility[];
+  weaknesses?: string[];
+  resistances?: string[];
+  isBoss?: boolean;
+  baseXP: number;
+  baseGold?: number;
+  possibleLoot: { name: string; type: string; description: string; quantity: number; dropChance: number; damage?: number; armor?: number; slot?: string }[];
+}
+
+const BASE_ENEMY_TEMPLATES: Record<string, BaseEnemyTemplate> = {
   bandit: {
-    name: 'Bandit',
+    baseName: 'Bandit',
     type: 'humanoid',
-    level: 5,
-    maxHealth: 50,
-    currentHealth: 50,
-    armor: 15,
-    damage: 12,
-    behavior: 'aggressive',
-    abilities: [
+    baseLevel: 5,
+    baseHealth: 50,
+    baseArmor: 15,
+    baseDamage: 12,
+    behaviors: ['aggressive', 'tactical', 'defensive'],
+    possibleAbilities: [
       { id: 'slash', name: 'Slash', type: 'melee', damage: 12, cost: 10, description: 'A quick slash' },
-      { id: 'bash', name: 'Bash', type: 'melee', damage: 8, cost: 5, description: 'Shield bash', effects: [{ type: 'stun', value: 1, duration: 1, chance: 20 }] }
+      { id: 'stab', name: 'Stab', type: 'melee', damage: 14, cost: 12, description: 'A precise thrust' },
+      { id: 'bash', name: 'Shield Bash', type: 'melee', damage: 8, cost: 5, description: 'Shield bash', effects: [{ type: 'stun', value: 1, duration: 1, chance: 20 }] },
+      { id: 'throw_dagger', name: 'Throw Dagger', type: 'ranged', damage: 10, cost: 8, description: 'Throw a concealed dagger' },
+      { id: 'dirty_trick', name: 'Dirty Trick', type: 'melee', damage: 6, cost: 5, description: 'Throw sand in eyes', effects: [{ type: 'debuff', stat: 'damage', value: -5, duration: 2, chance: 40 }] },
+      { id: 'desperate_strike', name: 'Desperate Strike', type: 'melee', damage: 18, cost: 20, description: 'A reckless powerful attack' }
     ],
-    xpReward: 25,
-    goldReward: 15,
-    loot: [
-      { name: 'Iron Sword', type: 'weapon', description: 'A common iron sword', quantity: 1, dropChance: 20 },
-      { name: 'Leather Armor', type: 'apparel', description: 'Basic leather armor', quantity: 1, dropChance: 15 }
+    baseXP: 25,
+    baseGold: 15,
+    possibleLoot: [
+      { name: 'Iron Sword', type: 'weapon', description: 'A common iron sword', quantity: 1, dropChance: 20, damage: 8, slot: 'weapon' },
+      { name: 'Iron Dagger', type: 'weapon', description: 'A simple iron dagger', quantity: 1, dropChance: 25, damage: 5, slot: 'weapon' },
+      { name: 'Leather Armor', type: 'apparel', description: 'Basic leather armor', quantity: 1, dropChance: 15, armor: 12, slot: 'chest' },
+      { name: 'Fur Boots', type: 'apparel', description: 'Worn fur boots', quantity: 1, dropChance: 20, armor: 3, slot: 'feet' },
+      { name: 'Lockpick', type: 'misc', description: 'A lockpick', quantity: 2, dropChance: 35 },
+      { name: 'Ale', type: 'drink', description: 'Cheap ale', quantity: 1, dropChance: 40 },
+      { name: 'Bread', type: 'food', description: 'Stale bread', quantity: 1, dropChance: 30 }
     ]
   },
   wolf: {
-    name: 'Wolf',
+    baseName: 'Wolf',
     type: 'beast',
-    level: 3,
-    maxHealth: 30,
-    currentHealth: 30,
-    armor: 5,
-    damage: 10,
-    behavior: 'aggressive',
-    abilities: [
+    baseLevel: 3,
+    baseHealth: 30,
+    baseArmor: 5,
+    baseDamage: 10,
+    behaviors: ['aggressive', 'berserker'],
+    possibleAbilities: [
       { id: 'bite', name: 'Bite', type: 'melee', damage: 10, cost: 5, description: 'A vicious bite' },
-      { id: 'pounce', name: 'Pounce', type: 'melee', damage: 15, cost: 15, description: 'Leap and attack', effects: [{ type: 'stun', value: 1, duration: 1, chance: 15 }] }
+      { id: 'pounce', name: 'Pounce', type: 'melee', damage: 15, cost: 15, description: 'Leap and attack', effects: [{ type: 'stun', value: 1, duration: 1, chance: 15 }] },
+      { id: 'savage_bite', name: 'Savage Bite', type: 'melee', damage: 14, cost: 12, description: 'A tearing bite', effects: [{ type: 'dot', stat: 'health', value: 2, duration: 2, chance: 30 }] },
+      { id: 'howl', name: 'Howl', type: 'melee', damage: 0, cost: 10, description: 'A terrifying howl', effects: [{ type: 'debuff', stat: 'damage', value: -3, duration: 2, chance: 25 }] }
     ],
-    xpReward: 15,
-    loot: [
-      { name: 'Wolf Pelt', type: 'misc', description: 'A wolf pelt', quantity: 1, dropChance: 80 }
+    baseXP: 15,
+    possibleLoot: [
+      { name: 'Wolf Pelt', type: 'misc', description: 'A wolf pelt', quantity: 1, dropChance: 80 },
+      { name: 'Raw Meat', type: 'food', description: 'Raw wolf meat', quantity: 1, dropChance: 60 },
+      { name: 'Wolf Fang', type: 'ingredient', description: 'A sharp wolf fang', quantity: 1, dropChance: 40 }
     ]
   },
   skeleton: {
-    name: 'Skeleton',
+    baseName: 'Skeleton',
     type: 'undead',
-    level: 6,
-    maxHealth: 40,
-    currentHealth: 40,
-    armor: 20,
-    damage: 14,
-    behavior: 'defensive',
+    baseLevel: 6,
+    baseHealth: 40,
+    baseArmor: 20,
+    baseDamage: 14,
+    behaviors: ['defensive', 'tactical'],
     weaknesses: ['fire', 'blunt'],
     resistances: ['frost', 'poison'],
-    abilities: [
-      { id: 'bone_strike', name: 'Bone Strike', type: 'melee', damage: 14, cost: 10, description: 'Strike with bony limbs' }
+    possibleAbilities: [
+      { id: 'bone_strike', name: 'Bone Strike', type: 'melee', damage: 14, cost: 10, description: 'Strike with bony limbs' },
+      { id: 'bone_claw', name: 'Bone Claw', type: 'melee', damage: 12, cost: 8, description: 'Slash with sharp bone claws' },
+      { id: 'rattle', name: 'Bone Rattle', type: 'melee', damage: 0, cost: 5, description: 'An unsettling rattle', effects: [{ type: 'debuff', stat: 'damage', value: -4, duration: 1, chance: 35 }] },
+      { id: 'bone_throw', name: 'Bone Throw', type: 'ranged', damage: 8, cost: 6, description: 'Throw a bone shard' }
     ],
-    xpReward: 30,
-    loot: [
-      { name: 'Bone Meal', type: 'ingredient', description: 'Ground bones', quantity: 1, dropChance: 70 }
+    baseXP: 30,
+    possibleLoot: [
+      { name: 'Bone Meal', type: 'ingredient', description: 'Ground bones', quantity: 1, dropChance: 70 },
+      { name: 'Ancient Coin', type: 'misc', description: 'An old coin from a past era', quantity: 1, dropChance: 25 },
+      { name: 'Tattered Cloth', type: 'misc', description: 'Rotting burial cloth', quantity: 1, dropChance: 40 }
     ]
   },
   draugr: {
-    name: 'Draugr',
+    baseName: 'Draugr',
     type: 'undead',
-    level: 8,
-    maxHealth: 70,
-    currentHealth: 70,
-    armor: 30,
-    damage: 18,
-    behavior: 'tactical',
+    baseLevel: 8,
+    baseHealth: 70,
+    baseArmor: 30,
+    baseDamage: 18,
+    behaviors: ['tactical', 'defensive', 'aggressive'],
     weaknesses: ['fire'],
     resistances: ['frost'],
-    abilities: [
+    possibleAbilities: [
       { id: 'ancient_blade', name: 'Ancient Blade', type: 'melee', damage: 18, cost: 15, description: 'Strike with an ancient Nord weapon' },
-      { id: 'frost_breath', name: 'Frost Breath', type: 'magic', damage: 20, cost: 20, description: 'Breathe frost', effects: [{ type: 'debuff', stat: 'stamina', value: -15, duration: 2 }] }
+      { id: 'frost_breath', name: 'Frost Breath', type: 'magic', damage: 20, cost: 20, description: 'Breathe frost', effects: [{ type: 'debuff', stat: 'stamina', value: -15, duration: 2 }] },
+      { id: 'disarm_shout', name: 'Disarm Shout', type: 'magic', damage: 5, cost: 25, description: 'A thu\'um that weakens', effects: [{ type: 'debuff', stat: 'damage', value: -8, duration: 2, chance: 50 }] },
+      { id: 'shield_wall', name: 'Shield Wall', type: 'melee', damage: 0, cost: 15, description: 'Raise ancient shield', effects: [{ type: 'buff', stat: 'armor', value: 15, duration: 2 }] },
+      { id: 'cleave', name: 'Cleave', type: 'melee', damage: 22, cost: 18, description: 'A sweeping axe strike' }
     ],
-    xpReward: 50,
-    goldReward: 25,
-    loot: [
-      { name: 'Ancient Nord Sword', type: 'weapon', description: 'An ancient Nord blade', quantity: 1, dropChance: 25 },
-      { name: 'Linen Wrap', type: 'misc', description: 'Burial wrappings', quantity: 2, dropChance: 60 }
+    baseXP: 50,
+    baseGold: 25,
+    possibleLoot: [
+      { name: 'Ancient Nord Sword', type: 'weapon', description: 'An ancient Nord blade', quantity: 1, dropChance: 25, damage: 12, slot: 'weapon' },
+      { name: 'Ancient Nord War Axe', type: 'weapon', description: 'A weathered Nord axe', quantity: 1, dropChance: 20, damage: 14, slot: 'weapon' },
+      { name: 'Linen Wrap', type: 'misc', description: 'Burial wrappings', quantity: 2, dropChance: 60 },
+      { name: 'Draugr Bones', type: 'ingredient', description: 'Ancient bones', quantity: 1, dropChance: 45 },
+      { name: 'Ancient Nord Helmet', type: 'apparel', description: 'A dented Nord helmet', quantity: 1, dropChance: 15, armor: 15, slot: 'head' }
     ]
   },
   frost_spider: {
-    name: 'Frost Spider',
+    baseName: 'Frostbite Spider',
     type: 'beast',
-    level: 7,
-    maxHealth: 55,
-    currentHealth: 55,
-    armor: 10,
-    damage: 16,
-    behavior: 'aggressive',
+    baseLevel: 7,
+    baseHealth: 55,
+    baseArmor: 10,
+    baseDamage: 16,
+    behaviors: ['aggressive', 'tactical'],
     resistances: ['frost'],
     weaknesses: ['fire'],
-    abilities: [
+    possibleAbilities: [
       { id: 'bite', name: 'Venomous Bite', type: 'melee', damage: 16, cost: 10, description: 'A poisonous bite', effects: [{ type: 'dot', stat: 'health', value: 4, duration: 3, chance: 50 }] },
-      { id: 'web', name: 'Web Spray', type: 'ranged', damage: 5, cost: 15, description: 'Spray sticky web', effects: [{ type: 'debuff', stat: 'stamina', value: -20, duration: 2 }] }
+      { id: 'web', name: 'Web Spray', type: 'ranged', damage: 5, cost: 15, description: 'Spray sticky web', effects: [{ type: 'debuff', stat: 'stamina', value: -20, duration: 2 }] },
+      { id: 'lunge', name: 'Lunge', type: 'melee', damage: 18, cost: 14, description: 'A sudden lunge attack' },
+      { id: 'spit_venom', name: 'Spit Venom', type: 'ranged', damage: 10, cost: 12, description: 'Spit corrosive venom', effects: [{ type: 'dot', stat: 'health', value: 3, duration: 2, chance: 60 }] }
     ],
-    xpReward: 35,
-    loot: [
+    baseXP: 35,
+    possibleLoot: [
       { name: 'Frostbite Venom', type: 'ingredient', description: 'Potent spider venom', quantity: 1, dropChance: 60 },
-      { name: 'Spider Egg', type: 'ingredient', description: 'A spider egg', quantity: 2, dropChance: 40 }
+      { name: 'Spider Egg', type: 'ingredient', description: 'A spider egg', quantity: 2, dropChance: 40 },
+      { name: 'Webbing', type: 'misc', description: 'Strong spider silk', quantity: 1, dropChance: 50 }
+    ]
+  },
+  troll: {
+    baseName: 'Troll',
+    type: 'beast',
+    baseLevel: 14,
+    baseHealth: 150,
+    baseArmor: 25,
+    baseDamage: 30,
+    behaviors: ['aggressive', 'berserker'],
+    weaknesses: ['fire'],
+    possibleAbilities: [
+      { id: 'slam', name: 'Slam', type: 'melee', damage: 30, cost: 15, description: 'A powerful slam attack' },
+      { id: 'rend', name: 'Rend', type: 'melee', damage: 25, cost: 12, description: 'Tear with claws', effects: [{ type: 'dot', stat: 'health', value: 5, duration: 3, chance: 40 }] },
+      { id: 'regenerate', name: 'Regenerate', type: 'melee', damage: 0, cost: 20, description: 'Troll regeneration', effects: [{ type: 'heal', stat: 'health', value: 20 }] },
+      { id: 'frenzy', name: 'Frenzy', type: 'melee', damage: 35, cost: 25, description: 'A frenzied assault', cooldown: 2 }
+    ],
+    baseXP: 100,
+    possibleLoot: [
+      { name: 'Troll Fat', type: 'ingredient', description: 'Greasy troll fat', quantity: 1, dropChance: 80 },
+      { name: 'Troll Skull', type: 'misc', description: 'A massive troll skull', quantity: 1, dropChance: 30 }
+    ]
+  },
+  bear: {
+    baseName: 'Bear',
+    type: 'beast',
+    baseLevel: 10,
+    baseHealth: 100,
+    baseArmor: 20,
+    baseDamage: 25,
+    behaviors: ['aggressive', 'berserker', 'defensive'],
+    possibleAbilities: [
+      { id: 'swipe', name: 'Swipe', type: 'melee', damage: 25, cost: 12, description: 'A powerful claw swipe' },
+      { id: 'maul', name: 'Maul', type: 'melee', damage: 35, cost: 20, description: 'A devastating maul attack', effects: [{ type: 'dot', stat: 'health', value: 4, duration: 2, chance: 35 }] },
+      { id: 'roar', name: 'Roar', type: 'melee', damage: 0, cost: 10, description: 'A terrifying roar', effects: [{ type: 'debuff', stat: 'stamina', value: -15, duration: 2, chance: 50 }] },
+      { id: 'charge', name: 'Charge', type: 'melee', damage: 30, cost: 18, description: 'A charging attack', effects: [{ type: 'stun', value: 1, duration: 1, chance: 30 }] }
+    ],
+    baseXP: 70,
+    possibleLoot: [
+      { name: 'Bear Pelt', type: 'misc', description: 'A thick bear pelt', quantity: 1, dropChance: 85 },
+      { name: 'Bear Claws', type: 'ingredient', description: 'Sharp bear claws', quantity: 2, dropChance: 60 },
+      { name: 'Raw Meat', type: 'food', description: 'Raw bear meat', quantity: 2, dropChance: 70 }
+    ]
+  },
+  sabre_cat: {
+    baseName: 'Sabre Cat',
+    type: 'beast',
+    baseLevel: 12,
+    baseHealth: 80,
+    baseArmor: 15,
+    baseDamage: 28,
+    behaviors: ['aggressive', 'tactical'],
+    possibleAbilities: [
+      { id: 'bite', name: 'Sabre Bite', type: 'melee', damage: 28, cost: 10, description: 'A vicious bite with massive fangs' },
+      { id: 'pounce', name: 'Pounce', type: 'melee', damage: 35, cost: 18, description: 'A leaping pounce attack', effects: [{ type: 'stun', value: 1, duration: 1, chance: 25 }] },
+      { id: 'claw_swipe', name: 'Claw Swipe', type: 'melee', damage: 24, cost: 12, description: 'Quick claw attack', effects: [{ type: 'dot', stat: 'health', value: 3, duration: 2, chance: 30 }] },
+      { id: 'rake', name: 'Rake', type: 'melee', damage: 20, cost: 8, description: 'A raking attack with hind claws' }
+    ],
+    baseXP: 80,
+    possibleLoot: [
+      { name: 'Sabre Cat Pelt', type: 'misc', description: 'A prized sabre cat pelt', quantity: 1, dropChance: 85 },
+      { name: 'Sabre Cat Tooth', type: 'ingredient', description: 'A massive fang', quantity: 2, dropChance: 70 },
+      { name: 'Eye of Sabre Cat', type: 'ingredient', description: 'A cat eye', quantity: 1, dropChance: 40 }
+    ]
+  },
+  vampire: {
+    baseName: 'Vampire',
+    type: 'undead',
+    baseLevel: 15,
+    baseHealth: 90,
+    baseArmor: 35,
+    baseDamage: 25,
+    behaviors: ['tactical', 'defensive', 'aggressive'],
+    weaknesses: ['fire', 'sunlight'],
+    resistances: ['frost', 'poison'],
+    possibleAbilities: [
+      { id: 'drain_life', name: 'Drain Life', type: 'magic', damage: 25, cost: 20, description: 'Drain the life force', effects: [{ type: 'heal', stat: 'health', value: 15 }] },
+      { id: 'vampiric_claw', name: 'Vampiric Claw', type: 'melee', damage: 22, cost: 12, description: 'A clawed strike' },
+      { id: 'ice_spike', name: 'Ice Spike', type: 'magic', damage: 28, cost: 25, description: 'A spike of ice', effects: [{ type: 'debuff', stat: 'stamina', value: -10, duration: 2 }] },
+      { id: 'invisibility', name: 'Cloak of Shadows', type: 'magic', damage: 0, cost: 30, description: 'Become harder to hit', effects: [{ type: 'buff', stat: 'armor', value: 25, duration: 2 }] },
+      { id: 'raise_zombie', name: 'Raise Zombie', type: 'magic', damage: 0, cost: 35, description: 'Summon undead aid', effects: [{ type: 'buff', stat: 'damage', value: 10, duration: 3 }] }
+    ],
+    baseXP: 120,
+    baseGold: 50,
+    possibleLoot: [
+      { name: 'Vampire Dust', type: 'ingredient', description: 'Ashes of the undead', quantity: 1, dropChance: 90 },
+      { name: 'Soul Gem (Petty)', type: 'misc', description: 'A small soul gem', quantity: 1, dropChance: 35 },
+      { name: 'Vampire Robes', type: 'apparel', description: 'Dark enchanted robes', quantity: 1, dropChance: 25, armor: 20, slot: 'chest' },
+      { name: 'Health Potion', type: 'potion', description: 'Restores health', quantity: 1, dropChance: 40 }
+    ]
+  },
+  mage: {
+    baseName: 'Hostile Mage',
+    type: 'humanoid',
+    baseLevel: 10,
+    baseHealth: 60,
+    baseArmor: 10,
+    baseDamage: 20,
+    behaviors: ['tactical', 'defensive'],
+    resistances: ['magic'],
+    possibleAbilities: [
+      { id: 'firebolt', name: 'Firebolt', type: 'magic', damage: 25, cost: 20, description: 'A bolt of fire' },
+      { id: 'ice_spike', name: 'Ice Spike', type: 'magic', damage: 22, cost: 18, description: 'A spike of ice' },
+      { id: 'lightning', name: 'Lightning Bolt', type: 'magic', damage: 28, cost: 25, description: 'A bolt of lightning', effects: [{ type: 'drain', stat: 'magicka', value: 10 }] },
+      { id: 'ward', name: 'Lesser Ward', type: 'magic', damage: 0, cost: 15, description: 'A protective ward', effects: [{ type: 'buff', stat: 'armor', value: 20, duration: 2 }] },
+      { id: 'flames', name: 'Flames', type: 'magic', damage: 15, cost: 10, description: 'A stream of fire', effects: [{ type: 'dot', stat: 'health', value: 3, duration: 2, chance: 40 }] }
+    ],
+    baseXP: 60,
+    baseGold: 30,
+    possibleLoot: [
+      { name: 'Filled Petty Soul Gem', type: 'misc', description: 'A filled soul gem', quantity: 1, dropChance: 45 },
+      { name: 'Magicka Potion', type: 'potion', description: 'Restores magicka', quantity: 1, dropChance: 50 },
+      { name: 'Mage Robes', type: 'apparel', description: 'Simple mage robes', quantity: 1, dropChance: 30, armor: 8, slot: 'chest' },
+      { name: 'Spell Tome', type: 'misc', description: 'A tome of magic', quantity: 1, dropChance: 20 }
     ]
   },
   bandit_chief: {
-    name: 'Bandit Chief',
+    baseName: 'Bandit Chief',
     type: 'humanoid',
-    level: 12,
-    maxHealth: 120,
-    currentHealth: 120,
-    armor: 50,
-    damage: 25,
-    behavior: 'tactical',
+    baseLevel: 12,
+    baseHealth: 120,
+    baseArmor: 50,
+    baseDamage: 25,
+    behaviors: ['tactical', 'aggressive'],
     isBoss: true,
-    abilities: [
+    possibleAbilities: [
       { id: 'heavy_strike', name: 'Heavy Strike', type: 'melee', damage: 25, cost: 15, description: 'A powerful two-handed strike' },
       { id: 'rally', name: 'Rally Cry', type: 'melee', damage: 0, cost: 20, description: 'Boost attack power', effects: [{ type: 'buff', stat: 'damage', value: 10, duration: 3 }] },
-      { id: 'execute', name: 'Execution', type: 'melee', damage: 40, cost: 30, description: 'A devastating finishing blow', cooldown: 3 }
+      { id: 'execute', name: 'Execution', type: 'melee', damage: 40, cost: 30, description: 'A devastating finishing blow', cooldown: 3 },
+      { id: 'intimidate', name: 'Intimidate', type: 'melee', damage: 0, cost: 15, description: 'A terrifying shout', effects: [{ type: 'debuff', stat: 'damage', value: -8, duration: 2, chance: 60 }] },
+      { id: 'cleave', name: 'Cleave', type: 'melee', damage: 30, cost: 20, description: 'A sweeping attack' }
     ],
-    xpReward: 150,
-    goldReward: 100,
-    loot: [
-      { name: 'Steel Greatsword', type: 'weapon', description: 'A well-made steel greatsword', quantity: 1, dropChance: 50 },
-      { name: 'Bandit Chief\'s Key', type: 'key', description: 'Opens the chief\'s treasure chest', quantity: 1, dropChance: 100 }
+    baseXP: 150,
+    baseGold: 100,
+    possibleLoot: [
+      { name: 'Steel Greatsword', type: 'weapon', description: 'A well-made steel greatsword', quantity: 1, dropChance: 50, damage: 18, slot: 'weapon' },
+      { name: 'Steel Armor', type: 'apparel', description: 'Heavy steel armor', quantity: 1, dropChance: 40, armor: 35, slot: 'chest' },
+      { name: 'Bandit Chief\'s Key', type: 'key', description: 'Opens the chief\'s treasure chest', quantity: 1, dropChance: 100 },
+      { name: 'Potion of Ultimate Healing', type: 'potion', description: 'Restores a lot of health', quantity: 1, dropChance: 60 }
     ]
   }
 };
 
-// Helper to create enemy from template
-export const createEnemyFromTemplate = (templateId: string, nameOverride?: string): CombatEnemy => {
-  const template = ENEMY_TEMPLATES[templateId];
+// Legacy export for backwards compatibility
+export const ENEMY_TEMPLATES: Record<string, Omit<CombatEnemy, 'id'>> = Object.fromEntries(
+  Object.entries(BASE_ENEMY_TEMPLATES).map(([key, template]) => [
+    key,
+    {
+      name: template.baseName,
+      type: template.type,
+      level: template.baseLevel,
+      maxHealth: template.baseHealth,
+      currentHealth: template.baseHealth,
+      armor: template.baseArmor,
+      damage: template.baseDamage,
+      behavior: template.behaviors[0],
+      weaknesses: template.weaknesses,
+      resistances: template.resistances,
+      isBoss: template.isBoss,
+      abilities: template.possibleAbilities.slice(0, 3),
+      xpReward: template.baseXP,
+      goldReward: template.baseGold,
+      loot: template.possibleLoot.slice(0, 3)
+    }
+  ])
+);
+
+// ============================================================================
+// DYNAMIC ENEMY GENERATION
+// ============================================================================
+
+/**
+ * Generate a unique enemy with randomized stats, abilities, and personality
+ * Each enemy is different even from the same template!
+ */
+export const createEnemyFromTemplate = (
+  templateId: string, 
+  options: {
+    nameOverride?: string;
+    levelModifier?: number;  // -3 to +5 level adjustment
+    isElite?: boolean;       // Elite enemies have better stats
+    forceUnique?: boolean;   // Always generate unique name
+  } = {}
+): CombatEnemy => {
+  const template = BASE_ENEMY_TEMPLATES[templateId];
   if (!template) {
     throw new Error(`Unknown enemy template: ${templateId}`);
   }
+
+  const { nameOverride, levelModifier = 0, isElite = false, forceUnique = true } = options;
+  
+  // Generate unique name
+  let name = template.baseName;
+  if (forceUnique || Math.random() < 0.7) {
+    const prefixes = ENEMY_NAME_PREFIXES[templateId] || ENEMY_NAME_PREFIXES.default;
+    const prefix = randomChoice(prefixes);
+    name = `${prefix} ${template.baseName}`;
+  }
+  if (nameOverride) name = nameOverride;
+
+  // Calculate level with variation
+  const baseLevel = template.baseLevel + levelModifier;
+  const level = Math.max(1, randomRange(baseLevel - 1, baseLevel + 2));
+  
+  // Scale stats based on level difference and add random variation (±15%)
+  const levelScale = 1 + (level - template.baseLevel) * 0.1;
+  const variance = 0.15; // 15% variance
+  
+  const maxHealth = Math.max(10, randomVariation(Math.floor(template.baseHealth * levelScale), variance));
+  const armor = Math.max(0, randomVariation(Math.floor(template.baseArmor * levelScale), variance));
+  const damage = Math.max(5, randomVariation(Math.floor(template.baseDamage * levelScale), variance));
+  
+  // Elite enemies get significant boost
+  const eliteMultiplier = isElite ? 1.5 : 1;
+  const finalHealth = Math.floor(maxHealth * eliteMultiplier);
+  const finalArmor = Math.floor(armor * eliteMultiplier);
+  const finalDamage = Math.floor(damage * eliteMultiplier);
+
+  // Randomly select behavior from available options
+  const behavior = randomChoice(template.behaviors);
+  
+  // Select random subset of abilities (2-4 abilities)
+  const numAbilities = randomRange(2, Math.min(4, template.possibleAbilities.length));
+  const shuffledAbilities = shuffleArray(template.possibleAbilities);
+  const selectedAbilities = shuffledAbilities.slice(0, numAbilities).map(ability => ({
+    ...ability,
+    // Scale ability damage with level
+    damage: Math.max(1, Math.floor(ability.damage * levelScale * (isElite ? 1.2 : 1))),
+    // Unique ID for this instance
+    id: `${ability.id}_${Math.random().toString(36).substr(2, 5)}`
+  }));
+
+  // Calculate rewards with variation
+  const xpReward = Math.floor(randomVariation(template.baseXP * levelScale, 0.2) * (isElite ? 2 : 1));
+  const goldReward = template.baseGold 
+    ? Math.floor(randomVariation(template.baseGold * levelScale, 0.3) * (isElite ? 2.5 : 1))
+    : undefined;
+
+  // Select random loot (with slight drop chance variation)
+  const loot = template.possibleLoot.map(item => ({
+    ...item,
+    dropChance: Math.min(100, item.dropChance + randomRange(-10, 15))
+  }));
+
+  // Generate personality trait for narrative variety
+  const personality = randomChoice(ENEMY_PERSONALITY_TRAITS);
+
   return {
-    ...template,
     id: `${templateId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    name: nameOverride || template.name,
-    currentHealth: template.maxHealth,
-    activeEffects: []
+    name: isElite ? `${name} (Elite)` : name,
+    type: template.type,
+    level,
+    maxHealth: finalHealth,
+    currentHealth: finalHealth,
+    maxMagicka: template.type === 'undead' || templateId === 'mage' || templateId === 'vampire' ? 50 + level * 5 : undefined,
+    currentMagicka: template.type === 'undead' || templateId === 'mage' || templateId === 'vampire' ? 50 + level * 5 : undefined,
+    maxStamina: 50 + level * 3,
+    currentStamina: 50 + level * 3,
+    armor: finalArmor,
+    damage: finalDamage,
+    behavior,
+    weaknesses: template.weaknesses,
+    resistances: template.resistances,
+    abilities: selectedAbilities,
+    isBoss: template.isBoss || isElite,
+    xpReward,
+    goldReward,
+    loot,
+    activeEffects: [],
+    // Store personality for narrative use
+    description: `A ${personality} ${template.baseName.toLowerCase()}`
   };
+};
+
+/**
+ * Generate a group of enemies with variety
+ * Useful for creating enemy parties/encounters
+ */
+export const generateEnemyGroup = (
+  templateId: string,
+  count: number,
+  options: {
+    includeElite?: boolean;    // Include one elite enemy?
+    levelVariance?: number;    // Level spread within group
+    uniqueNames?: boolean;     // Ensure unique names
+  } = {}
+): CombatEnemy[] => {
+  const { includeElite = false, levelVariance = 2, uniqueNames = true } = options;
+  const usedNames = new Set<string>();
+  const enemies: CombatEnemy[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const isThisElite = includeElite && i === 0; // First enemy is elite if requested
+    const levelMod = randomRange(-levelVariance, levelVariance);
+    
+    let enemy: CombatEnemy;
+    let attempts = 0;
+    do {
+      enemy = createEnemyFromTemplate(templateId, {
+        levelModifier: levelMod,
+        isElite: isThisElite,
+        forceUnique: uniqueNames
+      });
+      attempts++;
+    } while (uniqueNames && usedNames.has(enemy.name) && attempts < 10);
+    
+    usedNames.add(enemy.name);
+    enemies.push(enemy);
+  }
+
+  return enemies;
+};
+
+/**
+ * Generate a mixed enemy encounter (e.g., bandits with a chief)
+ */
+export const generateMixedEncounter = (
+  mainType: string,
+  mainCount: number,
+  leaderType?: string
+): CombatEnemy[] => {
+  const enemies = generateEnemyGroup(mainType, mainCount, { uniqueNames: true });
+  
+  if (leaderType) {
+    const leader = createEnemyFromTemplate(leaderType, { isElite: true });
+    enemies.push(leader);
+  }
+  
+  return enemies;
 };
