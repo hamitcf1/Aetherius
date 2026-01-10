@@ -84,6 +84,7 @@ class AudioService {
   private soundEffectCache: Map<string, HTMLAudioElement> = new Map();
   private isInitialized: boolean = false;
   private pendingTrack: MusicTrack | null = null; // Track to play after user interaction
+  private lastRequestedTrack: MusicTrack | null = null; // Remember last track for re-enabling music
 
   constructor() {
     this.config = this.loadConfig();
@@ -160,6 +161,9 @@ class AudioService {
 
   // Play background music
   public playMusic(track: MusicTrack, fadeIn: boolean = true): void {
+    // Always remember the last requested track
+    this.lastRequestedTrack = track;
+    
     if (!this.config.musicEnabled) return;
     
     const path = MUSIC_TRACKS[track];
@@ -304,6 +308,12 @@ class AudioService {
     this.config.musicEnabled = enabled;
     if (!enabled) {
       this.stopMusic(true);
+    } else {
+      // Re-enable: resume last requested track if available
+      if (this.lastRequestedTrack && this.isInitialized) {
+        console.log(`🎵 Music re-enabled, resuming "${this.lastRequestedTrack}"`);
+        this.playMusic(this.lastRequestedTrack, true);
+      }
     }
     this.saveConfig();
   }
