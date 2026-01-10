@@ -381,6 +381,7 @@ Return ONLY a JSON object:
   "needsChange": { "hunger": 0, "thirst": 0, "fatigue": 0 },
   "vitalsChange": { "currentHealth": 0, "currentMagicka": 0, "currentStamina": 0 },
   "ambientContext": { "localeType": "wilderness|tavern|city|dungeon|interior|road", "inCombat": false, "mood": "peaceful|tense|mysterious|triumphant" },
+  "discoveredLocations": [{ "name": "Hidden Cave", "type": "cave|dungeon|camp|fort|ruin|landmark", "x": 45, "y": 60, "description": "A secret cave behind the waterfall", "dangerLevel": "dangerous", "rumors": ["Bandits use this as a hideout"] }],
   "choices": [
     { "label": "Short option shown as button", "playerText": "Exact text to send", "topic": "optional_topic", "previewCost": { "gold": 10 } }
   ],
@@ -395,6 +396,29 @@ Return ONLY a JSON object:
     "factsEstablished": [{ "category": "identity", "key": "profession", "value": "alchemist", "disclosedToNPCs": ["Guard Captain Hrolf"] }],
     "newConsequences": [{ "type": "entry_denied", "description": "Guards will not allow entry", "triggerCondition": { "tensionThreshold": 80 } }]
   }
+}
+
+=== DISCOVERED LOCATIONS (MAP UPDATES) ===
+
+When the player discovers a NEW location (not from the base Skyrim map), add it to the map:
+- Use "discoveredLocations" to add new places the player finds
+- Only add locations that are NOT standard Skyrim cities/towns (Whiterun, Riften, etc. are already on the map)
+- Perfect for: hidden caves, bandit camps, secret ruins, unmarked locations, story-specific places
+- Coordinates (x, y) are percentages 0-100 on the map (NW corner = 0,0; SE corner = 100,100)
+- Approximate positions: Whiterun ~42,52; Solitude ~15,17; Riften ~88,78; Markarth ~8,48
+
+Example discovering a hidden location:
+{
+  "narrative": { "title": "Secret Discovery", "content": "Behind the waterfall, you discover a hidden cave entrance..." },
+  "discoveredLocations": [{
+    "name": "Moonshade Grotto",
+    "type": "cave",
+    "x": 35,
+    "y": 55,
+    "description": "A hidden cave behind a waterfall, used by smugglers",
+    "dangerLevel": "moderate",
+    "rumors": ["Local thieves use this as a drop point", "Strange lights seen at night"]
+  }]
 }
 
 SIMULATION UPDATE GUIDELINES:
@@ -461,6 +485,18 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   // Map state
   const [showMap, setShowMap] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<string>('Riverwood');
+  const [discoveredLocations, setDiscoveredLocations] = useState<Array<{
+    name: string;
+    type: 'city' | 'town' | 'village' | 'dungeon' | 'landmark' | 'camp' | 'fort' | 'ruin' | 'cave';
+    x: number;
+    y: number;
+    hold?: string;
+    description?: string;
+    dangerLevel?: 'safe' | 'moderate' | 'dangerous' | 'deadly';
+    faction?: string;
+    rumors?: string[];
+    discoveredAt?: number;
+  }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -1098,6 +1134,17 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     if (typeof updates.timeAdvanceMinutes === 'number' && updates.timeAdvanceMinutes !== 0) toApply.timeAdvanceMinutes = updates.timeAdvanceMinutes;
     if (updates.needsChange && Object.keys(updates.needsChange).length) toApply.needsChange = updates.needsChange;
     
+    // Handle discovered locations - add to map
+    if (updates.discoveredLocations?.length) {
+      setDiscoveredLocations(prev => {
+        const existingNames = new Set(prev.map(l => l.name.toLowerCase()));
+        const newLocations = updates.discoveredLocations!.filter(
+          loc => !existingNames.has(loc.name.toLowerCase())
+        ).map(loc => ({ ...loc, discoveredAt: Date.now() }));
+        return [...prev, ...newLocations];
+      });
+    }
+    
     if (Object.keys(toApply).length > 0) {
       onUpdateState(toApply);
     }
@@ -1261,7 +1308,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
 
   if (!character) {
     return (
-      <div className="max-w-4xl mx-auto pb-24 px-2 sm:px-4">
+      <div className="h-full flex items-center justify-center px-2 sm:px-4">
         <div className="text-center py-20 text-gray-500">
           <Swords size={48} className="mx-auto mb-4 opacity-50" />
           <p>Select a character to begin your adventure.</p>
@@ -1271,24 +1318,20 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-24 px-2 sm:px-4">
-      {/* Header */}
-      <div className="mb-6 p-4 sm:p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center">
-        <h1 className="text-4xl font-serif text-skyrim-gold mb-2 flex items-center justify-center gap-3">
-          <Swords size={32} />
+    <div className="h-full flex flex-col max-w-4xl mx-auto px-2 sm:px-4 overflow-hidden">
+      {/* Header - compact */}
+      <div className="flex-shrink-0 py-3 sm:py-4 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center">
+        <h1 className="text-2xl sm:text-3xl font-serif text-skyrim-gold mb-1 flex items-center justify-center gap-2">
+          <Swords size={24} />
           Adventure
         </h1>
-        <p className="text-gray-500 font-sans text-sm mb-4">A text-based journey through Skyrim</p>
-        
         {/* Time Display */}
-        <div className="flex justify-center">
-          <TimeDisplay />
-        </div>
+        <TimeDisplay />
       </div>
 
       {/* AI Model Tip */}
       {showModelTip && (
-        <div className="mb-4 bg-blue-900/20 border border-blue-600/50 rounded-lg p-3 sm:p-4 relative">
+        <div className="flex-shrink-0 mt-2 bg-blue-900/20 border border-blue-600/50 rounded-lg p-2 sm:p-3 relative">
           <button
             onClick={dismissModelTip}
             className="absolute top-2 right-2 text-blue-200/70 hover:text-blue-200 transition-colors"
@@ -1300,69 +1343,69 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
           <div className="flex items-start gap-2 pr-6">
             <span className="text-blue-400 text-lg">💡</span>
             <div className="flex-1">
-              <p className="text-blue-200 text-sm">
-                <strong>Tip:</strong> For the best adventure experience, we highly recommend using the <strong>Gemma 2 27B</strong> model. You can change it in the Actions menu.
+              <p className="text-blue-200 text-xs">
+                <strong>Tip:</strong> For the best adventure experience, use <strong>Gemma 2 27B</strong>. Change it in the Actions menu.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Controls */}
-      <div className="mb-4 flex flex-wrap gap-2 justify-between items-center">
-        <div className="flex gap-2">
+      {/* Controls - compact */}
+      <div className="flex-shrink-0 py-2 flex flex-wrap gap-2 justify-between items-center">
+        <div className="flex gap-1.5">
           <button
             onClick={startNewAdventure}
-            className="px-3 py-2 bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/50 rounded hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors flex items-center gap-2 text-sm"
+            className="px-2 py-1.5 bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/50 rounded hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors flex items-center gap-1.5 text-xs"
           >
-            <RefreshCw size={14} /> New Adventure
+            <RefreshCw size={12} /> New
           </button>
           <button
             onClick={clearChat}
             disabled={messages.length === 0}
-            className="px-3 py-2 text-gray-400 border border-gray-600 rounded hover:text-red-400 hover:border-red-400 transition-colors flex items-center gap-2 text-sm disabled:opacity-50"
+            className="px-2 py-1.5 text-gray-400 border border-gray-600 rounded hover:text-red-400 hover:border-red-400 transition-colors flex items-center gap-1.5 text-xs disabled:opacity-50"
           >
-            <Trash2 size={14} /> Clear
+            <Trash2 size={12} /> Clear
           </button>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           <button
             onClick={() => setShowSimulationPanel(!showSimulationPanel)}
-            className="px-3 py-2 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-2 text-sm"
+            className="px-2 py-1.5 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
           >
-            <Users size={14} /> State {showSimulationPanel ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            <Users size={12} /> State {showSimulationPanel ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
           </button>
           <button
             onClick={() => setShowEquipment(true)}
-            className="px-3 py-2 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-2 text-sm"
+            className="px-2 py-1.5 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
             title="Open Equipment"
           >
-            <User size={14} /> Equipment
+            <User size={12} /> Equip
           </button>
           <button
             onClick={() => setShowMap(true)}
-            className="px-3 py-2 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-2 text-sm"
+            className="px-2 py-1.5 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
             title="View Skyrim Map"
           >
-            <Map size={14} /> Map
+            <Map size={12} /> Map
           </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="px-3 py-2 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-2 text-sm"
+            className="px-2 py-1.5 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
           >
-            <Settings size={14} /> Settings {showSettings ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            <Settings size={12} /> {showSettings ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
           </button>
         </div>
       </div>
 
       {/* Simulation Warnings */}
       {simulationWarnings.length > 0 && (
-        <div className="mb-4 bg-yellow-900/20 border border-yellow-600/50 rounded-lg p-3">
+        <div className="flex-shrink-0 mb-2 bg-yellow-900/20 border border-yellow-600/50 rounded-lg p-2">
           <div className="flex items-start gap-2">
-            <AlertTriangle size={16} className="text-yellow-500 mt-0.5 flex-shrink-0" />
+            <AlertTriangle size={14} className="text-yellow-500 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-yellow-200 text-sm font-semibold mb-1">Simulation Warnings:</p>
-              <ul className="text-yellow-200/80 text-xs space-y-1">
+              <p className="text-yellow-200 text-xs font-semibold mb-1">Warnings:</p>
+              <ul className="text-yellow-200/80 text-xs space-y-0.5">
                 {simulationWarnings.map((warning, idx) => (
                   <li key={idx}>• {warning}</li>
                 ))}
@@ -1563,52 +1606,52 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
 
       {/* Settings Panel */}
       {showSettings && (
-        <div className="mb-4 p-4 bg-black/40 border border-skyrim-border rounded animate-in fade-in">
-          <label className="flex items-center gap-3 cursor-pointer">
+        <div className="flex-shrink-0 mb-2 p-2 bg-black/40 border border-skyrim-border rounded animate-in fade-in">
+          <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={autoApply}
               onChange={() => setAutoApply(!autoApply)}
               className="accent-skyrim-gold w-4 h-4"
             />
-            <span className="text-sm text-gray-300">Auto-apply game changes (items, quests, gold)</span>
+            <span className="text-xs text-gray-300">Auto-apply game changes (items, quests, gold)</span>
           </label>
         </div>
       )}
 
-      {/* Chat Messages */}
+      {/* Chat Messages - flex-1 to fill available space */}
       <div 
         ref={chatContainerRef}
-        className="bg-black/30 border border-skyrim-border rounded-lg mb-4 min-h-[400px] max-h-[60vh] overflow-y-auto scroll-smooth"
+        className="flex-1 min-h-0 bg-black/30 border border-skyrim-border rounded-lg overflow-y-auto scroll-smooth"
       >
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-[400px] text-gray-500">
-            <Scroll size={48} className="mb-4 opacity-50" />
-            <p className="text-center mb-4">
+          <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-gray-500">
+            <Scroll size={40} className="mb-3 opacity-50" />
+            <p className="text-center text-sm mb-3">
               {hasEstablishedState ? 'Continue where you left off...' : 'Your adventure awaits...'}
             </p>
             <button
               onClick={startNewAdventure}
-              className="px-4 py-2 bg-skyrim-gold text-skyrim-dark font-bold rounded hover:bg-skyrim-goldHover transition-colors"
+              className="px-3 py-1.5 bg-skyrim-gold text-skyrim-dark font-bold rounded text-sm hover:bg-skyrim-goldHover transition-colors"
             >
               {hasEstablishedState ? 'Continue Adventure' : 'Begin Your Journey'}
             </button>
           </div>
         ) : (
-          <div className="p-4 space-y-4">
+          <div className="p-3 space-y-3">
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex gap-3 ${msg.role === 'player' ? 'flex-row-reverse' : ''}`}
+                className={`flex gap-2 ${msg.role === 'player' ? 'flex-row-reverse' : ''}`}
               >
-                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                   msg.role === 'player' 
                     ? 'bg-blue-900/50 text-blue-400 border border-blue-700' 
                     : 'bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/50'
                 }`}>
-                  {msg.role === 'player' ? <User size={18} /> : <Swords size={18} />}
+                  {msg.role === 'player' ? <User size={14} /> : <Swords size={14} />}
                 </div>
-                <div className={`flex-1 max-w-[80%] ${msg.role === 'player' ? 'text-right' : ''}`}>
+                <div className={`flex-1 max-w-[85%] ${msg.role === 'player' ? 'text-right' : ''}`}>
                   <div className={`inline-block p-3 rounded-lg ${
                     msg.role === 'player'
                       ? 'bg-blue-900/30 border border-blue-800 text-gray-200'
@@ -1764,32 +1807,29 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="bg-skyrim-paper/60 border border-skyrim-border rounded-lg p-3">
-        <div className="flex gap-3">
+      {/* Input Area - fixed at bottom */}
+      <div className="flex-shrink-0 mt-2 bg-skyrim-paper/60 border border-skyrim-border rounded-lg p-2">
+        <div className="flex gap-2">
           <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="What do you do? (Press Enter to send)"
+            placeholder="What do you do? (Enter to send)"
             disabled={loading || messages.length === 0}
             autoCapitalize="none"
             autoCorrect="off"
-            className="flex-1 bg-black/30 border border-skyrim-border rounded p-3 text-gray-200 placeholder-gray-500 resize-none focus:border-skyrim-gold focus:outline-none disabled:opacity-50 font-sans normal-case"
-            rows={2}
+            className="flex-1 bg-black/30 border border-skyrim-border rounded p-2 text-sm text-gray-200 placeholder-gray-500 resize-none focus:border-skyrim-gold focus:outline-none disabled:opacity-50 font-sans normal-case"
+            rows={1}
           />
           <button
             onClick={handleSend}
             disabled={loading || !input.trim() || messages.length === 0}
-            className="px-4 bg-skyrim-gold hover:bg-skyrim-goldHover disabled:opacity-50 disabled:cursor-not-allowed text-skyrim-dark font-bold rounded flex items-center justify-center transition-colors"
+            className="px-3 bg-skyrim-gold hover:bg-skyrim-goldHover disabled:opacity-50 disabled:cursor-not-allowed text-skyrim-dark font-bold rounded flex items-center justify-center transition-colors"
           >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-2">
-          Tip: Describe your actions in detail for richer responses. "I search the chest" → "I carefully examine the ancient chest for traps before attempting to pick the lock."
-        </p>
       </div>
 
       {/* Lockpicking Minigame Modal */}
@@ -1812,6 +1852,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         currentLocation={currentLocation}
         visitedLocations={visitedLocations}
         questLocations={questLocations}
+        discoveredLocations={discoveredLocations}
       />
     </div>
   );

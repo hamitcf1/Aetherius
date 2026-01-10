@@ -184,8 +184,12 @@ class AudioService {
       return;
     }
 
-    // Stop current music
-    this.stopMusic(false);
+    // Stop current music (without fade to avoid AbortError)
+    if (this.musicAudio) {
+      this.musicAudio.pause();
+      this.musicAudio = null;
+      this.currentTrack = null;
+    }
 
     try {
       this.musicAudio = new Audio(path);
@@ -194,16 +198,27 @@ class AudioService {
 
       if (fadeIn) {
         this.musicAudio.volume = 0;
-        this.musicAudio.play().then(() => {
-          this.fadeInMusic();
-        }).catch(e => {
-          console.warn(`Failed to play music "${track}":`, e);
-        });
+        const playPromise = this.musicAudio.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            this.fadeInMusic();
+          }).catch(e => {
+            // Ignore AbortError - it's expected when quickly switching tracks
+            if (e.name !== 'AbortError') {
+              console.warn(`Failed to play music "${track}":`, e);
+            }
+          });
+        }
       } else {
         this.musicAudio.volume = this.config.musicVolume;
-        this.musicAudio.play().catch(e => {
-          console.warn(`Failed to play music "${track}":`, e);
-        });
+        const playPromise = this.musicAudio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(e => {
+            if (e.name !== 'AbortError') {
+              console.warn(`Failed to play music "${track}":`, e);
+            }
+          });
+        }
       }
     } catch (e) {
       console.warn(`Error playing music "${track}":`, e);

@@ -271,6 +271,19 @@ export interface GameStateUpdate {
   // Vitals (health, magicka, stamina) changes for adventure
   vitalsChange?: Partial<CurrentVitals>;
 
+  // New locations discovered during gameplay (added to map)
+  discoveredLocations?: Array<{
+    name: string;
+    type: 'city' | 'town' | 'village' | 'dungeon' | 'landmark' | 'camp' | 'fort' | 'ruin' | 'cave';
+    x: number; // 0-100 percentage on map
+    y: number; // 0-100 percentage on map
+    hold?: string;
+    description?: string;
+    dangerLevel?: 'safe' | 'moderate' | 'dangerous' | 'deadly';
+    faction?: string;
+    rumors?: string[];
+  }>;
+
   // Ambient context for automatic music selection
   ambientContext?: {
     localeType?: 'wilderness' | 'tavern' | 'city' | 'dungeon' | 'interior' | 'road';
