@@ -447,22 +447,8 @@ Write the complete book now:`;
         });
       });
 
-      // Final page - The End
-      doc.addPage();
-      drawBackground();
-      yPos = pageHeight / 2 - 20;
-      doc.setFont('times', 'italic');
-      doc.setFontSize(14);
-      doc.setTextColor(COLOR_GOLD[0], COLOR_GOLD[1], COLOR_GOLD[2]);
-      doc.text('~ The End ~', pageWidth / 2, yPos, { align: 'center' });
-      
-      yPos += 20;
-      doc.setFontSize(10);
-      doc.setTextColor(COLOR_CHAPTER[0], COLOR_CHAPTER[1], COLOR_CHAPTER[2]);
-      doc.text('...or perhaps, just another chapter yet unwritten.', pageWidth / 2, yPos, { align: 'center' });
-
-      doc.save(`${character.name}_Chronicle.pdf`);
-      setFinalizeProgress('Complete! Your book has been downloaded.');
+      // Don't auto-download - just show the preview and let user click download
+      setFinalizeProgress('Complete! Click "Download PDF" to save your book.');
 
     } catch (error: any) {
       console.error('Error finalizing story:', error);
@@ -587,7 +573,7 @@ Write the complete book now:`;
           <div className="bg-skyrim-paper border-2 border-skyrim-gold rounded-lg shadow-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-serif text-skyrim-gold flex items-center gap-2">
-                <BookOpen size={24} /> Finalizing Your Chronicle
+                <BookOpen size={24} /> {generatedBook.length > 0 ? 'Your Chronicle' : 'Finalizing Your Chronicle'}
               </h3>
               {!isExportingStory && (
                 <button 
@@ -613,19 +599,132 @@ Write the complete book now:`;
             )}
 
             {generatedBook.length > 0 && (
-              <div className="bg-black/40 border border-skyrim-border rounded p-4 mb-4 max-h-60 overflow-y-auto">
-                <p className="text-sm text-gray-400 mb-2">Preview (first chapter):</p>
-                <div className="text-gray-300 text-sm whitespace-pre-wrap font-serif">
-                  {generatedBook[0]?.substring(0, 500)}...
+              <div className="bg-black/40 border border-skyrim-border rounded p-4 mb-4 max-h-[50vh] overflow-y-auto">
+                <p className="text-sm text-gray-400 mb-3">Your Generated Chronicle:</p>
+                <div className="text-gray-300 text-sm whitespace-pre-wrap font-serif space-y-4">
+                  {generatedBook.map((chapter, idx) => (
+                    <div key={idx} className="border-b border-skyrim-border/30 pb-4 last:border-0">
+                      {chapter}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
             {!isExportingStory && !finalizeError && generatedBook.length > 0 && (
-              <p className="text-green-400 mb-4">✓ Your chronicle has been downloaded!</p>
+              <p className="text-green-400 mb-4">✓ Your chronicle is ready!</p>
             )}
 
             <div className="flex gap-2">
+              {!isExportingStory && generatedBook.length > 0 && (
+                <button
+                  onClick={async () => {
+                    // Re-download the PDF
+                    if (!character) return;
+                    setFinalizeProgress('Generating PDF...');
+                    setIsExportingStory(true);
+                    try {
+                      const { jsPDF } = await import('jspdf');
+                      const doc = new jsPDF();
+                      const pageWidth = doc.internal.pageSize.getWidth();
+                      const pageHeight = doc.internal.pageSize.getHeight();
+                      const margin = 25;
+                      const contentWidth = pageWidth - (margin * 2);
+                      let yPos = margin;
+
+                      const COLOR_BG = [15, 12, 8];
+                      const COLOR_TEXT = [230, 220, 200];
+                      const COLOR_GOLD = [192, 160, 98];
+                      const COLOR_CHAPTER = [160, 140, 100];
+
+                      const drawBackground = () => {
+                        doc.setFillColor(COLOR_BG[0], COLOR_BG[1], COLOR_BG[2]);
+                        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+                        doc.setDrawColor(COLOR_GOLD[0], COLOR_GOLD[1], COLOR_GOLD[2]);
+                        doc.setLineWidth(1);
+                        doc.rect(margin/2, margin/2, pageWidth - margin, pageHeight - margin, 'S');
+                        doc.setLineWidth(0.3);
+                        doc.rect(margin/2 + 3, margin/2 + 3, pageWidth - margin - 6, pageHeight - margin - 6, 'S');
+                      };
+
+                      const checkPageBreak = (heightNeeded: number) => {
+                        if (yPos + heightNeeded > pageHeight - margin) {
+                          doc.addPage();
+                          drawBackground();
+                          yPos = margin + 15;
+                        }
+                      };
+
+                      // Title Page
+                      drawBackground();
+                      yPos = pageHeight / 3;
+                      doc.setFont('times', 'bold');
+                      doc.setFontSize(32);
+                      doc.setTextColor(COLOR_GOLD[0], COLOR_GOLD[1], COLOR_GOLD[2]);
+                      doc.text('The Chronicle', pageWidth / 2, yPos, { align: 'center' });
+                      yPos += 15;
+                      doc.setFontSize(12);
+                      doc.setTextColor(COLOR_CHAPTER[0], COLOR_CHAPTER[1], COLOR_CHAPTER[2]);
+                      doc.text('~ of ~', pageWidth / 2, yPos, { align: 'center' });
+                      yPos += 15;
+                      doc.setFontSize(24);
+                      doc.setTextColor(COLOR_GOLD[0], COLOR_GOLD[1], COLOR_GOLD[2]);
+                      doc.text(character.name, pageWidth / 2, yPos, { align: 'center' });
+
+                      // Parse chapters from generatedBook
+                      generatedBook.forEach((chapterText, index) => {
+                        doc.addPage();
+                        drawBackground();
+                        yPos = margin + 10;
+
+                        // Extract title and content from markdown format
+                        const lines = chapterText.split('\n');
+                        const titleLine = lines.find(l => l.startsWith('## ')) || `Chapter ${index + 1}`;
+                        const title = titleLine.replace('## ', '');
+                        const content = lines.filter(l => !l.startsWith('## ')).join('\n').trim();
+
+                        doc.setFont('times', 'italic');
+                        doc.setFontSize(10);
+                        doc.setTextColor(COLOR_CHAPTER[0], COLOR_CHAPTER[1], COLOR_CHAPTER[2]);
+                        doc.text(`Chapter ${index + 1}`, pageWidth / 2, yPos, { align: 'center' });
+                        yPos += 10;
+
+                        doc.setFont('times', 'bold');
+                        doc.setFontSize(16);
+                        doc.setTextColor(COLOR_GOLD[0], COLOR_GOLD[1], COLOR_GOLD[2]);
+                        const titleLines = doc.splitTextToSize(title, contentWidth);
+                        doc.text(titleLines, pageWidth / 2, yPos, { align: 'center' });
+                        yPos += titleLines.length * 8 + 15;
+
+                        doc.setFont('times', 'normal');
+                        doc.setFontSize(11);
+                        doc.setTextColor(COLOR_TEXT[0], COLOR_TEXT[1], COLOR_TEXT[2]);
+                        
+                        const paragraphs = content.split('\n\n');
+                        paragraphs.forEach(para => {
+                          const trimmed = para.trim();
+                          if (!trimmed) return;
+                          const pLines = doc.splitTextToSize(trimmed, contentWidth);
+                          const contentHeight = pLines.length * 5.5;
+                          checkPageBreak(contentHeight + 10);
+                          doc.text(pLines, margin, yPos);
+                          yPos += contentHeight + 8;
+                        });
+                      });
+
+                      doc.save(`${character.name}_Chronicle.pdf`);
+                      setFinalizeProgress('Complete!');
+                    } catch (err) {
+                      console.error('PDF generation error:', err);
+                    } finally {
+                      setIsExportingStory(false);
+                    }
+                  }}
+                  className="flex-1 py-2 bg-skyrim-gold text-skyrim-dark font-bold rounded hover:bg-yellow-400 flex items-center justify-center gap-2"
+                >
+                  <Download size={16} /> Download PDF
+                </button>
+              )}
               {!isExportingStory && (
                 <button
                   onClick={() => setShowFinalizeModal(false)}

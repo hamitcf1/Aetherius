@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { X, Moon, Apple, Droplets, Tent, Home, TreePine, Clock, Coins } from 'lucide-react';
 import { InventoryItem } from '../types';
+import { getFoodNutrition, getDrinkNutrition, getFoodNutritionDisplay, getDrinkNutritionDisplay } from '../services/nutritionData';
 
 // Hook for modal keyboard and click-outside handling
 function useModalClose(open: boolean, onClose: () => void) {
@@ -231,19 +232,22 @@ export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
             </div>
           ) : (
             <div className="space-y-2 max-h-80 overflow-y-auto">
-              {availableFood.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => handleEat(item)}
-                  className="w-full p-3 bg-black/30 border border-skyrim-border/60 rounded hover:border-skyrim-gold/50 transition-colors text-left flex items-center justify-between"
-                >
-                  <div>
-                    <div className="text-gray-200 font-semibold text-sm">{item.name}</div>
-                    <div className="text-gray-500 text-xs">x{item.quantity}</div>
-                  </div>
-                  <span className="text-green-400 text-xs">-25 hunger</span>
-                </button>
-              ))}
+              {availableFood.map(item => {
+                const nutritionDisplay = getFoodNutritionDisplay(item.name);
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleEat(item)}
+                    className="w-full p-3 bg-black/30 border border-skyrim-border/60 rounded hover:border-skyrim-gold/50 transition-colors text-left flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="text-gray-200 font-semibold text-sm">{item.name}</div>
+                      <div className="text-gray-500 text-xs">x{item.quantity}</div>
+                    </div>
+                    <span className="text-green-400 text-xs">{nutritionDisplay}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -309,19 +313,22 @@ export function DrinkModal({ open, onClose, onDrink, drinkItems }: DrinkModalPro
             </div>
           ) : (
             <div className="space-y-2 max-h-80 overflow-y-auto">
-              {availableDrinks.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => handleDrink(item)}
-                  className="w-full p-3 bg-black/30 border border-skyrim-border/60 rounded hover:border-skyrim-gold/50 transition-colors text-left flex items-center justify-between"
-                >
-                  <div>
-                    <div className="text-gray-200 font-semibold text-sm">{item.name}</div>
-                    <div className="text-gray-500 text-xs">x{item.quantity}</div>
-                  </div>
-                  <span className="text-blue-400 text-xs">-25 thirst</span>
-                </button>
-              ))}
+              {availableDrinks.map(item => {
+                const nutritionDisplay = getDrinkNutritionDisplay(item.name);
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleDrink(item)}
+                    className="w-full p-3 bg-black/30 border border-skyrim-border/60 rounded hover:border-skyrim-gold/50 transition-colors text-left flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="text-gray-200 font-semibold text-sm">{item.name}</div>
+                      <div className="text-gray-500 text-xs">x{item.quantity}</div>
+                    </div>
+                    <span className="text-blue-400 text-xs">{nutritionDisplay}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

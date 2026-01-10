@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { X, ShoppingBag, Coins, Search, Package, Sword, Shield, FlaskConical, Tent, Apple, Droplets, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { X, ShoppingBag, Coins, Search, Package, Sword, Shield, FlaskConical, Tent, Apple, Droplets, ArrowDownToLine, ArrowUpFromLine, Check } from 'lucide-react';
 import type { InventoryItem } from '../types';
+import { playSoundEffect } from '../services/audioService';
 
 export interface ShopItem {
   id: string;
@@ -338,6 +339,8 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [recentlyPurchased, setRecentlyPurchased] = useState<Set<string>>(new Set());
+  const [recentlySold, setRecentlySold] = useState<Set<string>>(new Set());
 
   // Handle ESC key to close
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -362,6 +365,8 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
     if (open) {
       setQuantities({});
       setSearch('');
+      setRecentlyPurchased(new Set());
+      setRecentlySold(new Set());
     }
   }, [open]);
 
@@ -403,6 +408,19 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
     if (gold >= total) {
       onPurchase(item, qty);
       setQuantities(prev => ({ ...prev, [item.id]: 1 }));
+      
+      // Play purchase sound effect
+      playSoundEffect('purchase');
+      
+      // Show purchase feedback
+      setRecentlyPurchased(prev => new Set(prev).add(item.id));
+      setTimeout(() => {
+        setRecentlyPurchased(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(item.id);
+          return newSet;
+        });
+      }, 1500);
     }
   };
 
@@ -413,6 +431,19 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
     const total = unitPrice * qty;
     onSell(item, qty, total);
     setQuantities(prev => ({ ...prev, [item.id]: 1 }));
+    
+    // Play sell sound effect
+    playSoundEffect('sell');
+    
+    // Show sell feedback
+    setRecentlySold(prev => new Set(prev).add(item.id));
+    setTimeout(() => {
+      setRecentlySold(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(item.id);
+        return newSet;
+      });
+    }, 1500);
   };
 
   if (!open) return null;
@@ -553,14 +584,23 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
                         </div>
                         <button
                           onClick={() => handleBuy(item)}
-                          disabled={!canAfford}
-                          className={`px-2.5 py-1 rounded text-xs font-bold transition-colors ${
-                            canAfford
-                              ? 'bg-skyrim-gold text-skyrim-dark hover:bg-yellow-400'
-                              : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                          disabled={!canAfford || recentlyPurchased.has(item.id)}
+                          className={`px-2.5 py-1 rounded text-xs font-bold transition-all duration-300 min-w-[70px] ${
+                            recentlyPurchased.has(item.id)
+                              ? 'bg-green-600 text-white scale-105'
+                              : canAfford
+                                ? 'bg-skyrim-gold text-skyrim-dark hover:bg-yellow-400'
+                                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                           }`}
                         >
-                          Buy {total}g
+                          {recentlyPurchased.has(item.id) ? (
+                            <span className="flex items-center justify-center gap-1">
+                              <Check size={12} />
+                              Bought!
+                            </span>
+                          ) : (
+                            `Buy ${total}g`
+                          )}
                         </button>
                       </div>
                     </div>
@@ -621,9 +661,21 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
                         )}
                         <button
                           onClick={() => handleSell(item)}
-                          className="px-2.5 py-1 rounded text-xs font-bold bg-green-700 text-white hover:bg-green-600 transition-colors"
+                          disabled={recentlySold.has(item.id)}
+                          className={`px-2.5 py-1 rounded text-xs font-bold transition-all duration-300 min-w-[70px] ${
+                            recentlySold.has(item.id)
+                              ? 'bg-yellow-600 text-white scale-105'
+                              : 'bg-green-700 text-white hover:bg-green-600'
+                          }`}
                         >
-                          Sell +{total}g
+                          {recentlySold.has(item.id) ? (
+                            <span className="flex items-center justify-center gap-1">
+                              <Check size={12} />
+                              Sold!
+                            </span>
+                          ) : (
+                            `Sell +${total}g`
+                          )}
                         </button>
                       </div>
                     </div>

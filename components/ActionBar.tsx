@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, Snowflake, ShoppingBag, Coins, X, ChevronDown } from 'lucide-react';
+import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, Snowflake, ChevronDown, Volume2, VolumeX, Music, Music2 } from 'lucide-react';
 import SnowEffect, { SnowSettings } from './SnowEffect';
 import { useAppContext } from '../AppContext';
 import { isFeatureEnabled, isFeatureWIP, getFeatureLabel } from '../featureFlags';
 import { PREFERRED_AI_MODELS } from '../services/geminiService';
-import { ShopModal } from './ShopModal.tsx';
+import { audioService } from '../services/audioService';
 
 type SnowIntensity = SnowSettings['intensity'];
 
@@ -28,21 +28,33 @@ const ActionBar: React.FC = () => {
     isGeneratingProfileImage,
     handleCreateImagePrompt,
     handleUploadPhoto,
-    handleShopPurchase,
-    handleShopSell,
-    gold,
-    inventory,
     aiModel,
     setAiModel,
-    characterLevel,
     isAnonymous
   } = useAppContext();
   const [open, setOpen] = useState(false);
   const [snow, setSnow] = useState(false);
   const [snowIntensity, setSnowIntensity] = useState<SnowIntensity>('normal');
   const [showSnowOptions, setShowSnowOptions] = useState(false);
-  const [shopOpen, setShopOpen] = useState(false);
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
+  
+  // Audio state - sync with audioService config
+  const [soundEnabled, setSoundEnabled] = useState(() => audioService.getConfig().soundEffectsEnabled);
+  const [musicEnabled, setMusicEnabled] = useState(() => audioService.getConfig().musicEnabled);
+
+  // Toggle handlers that update both local state and audioService
+  const handleToggleSound = () => {
+    const newState = !soundEnabled;
+    setSoundEnabled(newState);
+    audioService.setSoundEffectsEnabled(newState);
+  };
+
+  const handleToggleMusic = () => {
+    const newState = !musicEnabled;
+    setMusicEnabled(newState);
+    audioService.setMusicEnabled(newState);
+  };
+  
   // Ref for the button to align dropdown
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const [dropdownPos, setDropdownPos] = useState<{left: number, top: number, width: number}>({left: 0, top: 0, width: 220});
@@ -216,19 +228,8 @@ const ActionBar: React.FC = () => {
             )}
           </div>
 
-          {/* Shop Button */}
-          <div className="border-t border-skyrim-border/60 pt-3">
-            <button 
-              onClick={() => { setShopOpen(true); setOpen(false); }} 
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-amber-700 text-white rounded font-bold hover:bg-amber-600"
-            >
-              <ShoppingBag size={16} /> 
-              <span>Shop</span>
-              <span className="ml-auto flex items-center gap-1 text-yellow-300">
-                <Coins size={14} /> {gold}
-              </span>
-            </button>
-          </div>
+          {/* Shop Button - Now in Inventory section */}
+          {/* Removed: Shop button moved to Inventory for better UX */}
 
           {/* AI Profile Image - show as disabled if feature not enabled */}
           <div className="relative group">
@@ -303,6 +304,40 @@ const ActionBar: React.FC = () => {
             )}
           </div>
 
+          {/* Audio Settings */}
+          <div className="border-t border-skyrim-border/60 pt-3 mt-2">
+            <div className="text-xs text-gray-500 font-bold mb-2">Audio Settings</div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleToggleSound}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded font-bold transition-colors ${
+                  soundEnabled 
+                    ? 'bg-green-700 text-white hover:bg-green-600' 
+                    : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                }`}
+                title={soundEnabled ? 'Disable sound effects' : 'Enable sound effects'}
+              >
+                {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                <span className="text-xs">SFX</span>
+              </button>
+              <button
+                onClick={handleToggleMusic}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded font-bold transition-colors ${
+                  musicEnabled 
+                    ? 'bg-purple-700 text-white hover:bg-purple-600' 
+                    : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                }`}
+                title={musicEnabled ? 'Disable background music' : 'Enable background music'}
+              >
+                {musicEnabled ? <Music size={16} /> : <Music2 size={16} />}
+                <span className="text-xs">Music</span>
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-600 mt-1 text-center italic">
+              Audio files coming soon
+            </p>
+          </div>
+
           {/* Version and Credits */}
           <div className="border-t border-skyrim-border/60 pt-3 mt-2">
             <div className="text-center">
@@ -314,15 +349,6 @@ const ActionBar: React.FC = () => {
         document.body
       )}
       {snow && <SnowEffect settings={{ intensity: snowIntensity }} />}
-      <ShopModal 
-        open={shopOpen} 
-        onClose={() => setShopOpen(false)} 
-        gold={gold} 
-        onPurchase={handleShopPurchase}
-        inventory={inventory}
-        onSell={handleShopSell}
-        characterLevel={characterLevel}
-      />
 
       {/* Guest Logout Warning Modal */}
       {showLogoutWarning && createPortal(

@@ -56,12 +56,100 @@ import {
   setActiveCharacter,
   clearActiveCharacter
 } from './services/realtime';
+import { getFoodNutrition, getDrinkNutrition } from './services/nutritionData';
 import type { PreferredAIModel } from './services/geminiService';
 import type { UserSettings } from './services/firestore';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+
+// Skyrim Calendar System - Accurate representation
+// Each month has ~30 days, 12 months per year
+// The game starts on 17th of Last Seed (August), 4E 201
+const SKYRIM_MONTHS = [
+  { name: "Morning Star", days: 31 },   // January
+  { name: "Sun's Dawn", days: 28 },     // February
+  { name: "First Seed", days: 31 },     // March
+  { name: "Rain's Hand", days: 30 },    // April
+  { name: "Second Seed", days: 31 },    // May
+  { name: "Mid Year", days: 30 },       // June
+  { name: "Sun's Height", days: 31 },   // July
+  { name: "Last Seed", days: 31 },      // August
+  { name: "Hearthfire", days: 30 },     // September
+  { name: "Frostfall", days: 31 },      // October
+  { name: "Sun's Dusk", days: 30 },     // November
+  { name: "Evening Star", days: 31 },   // December
+];
+
+// Calculate Skyrim date from day number (starting from Day 1 = 17th Last Seed, 4E 201)
+const getSkyrimCalendarDate = (dayNumber: number): { era: string; year: number; month: string; day: number; monthIndex: number } => {
+  // Day 1 = 17th of Last Seed (month index 7), 4E 201
+  const startingDay = 17;
+  const startingMonthIndex = 7; // Last Seed
+  const startingYear = 201;
+  const era = "4E";
+  
+  // Total days since beginning of year (Last Seed 1st would be day 213 of year)
+  // Days before Last Seed: 31+28+31+30+31+30+31 = 212
+  const daysBeforeLastSeed = SKYRIM_MONTHS.slice(0, startingMonthIndex).reduce((sum, m) => sum + m.days, 0);
+  const startingDayOfYear = daysBeforeLastSeed + startingDay; // ~229
+  
+  // Calculate total days elapsed since start of year 201
+  let totalDays = startingDayOfYear + (dayNumber - 1);
+  let year = startingYear;
+  
+  // Handle year overflow
+  const daysPerYear = SKYRIM_MONTHS.reduce((sum, m) => sum + m.days, 0); // 365
+  while (totalDays > daysPerYear) {
+    totalDays -= daysPerYear;
+    year++;
+  }
+  
+  // Find month and day
+  let remaining = totalDays;
+  let monthIndex = 0;
+  for (let i = 0; i < SKYRIM_MONTHS.length; i++) {
+    if (remaining <= SKYRIM_MONTHS[i].days) {
+      monthIndex = i;
+      break;
+    }
+    remaining -= SKYRIM_MONTHS[i].days;
+  }
+  
+  const day = Math.max(1, remaining);
+  
+  return {
+    era,
+    year,
+    month: SKYRIM_MONTHS[monthIndex].name,
+    day,
+    monthIndex
+  };
+};
+
+// Format with ordinal suffix
+const getOrdinalSuffix = (n: number): string => {
+  if (n > 3 && n < 21) return "th";
+  switch (n % 10) {
+    case 1: return "st";
+    case 2: return "nd";
+    case 3: return "rd";
+    default: return "th";
+  }
+};
+
+// Format full Skyrim date string
+const formatSkyrimDate = (dayNumber: number): string => {
+  const date = getSkyrimCalendarDate(dayNumber);
+  return `${date.day}${getOrdinalSuffix(date.day)} of ${date.month}, ${date.era} ${date.year}`;
+};
+
+// Short format for display
+const formatSkyrimDateShort = (dayNumber: number): string => {
+  const date = getSkyrimCalendarDate(dayNumber);
+  return `${date.month} ${date.day}, ${date.era} ${date.year}`;
+};
 
 // Tunable passive need rates (per in-game minute). Lower = slower.
 // Example: hungerPerMinute = 1/180 means +1 hunger every 180 minutes (~3 hours).
@@ -104,8 +192,11 @@ const formatTime = (time: { day: number; hour: number; minute: number }) => {
   const d = Math.max(1, Number(time?.day || 1));
   const h = clamp(Number(time?.hour || 0), 0, 23);
   const m = clamp(Number(time?.minute || 0), 0, 59);
-  return `Day ${d}, ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
+
+// Export calendar utilities for use in other components
+export { getSkyrimCalendarDate, formatSkyrimDate, formatSkyrimDateShort, getOrdinalSuffix, SKYRIM_MONTHS };
 
 const TABS = {
   CHARACTER: 'character',
@@ -962,22 +1053,32 @@ const App: React.FC = () => {
     });
   };
 
-  // Eat a specific item
+  // Eat a specific item - uses dynamic nutrition values
   const handleEatItem = (item: InventoryItem) => {
     if (!currentCharacterId || !activeCharacter) return;
+    const nutrition = getFoodNutrition(item.name);
     handleGameUpdate({
       timeAdvanceMinutes: 10,
-      needsChange: { hunger: -25 },
+      needsChange: { 
+        hunger: -nutrition.hungerReduction, 
+        thirst: -nutrition.thirstReduction,
+        ...(nutrition.fatigueReduction ? { fatigue: -nutrition.fatigueReduction } : {})
+      },
       removedItems: [{ name: item.name, quantity: 1 }]
     });
   };
 
-  // Drink a specific item
+  // Drink a specific item - uses dynamic nutrition values
   const handleDrinkItem = (item: InventoryItem) => {
     if (!currentCharacterId || !activeCharacter) return;
+    const nutrition = getDrinkNutrition(item.name);
     handleGameUpdate({
       timeAdvanceMinutes: 5,
-      needsChange: { thirst: -25 },
+      needsChange: { 
+        thirst: -nutrition.thirstReduction,
+        hunger: -nutrition.hungerReduction,
+        ...(nutrition.fatigueReduction ? { fatigue: -nutrition.fatigueReduction } : {})
+      },
       removedItems: [{ name: item.name, quantity: 1 }]
     });
   };

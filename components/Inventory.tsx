@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, EquipmentSlot } from '../types';
-import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent, ArrowUpDown, User, Backpack, Check } from 'lucide-react';
+import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent, ArrowUpDown, User, Backpack, Check, ShoppingBag } from 'lucide-react';
 import { EquipmentHUD, getDefaultSlotForItem, SLOT_CONFIGS_EXPORT } from './EquipmentHUD';
+import { ShopModal } from './ShopModal';
+import { useAppContext } from '../AppContext';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -107,8 +109,8 @@ const InventoryItemCard: React.FC<{
                         </div>
                         <p className="text-sm text-gray-400 truncate">{item.description}</p>
                         {/* Stats display */}
-                        {(item.armor || item.damage) && (
-                          <div className="flex gap-3 mt-1 text-xs">
+                        {(item.armor || item.damage || item.value) && (
+                          <div className="flex gap-3 mt-1 text-xs flex-wrap">
                             {item.armor && (
                               <span className="text-blue-400 flex items-center gap-1">
                                 <Shield size={12} /> {item.armor}
@@ -117,6 +119,11 @@ const InventoryItemCard: React.FC<{
                             {item.damage && (
                               <span className="text-red-400 flex items-center gap-1">
                                 <Sword size={12} /> {item.damage}
+                              </span>
+                            )}
+                            {item.value && (
+                              <span className="text-yellow-500 flex items-center gap-1">
+                                <Coins size={12} /> {item.value}g
                               </span>
                             )}
                           </div>
@@ -158,6 +165,10 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
   const [viewMode, setViewMode] = useState<'inventory' | 'equipment'>('inventory');
   const [equipModalOpen, setEquipModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<EquipmentSlot | null>(null);
+  const [shopOpen, setShopOpen] = useState(false);
+
+  // Get shop handlers from context
+  const { handleShopPurchase, handleShopSell, characterLevel } = useAppContext();
 
   // Category tabs configuration
   const CATEGORY_TABS: { key: 'all' | InventoryItem['type']; label: string; icon: React.ReactNode }[] = [
@@ -454,12 +465,20 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
                   </div>
               </div>
           </div>
-          <button 
-              onClick={() => setIsAdding(!isAdding)}
-              className="px-4 py-2 border border-skyrim-gold text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors rounded flex items-center gap-2"
-          >
-              <Plus size={18} /> Add Item
-          </button>
+          <div className="flex gap-2">
+            <button 
+                onClick={() => setShopOpen(true)}
+                className="px-4 py-2 bg-amber-700 text-white hover:bg-amber-600 transition-colors rounded flex items-center gap-2 font-bold"
+            >
+                <ShoppingBag size={18} /> Shop
+            </button>
+            <button 
+                onClick={() => setIsAdding(!isAdding)}
+                className="px-4 py-2 border border-skyrim-gold text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors rounded flex items-center gap-2"
+            >
+                <Plus size={18} /> Add Item
+            </button>
+          </div>
       </div>
 
       {isAdding && (
@@ -572,6 +591,17 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
       </div>
       </>
     )}
+
+    {/* Shop Modal */}
+    <ShopModal
+      open={shopOpen}
+      onClose={() => setShopOpen(false)}
+      gold={gold}
+      onPurchase={handleShopPurchase}
+      inventory={items}
+      onSell={handleShopSell}
+      characterLevel={characterLevel}
+    />
     </div>
   );
 };

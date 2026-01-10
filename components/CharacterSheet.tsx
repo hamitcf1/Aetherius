@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { Character, Milestone, Perk, InventoryItem, CustomQuest, JournalEntry, StoryChapter } from '../types';
-import { ChevronDown, ChevronRight, User, Brain, ShieldBan, Zap, Map, Activity, Info, Heart, Droplets, BicepsFlexed, CheckCircle, Circle, Trash2, Plus, Star, LayoutList, Layers, Ghost, Sparkles, ScrollText, Download, Image as ImageIcon, Loader2, Moon, Apple, Shield, Sword, Swords } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, Brain, ShieldBan, Zap, Map, Activity, Info, Heart, Droplets, BicepsFlexed, CheckCircle, Circle, Trash2, Plus, Star, LayoutList, Layers, Ghost, Sparkles, ScrollText, Download, Image as ImageIcon, Loader2, Moon, Apple, Shield, Sword, Swords, Calendar } from 'lucide-react';
 import { generateCharacterProfileImage } from '../services/geminiService';
 import { RestModal, EatModal, DrinkModal, type RestOptions } from './SurvivalModals';
+import { formatSkyrimDateShort } from '../App';
 
 interface CharacterSheetProps {
   character: Character;
@@ -205,7 +206,9 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
 
     const time = (character as any).time || { day: 1, hour: 8, minute: 0 };
     const needs = (character as any).needs || { hunger: 0, thirst: 0, fatigue: 0 };
-    const fmtTime = `Day ${Math.max(1, Number(time.day || 1))}, ${String(Math.max(0, Math.min(23, Number(time.hour || 0)))).padStart(2, '0')}:${String(Math.max(0, Math.min(59, Number(time.minute || 0)))).padStart(2, '0')}`;
+    const dayNumber = Math.max(1, Number(time.day || 1));
+    const fmtTime = `${String(Math.max(0, Math.min(23, Number(time.hour || 0)))).padStart(2, '0')}:${String(Math.max(0, Math.min(59, Number(time.minute || 0)))).padStart(2, '0')}`;
+    const fmtDate = formatSkyrimDateShort(dayNumber);
     const clampNeed = (n: any) => Math.max(0, Math.min(100, Number(n || 0)));
 
   const addMilestone = () => {
@@ -688,6 +691,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                             <div>
                                 <div className="text-xs uppercase tracking-widest text-gray-400 font-bold">In-Game Time</div>
                                 <div className="text-skyrim-gold font-serif text-lg">{fmtTime}</div>
+                                <div className="flex items-center gap-1.5 text-sm text-gray-400 mt-1">
+                                    <Calendar size={12} />
+                                    <span>{fmtDate}</span>
+                                </div>
                             </div>
                             <div className="text-xs text-gray-500 font-sans">
                                 Hunger / Thirst / Fatigue (0 = good, 100 = bad)
