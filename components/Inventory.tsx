@@ -33,8 +33,9 @@ const InventoryItemCard: React.FC<{
     onDeltaQuantity: (delta: number) => void;
     onEquip?: (item: InventoryItem) => void;
     onUnequip?: (item: InventoryItem) => void;
+    onUse?: (item: InventoryItem) => void;
     getIcon: (type: string) => React.ReactNode;
-}> = ({ item, onUpdate, onRemove, onDeltaQuantity, onEquip, onUnequip, getIcon }) => {
+}> = ({ item, onUpdate, onRemove, onDeltaQuantity, onEquip, onUnequip, onUse, getIcon }) => {
     const [editMode, setEditMode] = useState(false);
     const [editName, setEditName] = useState(item.name);
     const [editDesc, setEditDesc] = useState(item.description);
@@ -54,6 +55,7 @@ const InventoryItemCard: React.FC<{
     };
 
     const canEquip = item.type === 'weapon' || item.type === 'apparel';
+    const canUse = ['food', 'drink', 'potion', 'ingredient'].includes(item.type);
     const isEquipped = item.equipped;
 
     return (
@@ -141,6 +143,14 @@ const InventoryItemCard: React.FC<{
                                 {isEquipped ? 'Unequip' : 'Equip'}
                               </button>
                             )}
+                            {canUse && onUse && (
+                              <button 
+                                onClick={() => onUse(item)} 
+                                className="px-2 py-1 bg-blue-700/60 text-white hover:bg-blue-600 rounded text-xs"
+                              >
+                                Use
+                              </button>
+                            )}
                             <button onClick={startEdit} className="px-2 py-1 bg-skyrim-gold/20 text-skyrim-gold rounded text-xs">Edit</button>
                             <button onClick={() => onDeltaQuantity(1)} className="px-2 py-1 bg-green-700/60 text-white rounded text-xs">+1</button>
                             <button onClick={() => onDeltaQuantity(-1)} className="px-2 py-1 bg-red-700/60 text-white rounded text-xs">-1</button>
@@ -168,7 +178,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
   const [shopOpen, setShopOpen] = useState(false);
 
   // Get shop handlers from context
-  const { handleShopPurchase, handleShopSell, characterLevel } = useAppContext();
+  const { handleShopPurchase, handleShopSell, characterLevel, handleEatItem, handleDrinkItem } = useAppContext();
 
   // Category tabs configuration
   const CATEGORY_TABS: { key: 'all' | InventoryItem['type']; label: string; icon: React.ReactNode }[] = [
@@ -581,6 +591,18 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
           onRemove={() => removeItem(item.id)}
           onEquip={(item) => equipItem(item)}
           onUnequip={unequipItem}
+          onUse={(item) => {
+            // Use the appropriate handler based on item type
+            if (item.type === 'food' || item.type === 'ingredient') {
+              handleEatItem(item);
+            } else if (item.type === 'drink') {
+              handleDrinkItem(item);
+            } else if (item.type === 'potion') {
+              // Potions can be either for hunger/thirst (drink) or healing (eat counts as consume)
+              // For now, treat potions as drinks (thirst reduction)
+              handleDrinkItem(item);
+            }
+          }}
         />
       ))}
         {sortedItems.length === 0 && (

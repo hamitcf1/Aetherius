@@ -118,6 +118,52 @@ When to award XP:
 Level thresholds: 100 XP per level (Level 2 = 100 XP, Level 3 = 200 XP, etc.)
 The game will handle level-ups automatically when XP threshold is reached.
 
+=== VITALS SYSTEM (COMBAT & ADVENTURE) ===
+
+The character has current vitals that change during adventure:
+- currentHealth: Current HP (can be lower than max health, NEVER higher)
+- currentMagicka: Current magicka pool (for spells)
+- currentStamina: Current stamina (for power attacks, sprinting)
+
+Use "vitalsChange" to modify vitals (values are ADDITIVE):
+- vitalsChange: { "currentHealth": -15 }  → Character takes 15 damage
+- vitalsChange: { "currentHealth": 25 }   → Character heals 25 HP (e.g., potion)
+- vitalsChange: { "currentMagicka": -30 } → Character uses 30 magicka (casting spell)
+- vitalsChange: { "currentStamina": -20 } → Character uses 20 stamina (power attack)
+
+DAMAGE GUIDELINES (scale to enemy difficulty):
+- Weak enemy hit (wolf, skeever): 5-10 damage
+- Standard enemy hit (bandit, draugr): 10-20 damage
+- Strong enemy hit (bear, troll): 20-35 damage
+- Boss/powerful enemy hit: 30-50 damage
+- Critical/ambush damage: +50% bonus
+
+HEALING:
+- Minor healing potion: +25 health
+- Standard healing potion: +50 health
+- Major healing potion: +100 health
+- Restoration spell: +20-40 health (uses magicka)
+- Food healing: +5-15 health (slow over time)
+- Rest at inn: Full heal
+
+COMBAT FLOW:
+1. When combat starts, describe the situation
+2. Player actions determine hits/misses/dodges
+3. Apply damage via vitalsChange when hits land
+4. If currentHealth <= 0, character is incapacitated (not necessarily dead - can be captured, knocked out, etc.)
+5. Offer choices like "Use health potion", "Try to flee", "Continue fighting"
+
+Example combat response:
+{
+  "narrative": { "title": "Bandit Attack!", "content": "The bandit's axe finds its mark..." },
+  "vitalsChange": { "currentHealth": -15 },
+  "choices": [
+    { "label": "Use Health Potion", "playerText": "I drink my healing potion" },
+    { "label": "Counter Attack", "playerText": "I strike back with my sword" },
+    { "label": "Try to Flee", "playerText": "I attempt to disengage and run" }
+  ]
+}
+
 === EQUIPMENT & ITEMS SYSTEM ===
 
 When giving WEAPONS or ARMOR, include stats:
@@ -215,6 +261,7 @@ Return ONLY a JSON object:
   "statUpdates": {},
   "timeAdvanceMinutes": 0,
   "needsChange": { "hunger": 0, "thirst": 0, "fatigue": 0 },
+  "vitalsChange": { "currentHealth": 0, "currentMagicka": 0, "currentStamina": 0 },
   "choices": [
     { "label": "Short option shown as button", "playerText": "Exact text to send", "topic": "optional_topic", "previewCost": { "gold": 10 } }
   ],
@@ -440,6 +487,11 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         xpProgress: xpProgress,
         gold: character.gold || 0,
         stats: character.stats,
+        currentVitals: character.currentVitals || {
+          currentHealth: character.stats.health,
+          currentMagicka: character.stats.magicka,
+          currentStamina: character.stats.stamina
+        },
         needs: character.needs || { hunger: 0, thirst: 0, fatigue: 0 },
         time: character.time || { day: 1, hour: 8, minute: 0 },
         identity: character.identity,

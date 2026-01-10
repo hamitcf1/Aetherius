@@ -188,6 +188,9 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   const [restModalOpen, setRestModalOpen] = useState(false);
   const [eatModalOpen, setEatModalOpen] = useState(false);
   const [drinkModalOpen, setDrinkModalOpen] = useState(false);
+  
+  // Toggle for max stats section (character creation)
+  const [showMaxStats, setShowMaxStats] = useState(false);
 
   // Calculate armor and damage from equipped items
   const equipmentStats = useMemo(() => {
@@ -621,28 +624,113 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
               </div>
           </div>
 
-                    <div className="mb-6 p-4 bg-black/40 rounded border border-skyrim-border flex flex-col sm:flex-row gap-4">
-              <StatBar 
-                label="Health" 
-                value={character.stats.health} 
-                color="bg-red-700" 
-                icon={<Heart size={12}/>} 
-                onChange={(v) => updateCharacter('stats', { ...character.stats, health: v })}
-              />
-              <StatBar 
-                label="Magicka" 
-                value={character.stats.magicka} 
-                color="bg-blue-600" 
-                icon={<Droplets size={12}/>} 
-                onChange={(v) => updateCharacter('stats', { ...character.stats, magicka: v })}
-              />
-              <StatBar 
-                label="Stamina" 
-                value={character.stats.stamina} 
-                color="bg-green-600" 
-                icon={<BicepsFlexed size={12}/>} 
-                onChange={(v) => updateCharacter('stats', { ...character.stats, stamina: v })}
-              />
+          {/* Max Stats Section (Toggleable - Character Creation) */}
+          <div className="mb-6">
+            <button 
+              onClick={() => setShowMaxStats(!showMaxStats)}
+              className="w-full flex items-center justify-between p-3 bg-black/40 rounded border border-skyrim-border hover:border-skyrim-gold/50 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-sm">
+                <Activity size={14} className="text-gray-400" />
+                <span className="text-gray-300 font-medium">Max Stats (Character Creation)</span>
+                <span className="text-[10px] text-gray-500 px-1.5 py-0.5 bg-black/40 rounded">
+                  H:{character.stats.health} M:{character.stats.magicka} S:{character.stats.stamina}
+                </span>
+              </div>
+              {showMaxStats ? <ChevronDown size={16} className="text-gray-400" /> : <ChevronRight size={16} className="text-gray-400" />}
+            </button>
+            
+            {showMaxStats && (
+              <div className="mt-2 p-4 bg-black/40 rounded border border-skyrim-border flex flex-col sm:flex-row gap-4">
+                <StatBar 
+                  label="Max Health" 
+                  value={character.stats.health} 
+                  color="bg-red-700" 
+                  icon={<Heart size={12}/>} 
+                  onChange={(v) => updateCharacter('stats', { ...character.stats, health: v })}
+                />
+                <StatBar 
+                  label="Max Magicka" 
+                  value={character.stats.magicka} 
+                  color="bg-blue-600" 
+                  icon={<Droplets size={12}/>} 
+                  onChange={(v) => updateCharacter('stats', { ...character.stats, magicka: v })}
+                />
+                <StatBar 
+                  label="Max Stamina" 
+                  value={character.stats.stamina} 
+                  color="bg-green-600" 
+                  icon={<BicepsFlexed size={12}/>} 
+                  onChange={(v) => updateCharacter('stats', { ...character.stats, stamina: v })}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Current Vitals (for Adventure) */}
+          <div className="mb-6 p-4 bg-gradient-to-r from-red-950/30 via-black/40 to-blue-950/30 rounded border border-skyrim-border">
+            <div className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-3">Current Vitals (Adventure)</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Current Health */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                    <Heart size={12} className="text-red-500" /> Health
+                  </span>
+                  <span className="text-sm font-bold text-red-400">
+                    {character.currentVitals?.currentHealth ?? character.stats.health} / {character.stats.health}
+                  </span>
+                </div>
+                <div className="h-4 bg-black/60 rounded-full border border-red-900/50 overflow-hidden relative">
+                  <div 
+                    className="h-full bg-gradient-to-r from-red-800 to-red-500 transition-all duration-500"
+                    style={{ width: `${Math.max(0, Math.min(100, ((character.currentVitals?.currentHealth ?? character.stats.health) / character.stats.health) * 100))}%` }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                </div>
+              </div>
+              
+              {/* Current Magicka */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                    <Droplets size={12} className="text-blue-500" /> Magicka
+                  </span>
+                  <span className="text-sm font-bold text-blue-400">
+                    {character.currentVitals?.currentMagicka ?? character.stats.magicka} / {character.stats.magicka}
+                  </span>
+                </div>
+                <div className="h-4 bg-black/60 rounded-full border border-blue-900/50 overflow-hidden relative">
+                  <div 
+                    className="h-full bg-gradient-to-r from-blue-800 to-blue-500 transition-all duration-500"
+                    style={{ width: `${Math.max(0, Math.min(100, ((character.currentVitals?.currentMagicka ?? character.stats.magicka) / character.stats.magicka) * 100))}%` }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                </div>
+              </div>
+              
+              {/* Current Stamina */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                    <BicepsFlexed size={12} className="text-green-500" /> Stamina
+                  </span>
+                  <span className="text-sm font-bold text-green-400">
+                    {character.currentVitals?.currentStamina ?? character.stats.stamina} / {character.stats.stamina}
+                  </span>
+                </div>
+                <div className="h-4 bg-black/60 rounded-full border border-green-900/50 overflow-hidden relative">
+                  <div 
+                    className="h-full bg-gradient-to-r from-green-800 to-green-500 transition-all duration-500"
+                    style={{ width: `${Math.max(0, Math.min(100, ((character.currentVitals?.currentStamina ?? character.stats.stamina) / character.stats.stamina) * 100))}%` }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                </div>
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-600 mt-3 text-center italic">
+              Current vitals change during adventure. Rest or use potions to restore them.
+            </p>
           </div>
 
           {/* Armor & Damage from Equipment */}

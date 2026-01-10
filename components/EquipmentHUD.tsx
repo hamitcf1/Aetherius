@@ -18,14 +18,18 @@ interface SlotConfig {
 
 const SLOT_CONFIGS: SlotConfig[] = [
   { slot: 'head', label: 'Head', icon: <Crown size={20} />, position: 'top-0 left-1/2 -translate-x-1/2', allowedTypes: ['apparel'] },
-  { slot: 'necklace', label: 'Necklace', icon: <CircleDot size={18} />, position: 'top-16 left-1/2 -translate-x-1/2', allowedTypes: ['apparel', 'misc'] },
+  { slot: 'necklace', label: 'Necklace', icon: <CircleDot size={18} />, position: 'top-16 left-1/2 -translate-x-1/2', allowedTypes: ['apparel'] },
   { slot: 'chest', label: 'Chest', icon: <Shirt size={20} />, position: 'top-28 left-1/2 -translate-x-1/2', allowedTypes: ['apparel'] },
   { slot: 'hands', label: 'Hands', icon: <Hand size={18} />, position: 'top-28 left-2', allowedTypes: ['apparel'] },
   { slot: 'weapon', label: 'Weapon', icon: <Sword size={20} />, position: 'top-44 left-0', allowedTypes: ['weapon'] },
   { slot: 'offhand', label: 'Off-hand', icon: <Shield size={20} />, position: 'top-44 right-0', allowedTypes: ['weapon', 'apparel'] },
-  { slot: 'ring', label: 'Ring', icon: <Gem size={16} />, position: 'top-28 right-2', allowedTypes: ['apparel', 'misc'] },
+  { slot: 'ring', label: 'Ring', icon: <Gem size={16} />, position: 'top-28 right-2', allowedTypes: ['apparel'] },
   { slot: 'feet', label: 'Feet', icon: <Footprints size={18} />, position: 'bottom-0 left-1/2 -translate-x-1/2', allowedTypes: ['apparel'] },
 ];
+
+// Keywords for ring and necklace items
+const RING_KEYWORDS = ['ring', 'band', 'signet'];
+const NECKLACE_KEYWORDS = ['necklace', 'amulet', 'pendant', 'torc', 'chain'];
 
 export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, onEquipFromSlot }) => {
   // Get equipped items by slot
@@ -170,6 +174,11 @@ export const getDefaultSlotForItem = (item: InventoryItem): EquipmentSlot | null
   
   const nameLower = item.name.toLowerCase();
   
+  // Only weapons and apparel can be equipped
+  if (item.type !== 'weapon' && item.type !== 'apparel') {
+    return null;
+  }
+  
   if (item.type === 'weapon') {
     if (nameLower.includes('shield') || nameLower.includes('torch')) return 'offhand';
     return 'weapon';
@@ -177,8 +186,10 @@ export const getDefaultSlotForItem = (item: InventoryItem): EquipmentSlot | null
   
   if (item.type === 'apparel') {
     if (nameLower.includes('helmet') || nameLower.includes('hood') || nameLower.includes('circlet') || nameLower.includes('crown')) return 'head';
-    if (nameLower.includes('necklace') || nameLower.includes('amulet') || nameLower.includes('pendant')) return 'necklace';
-    if (nameLower.includes('ring') || nameLower.includes('band')) return 'ring';
+    // Check for ring keywords
+    if (RING_KEYWORDS.some(k => nameLower.includes(k))) return 'ring';
+    // Check for necklace keywords
+    if (NECKLACE_KEYWORDS.some(k => nameLower.includes(k))) return 'necklace';
     if (nameLower.includes('gauntlet') || nameLower.includes('glove') || nameLower.includes('bracer')) return 'hands';
     if (nameLower.includes('boot') || nameLower.includes('shoe') || nameLower.includes('greave')) return 'feet';
     if (nameLower.includes('armor') || nameLower.includes('cuirass') || nameLower.includes('robe') || nameLower.includes('clothes') || nameLower.includes('tunic')) return 'chest';

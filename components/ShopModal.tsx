@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { X, ShoppingBag, Coins, Search, Package, Sword, Shield, FlaskConical, Tent, Apple, Droplets, ArrowDownToLine, ArrowUpFromLine, Check } from 'lucide-react';
 import type { InventoryItem } from '../types';
 import { playSoundEffect } from '../services/audioService';
+import { getItemStats, shouldHaveStats } from '../services/itemStats';
 
 export interface ShopItem {
   id: string;
@@ -559,6 +560,24 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
                         <div className="flex items-center gap-2">
                           <span className="text-gray-200 font-medium text-sm truncate">{item.name}</span>
                           <span className="text-gray-500 text-xs">({item.category})</span>
+                          {/* Show stats for weapons and armor */}
+                          {shouldHaveStats(item.type) && (() => {
+                            const stats = getItemStats(item.name, item.type);
+                            return (
+                              <span className="flex items-center gap-2 text-xs">
+                                {stats.damage && (
+                                  <span className="flex items-center gap-0.5 text-red-400">
+                                    <Sword size={10} /> {stats.damage}
+                                  </span>
+                                )}
+                                {stats.armor && (
+                                  <span className="flex items-center gap-0.5 text-blue-400">
+                                    <Shield size={10} /> {stats.armor}
+                                  </span>
+                                )}
+                              </span>
+                            );
+                          })()}
                         </div>
                         <p className="text-gray-500 text-xs truncate">{item.description}</p>
                       </div>
@@ -631,6 +650,21 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
                         <div className="flex items-center gap-2">
                           <span className="text-gray-200 font-medium text-sm truncate">{item.name}</span>
                           <span className="text-gray-500 text-xs">×{item.quantity}</span>
+                          {/* Show stats for weapons and armor */}
+                          {(item.damage || item.armor) && (
+                            <span className="flex items-center gap-2 text-xs">
+                              {item.damage && (
+                                <span className="flex items-center gap-0.5 text-red-400">
+                                  <Sword size={10} /> {item.damage}
+                                </span>
+                              )}
+                              {item.armor && (
+                                <span className="flex items-center gap-0.5 text-blue-400">
+                                  <Shield size={10} /> {item.armor}
+                                </span>
+                              )}
+                            </span>
+                          )}
                           {item.equipped && (
                             <span className="text-xs bg-blue-900/50 text-blue-300 px-1.5 py-0.5 rounded">Equipped</span>
                           )}

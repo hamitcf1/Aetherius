@@ -6,9 +6,16 @@ export interface UserProfile {
 }
 
 export interface Stats {
-  health: number;
-  magicka: number;
-  stamina: number;
+  health: number;      // Max health
+  magicka: number;     // Max magicka
+  stamina: number;     // Max stamina
+}
+
+// Current values for combat/adventure (separate from max stats)
+export interface CurrentVitals {
+  currentHealth: number;
+  currentMagicka: number;
+  currentStamina: number;
 }
 
 export interface GameTime {
@@ -61,9 +68,12 @@ export interface Character {
   gold: number;
   perks: Perk[];
 
-  // Stats
+  // Stats (max values)
   stats: Stats;
   skills: Skill[];
+  
+  // Current vitals (for adventure/combat)
+  currentVitals?: CurrentVitals;
 
   // Survival & Time
   time: GameTime;
@@ -257,6 +267,9 @@ export interface GameStateUpdate {
   // Progression / survival
   timeAdvanceMinutes?: number;
   needsChange?: Partial<SurvivalNeeds>;
+  
+  // Vitals (health, magicka, stamina) changes for adventure
+  vitalsChange?: Partial<CurrentVitals>;
 
   // Transaction tracking - prevents duplicate charges
   transactionId?: string;  // Unique ID for this specific transaction

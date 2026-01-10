@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { X, Moon, Apple, Droplets, Tent, Home, TreePine, Clock, Coins } from 'lucide-react';
+import { X, Moon, Apple, Droplets, Tent, Home, TreePine, Clock, Coins, FlaskConical } from 'lucide-react';
 import { InventoryItem } from '../types';
 import { getFoodNutrition, getDrinkNutrition, getFoodNutritionDisplay, getDrinkNutritionDisplay } from '../services/nutritionData';
 
@@ -187,18 +187,32 @@ interface EatModalProps {
 }
 
 const FOOD_KEYWORDS = ['bread', 'apple', 'cheese', 'meat', 'stew', 'soup', 'potato', 'carrot', 'salmon', 'leek', 'cabbage', 'sweetroll', 'pie', 'ration', 'food', 'meal', 'venison', 'rabbit', 'horker', 'mammoth', 'beef', 'haunch'];
+const INGREDIENT_KEYWORDS = ['flower', 'root', 'mushroom', 'herb', 'salt', 'garlic', 'lavender', 'nightshade', 'deathbell', 'nirnroot', 'wheat', 'berry', 'cap', 'wing', 'eye', 'heart', 'claw', 'fang', 'dust', 'pearl', 'tooth', 'scale'];
 
 export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
+  const [activeCategory, setActiveCategory] = useState<'food' | 'ingredient'>('food');
   useModalClose(open, onClose);
 
-  const availableFood = useMemo(() => {
-    return foodItems.filter(item => {
-      if ((item.quantity || 0) <= 0) return false;
+  const { foodOnly, ingredientsOnly } = useMemo(() => {
+    const food: InventoryItem[] = [];
+    const ingredients: InventoryItem[] = [];
+    
+    foodItems.forEach(item => {
+      if ((item.quantity || 0) <= 0) return;
       const name = (item.name || '').toLowerCase();
-      // Match food keywords or 'food' type
-      return FOOD_KEYWORDS.some(k => name.includes(k)) || item.type === 'ingredient';
+      
+      // Check if it's an ingredient by type or keywords
+      if (item.type === 'ingredient' || INGREDIENT_KEYWORDS.some(k => name.includes(k))) {
+        ingredients.push(item);
+      } else if (item.type === 'food' || FOOD_KEYWORDS.some(k => name.includes(k))) {
+        food.push(item);
+      }
     });
+    
+    return { foodOnly: food, ingredientsOnly: ingredients };
   }, [foodItems]);
+
+  const displayItems = activeCategory === 'food' ? foodOnly : ingredientsOnly;
 
   const handleEat = (item: InventoryItem) => {
     onEat(item);
@@ -223,16 +237,42 @@ export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
           </button>
         </div>
 
+        {/* Category Tabs */}
+        <div className="flex border-b border-skyrim-border/60 bg-black/20">
+          <button
+            onClick={() => setActiveCategory('food')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-colors ${
+              activeCategory === 'food'
+                ? 'bg-green-900/30 text-green-400 border-b-2 border-green-500'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-black/20'
+            }`}
+          >
+            <Apple size={16} />
+            Food ({foodOnly.length})
+          </button>
+          <button
+            onClick={() => setActiveCategory('ingredient')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-colors ${
+              activeCategory === 'ingredient'
+                ? 'bg-purple-900/30 text-purple-400 border-b-2 border-purple-500'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-black/20'
+            }`}
+          >
+            <Droplets size={16} />
+            Ingredients ({ingredientsOnly.length})
+          </button>
+        </div>
+
         <div className="p-4">
-          {availableFood.length === 0 ? (
+          {displayItems.length === 0 ? (
             <div className="text-center py-8">
               <Apple size={32} className="mx-auto text-gray-600 mb-3" />
-              <p className="text-gray-400">No food in your inventory.</p>
+              <p className="text-gray-400">No {activeCategory === 'food' ? 'food' : 'ingredients'} in your inventory.</p>
               <p className="text-xs text-gray-500 mt-1">Visit the shop to buy supplies.</p>
             </div>
           ) : (
             <div className="space-y-2 max-h-80 overflow-y-auto">
-              {availableFood.map(item => {
+              {displayItems.map(item => {
                 const nutritionDisplay = getFoodNutritionDisplay(item.name);
                 return (
                   <button
@@ -244,7 +284,7 @@ export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
                       <div className="text-gray-200 font-semibold text-sm">{item.name}</div>
                       <div className="text-gray-500 text-xs">x{item.quantity}</div>
                     </div>
-                    <span className="text-green-400 text-xs">{nutritionDisplay}</span>
+                    <span className={`text-xs ${activeCategory === 'food' ? 'text-green-400' : 'text-purple-400'}`}>{nutritionDisplay}</span>
                   </button>
                 );
               })}

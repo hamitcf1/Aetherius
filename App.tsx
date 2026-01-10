@@ -57,6 +57,7 @@ import {
   clearActiveCharacter
 } from './services/realtime';
 import { getFoodNutrition, getDrinkNutrition } from './services/nutritionData';
+import { getItemStats, shouldHaveStats } from './services/itemStats';
 import type { PreferredAIModel } from './services/geminiService';
 import type { UserSettings } from './services/firestore';
 
@@ -400,15 +401,26 @@ const App: React.FC = () => {
           setStoryChapters(userChapters);
           
           // Restore last selected character and tab from localStorage
+          // BUT only if this is a page refresh, not a fresh login
           try {
-            const lastCharId = localStorage.getItem(`aetherius:lastCharacter:${user.uid}`);
-            const lastTab = localStorage.getItem(`aetherius:lastTab:${user.uid}`);
+            const isFreshLogin = sessionStorage.getItem('aetherius:freshLogin') === '1';
             
-            // Only restore if the character still exists
-            if (lastCharId && normalizedCharacters.some((c: Character) => c.id === lastCharId)) {
-              setCurrentCharacterId(lastCharId);
-              if (lastTab && Object.values(TABS).includes(lastTab)) {
-                setActiveTab(lastTab);
+            // Clear the fresh login marker after checking
+            if (isFreshLogin) {
+              sessionStorage.removeItem('aetherius:freshLogin');
+            }
+            
+            // Only restore character on page refresh, not on fresh login
+            if (!isFreshLogin) {
+              const lastCharId = localStorage.getItem(`aetherius:lastCharacter:${user.uid}`);
+              const lastTab = localStorage.getItem(`aetherius:lastTab:${user.uid}`);
+              
+              // Only restore if the character still exists
+              if (lastCharId && normalizedCharacters.some((c: Character) => c.id === lastCharId)) {
+                setCurrentCharacterId(lastCharId);
+                if (lastTab && Object.values(TABS).includes(lastTab)) {
+                  setActiveTab(lastTab);
+                }
               }
             }
           } catch { /* ignore localStorage errors */ }
@@ -676,11 +688,15 @@ const App: React.FC = () => {
         setAuthError('Email and password are required');
         return;
       }
+      // Mark this as a fresh login - don't auto-restore character
+      sessionStorage.setItem('aetherius:freshLogin', '1');
       await loginUser(email, password);
       setLoginEmail('');
       setLoginPassword('');
       setAuthError(null);
     } catch (error: any) {
+      // Remove fresh login marker on error
+      sessionStorage.removeItem('aetherius:freshLogin');
       if (error.code === 'auth/user-not-found') {
         setAuthError('No user found');
       } else if (error.code === 'auth/wrong-password') {
@@ -694,9 +710,12 @@ const App: React.FC = () => {
   const handleGuestLogin = async () => {
     setAuthError(null);
     try {
+      // Mark this as a fresh login - don't auto-restore character
+      sessionStorage.setItem('aetherius:freshLogin', '1');
       await loginAnonymously();
       setAuthError(null);
     } catch (error: any) {
+      sessionStorage.removeItem('aetherius:freshLogin');
       setAuthError('Guest login failed: ' + error.message);
     }
   };
@@ -1092,13 +1111,18 @@ const App: React.FC = () => {
       return;
     }
     
+    // Get stats for weapons and armor
+    const stats = shouldHaveStats(shopItem.type) ? getItemStats(shopItem.name, shopItem.type) : {};
+    
     handleGameUpdate({
       goldChange: -totalCost,
       newItems: [{
         name: shopItem.name,
         type: shopItem.type,
         description: shopItem.description,
-        quantity
+        quantity,
+        value: shopItem.price,
+        ...stats  // Include armor/damage if applicable
       }]
     });
   };
@@ -1261,7 +1285,8 @@ const App: React.FC = () => {
           typeof updates?.xpChange === 'number' ||
           typeof updates?.timeAdvanceMinutes === 'number' ||
           (updates?.needsChange && Object.keys(updates.needsChange).length) ||
-          (updates?.characterUpdates && Object.keys(updates.characterUpdates).length)
+          (updates?.characterUpdates && Object.keys(updates.characterUpdates).length) ||
+          (updates?.vitalsChange && Object.keys(updates.vitalsChange).length)
       );
       if (!hasAnyUpdate) return;
 
@@ -1406,18 +1431,28 @@ const App: React.FC = () => {
                    quantity: (existing.quantity || 0) + addQty,
                    description: existing.description || i.description || '',
                    type: (existing.type || (i.type as any)) as any,
+                   // Update stats if provided (in case item didn't have them before)
+                   armor: existing.armor || (i as any).armor || undefined,
+                   damage: existing.damage || (i as any).damage || undefined,
+                   value: existing.value || (i as any).value || undefined,
+                   slot: existing.slot || (i as any).slot || undefined,
                  };
                  next[idx] = updated;
                  setDirtyEntities(d => new Set([...d, updated.id]));
                } else {
-                 const added = {
+                 const added: InventoryItem = {
                    id: uniqueId(),
                    characterId: currentCharacterId,
                    name,
                    type: i.type as any,
                    description: i.description || '',
                    quantity: addQty,
-                   equipped: false
+                   equipped: false,
+                   // Include stats from incoming item
+                   armor: (i as any).armor,
+                   damage: (i as any).damage,
+                   value: (i as any).value,
+                   slot: (i as any).slot,
                  };
                  next.push(added);
                  setDirtyEntities(d => new Set([...d, added.id]));
@@ -1470,6 +1505,31 @@ const App: React.FC = () => {
               return {
                   ...c,
                   stats: { ...c.stats, ...updates.statUpdates }
+              };
+          }));
+      }
+
+      // 5b. Vitals (currentHealth, currentMagicka, currentStamina) changes from adventure
+      if (updates.vitalsChange && Object.keys(updates.vitalsChange).length) {
+          setCharacters(prev => prev.map(c => {
+              if (c.id !== currentCharacterId) return c;
+              setDirtyEntities(prev => new Set([...prev, c.id]));
+              
+              const currentVitals = c.currentVitals || {
+                currentHealth: c.stats.health,
+                currentMagicka: c.stats.magicka,
+                currentStamina: c.stats.stamina
+              };
+              
+              const newVitals = {
+                currentHealth: Math.max(0, Math.min(c.stats.health, (currentVitals.currentHealth ?? c.stats.health) + (updates.vitalsChange?.currentHealth ?? 0))),
+                currentMagicka: Math.max(0, Math.min(c.stats.magicka, (currentVitals.currentMagicka ?? c.stats.magicka) + (updates.vitalsChange?.currentMagicka ?? 0))),
+                currentStamina: Math.max(0, Math.min(c.stats.stamina, (currentVitals.currentStamina ?? c.stats.stamina) + (updates.vitalsChange?.currentStamina ?? 0)))
+              };
+              
+              return {
+                  ...c,
+                  currentVitals: newVitals
               };
           }));
       }
