@@ -158,6 +158,24 @@ const App: React.FC = () => {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Persist currentCharacterId to localStorage
+  useEffect(() => {
+    if (currentUser?.uid && currentCharacterId) {
+      try {
+        localStorage.setItem(`aetherius:lastCharacter:${currentUser.uid}`, currentCharacterId);
+      } catch { /* ignore */ }
+    }
+  }, [currentUser?.uid, currentCharacterId]);
+
+  // Persist activeTab to localStorage
+  useEffect(() => {
+    if (currentUser?.uid && currentCharacterId) {
+      try {
+        localStorage.setItem(`aetherius:lastTab:${currentUser.uid}`, activeTab);
+      } catch { /* ignore */ }
+    }
+  }, [currentUser?.uid, currentCharacterId, activeTab]);
+
   // AI Model Selection (global)
   const [aiModel, setAiModel] = useState<PreferredAIModel>('gemma-3-27b-it');
 
@@ -289,6 +307,20 @@ const App: React.FC = () => {
           setQuests(userQuests);
           setJournalEntries(userEntries);
           setStoryChapters(userChapters);
+          
+          // Restore last selected character and tab from localStorage
+          try {
+            const lastCharId = localStorage.getItem(`aetherius:lastCharacter:${user.uid}`);
+            const lastTab = localStorage.getItem(`aetherius:lastTab:${user.uid}`);
+            
+            // Only restore if the character still exists
+            if (lastCharId && normalizedCharacters.some((c: Character) => c.id === lastCharId)) {
+              setCurrentCharacterId(lastCharId);
+              if (lastTab && Object.values(TABS).includes(lastTab)) {
+                setActiveTab(lastTab);
+              }
+            }
+          } catch { /* ignore localStorage errors */ }
         } catch (error) {
           console.error('Error initializing or loading user data:', error);
           setAuthError('Failed to load data from Firestore. Check console for details.');
