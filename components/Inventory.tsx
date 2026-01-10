@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { InventoryItem } from '../types';
-import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent } from 'lucide-react';
+import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent, ArrowUpDown } from 'lucide-react';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -104,6 +104,79 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<InventoryItem['type']>('misc');
   const [newDesc, setNewDesc] = useState('');
+  const [activeTab, setActiveTab] = useState<'all' | InventoryItem['type']>('all');
+  const [sortOrder, setSortOrder] = useState<'name' | 'type' | 'newest' | 'quantity'>('name');
+
+  // Category tabs configuration
+  const CATEGORY_TABS: { key: 'all' | InventoryItem['type']; label: string; icon: React.ReactNode }[] = [
+    { key: 'all', label: 'All', icon: <Package size={14} /> },
+    { key: 'weapon', label: 'Weapons', icon: <Sword size={14} /> },
+    { key: 'apparel', label: 'Apparel', icon: <Shield size={14} /> },
+    { key: 'potion', label: 'Potions', icon: <FlaskConical size={14} /> },
+    { key: 'food', label: 'Food', icon: <Apple size={14} /> },
+    { key: 'drink', label: 'Drink', icon: <Droplets size={14} /> },
+    { key: 'camping', label: 'Camping', icon: <Tent size={14} /> },
+    { key: 'ingredient', label: 'Ingredients', icon: <FlaskConical size={14} /> },
+    { key: 'key', label: 'Keys', icon: <Key size={14} /> },
+    { key: 'misc', label: 'Misc', icon: <Gem size={14} /> },
+  ];
+
+  // Deduplicate and sort items
+  const sortedItems = useMemo(() => {
+    // Deduplicate by ID
+    const uniqueMap = new Map<string, InventoryItem>();
+    items.forEach(item => {
+      const existing = uniqueMap.get(item.id);
+      if (!existing || (item.createdAt || 0) > (existing.createdAt || 0)) {
+        uniqueMap.set(item.id, item);
+      }
+    });
+    
+    // Also deduplicate by name (case-insensitive) - merge quantities
+    const nameMap = new Map<string, InventoryItem>();
+    Array.from(uniqueMap.values()).forEach(item => {
+      const key = item.name.toLowerCase().trim();
+      const existing = nameMap.get(key);
+      if (existing) {
+        // Merge quantities for duplicate items
+        nameMap.set(key, { ...existing, quantity: existing.quantity + item.quantity });
+      } else {
+        nameMap.set(key, item);
+      }
+    });
+    
+    let uniqueItems = Array.from(nameMap.values());
+    
+    // Filter by category tab
+    if (activeTab !== 'all') {
+      uniqueItems = uniqueItems.filter(item => item.type === activeTab);
+    }
+    
+    // Sort based on sortOrder
+    return uniqueItems.sort((a, b) => {
+      switch (sortOrder) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'type':
+          return a.type.localeCompare(b.type) || a.name.localeCompare(b.name);
+        case 'newest':
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        case 'quantity':
+          return b.quantity - a.quantity || a.name.localeCompare(b.name);
+        default:
+          return 0;
+      }
+    });
+  }, [items, activeTab, sortOrder]);
+
+  // Get item counts per category
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: items.length };
+    items.forEach(item => {
+      counts[item.type] = (counts[item.type] || 0) + 1;
+    });
+    return counts;
+  }, [items]);
 
   const addItem = () => {
     if (!newName.trim()) return;
@@ -113,7 +186,8 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
       type: newType,
       description: newDesc,
       quantity: 1,
-      equipped: false
+      equipped: false,
+      createdAt: Date.now()
     };
     setItems([...items, newItem]);
     setNewName('');
@@ -239,8 +313,56 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
          </div>
       )}
 
+      {/* Category Tabs */}
+      <div className="mb-4 overflow-x-auto">
+        <div className="flex gap-1 min-w-max pb-2">
+          {CATEGORY_TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded text-sm transition-colors whitespace-nowrap ${
+                activeTab === tab.key 
+                  ? 'bg-skyrim-gold text-skyrim-dark font-bold' 
+                  : 'bg-black/30 text-gray-400 hover:text-skyrim-gold hover:bg-black/50 border border-skyrim-border/50'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+              {categoryCounts[tab.key] > 0 && (
+                <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${
+                  activeTab === tab.key ? 'bg-skyrim-dark/30' : 'bg-skyrim-gold/20 text-skyrim-gold'
+                }`}>
+                  {categoryCounts[tab.key]}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Sort Controls */}
+      <div className="mb-4 flex items-center justify-between">
+        <span className="text-sm text-gray-400">
+          {sortedItems.length} {sortedItems.length === 1 ? 'item' : 'items'}
+          {activeTab !== 'all' && ` in ${CATEGORY_TABS.find(t => t.key === activeTab)?.label}`}
+        </span>
+        <div className="flex items-center gap-2">
+          <ArrowUpDown size={14} className="text-gray-500" />
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)}
+            className="bg-black/40 border border-skyrim-border rounded px-2 py-1 text-sm text-gray-300 focus:outline-none focus:border-skyrim-gold"
+          >
+            <option value="name">Name (A-Z)</option>
+            <option value="type">Type</option>
+            <option value="newest">Newest First</option>
+            <option value="quantity">Quantity</option>
+          </select>
+        </div>
+      </div>
+
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {items.map((item) => (
+      {sortedItems.map((item) => (
         <InventoryItemCard
           key={item.id}
           item={item}
@@ -250,9 +372,9 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
           onRemove={() => removeItem(item.id)}
         />
       ))}
-        {items.length === 0 && (
+        {sortedItems.length === 0 && (
             <div className="col-span-full text-center py-12 text-gray-600 italic font-serif">
-                Your pockets are empty.
+                {activeTab === 'all' ? 'Your pockets are empty.' : `No ${CATEGORY_TABS.find(t => t.key === activeTab)?.label.toLowerCase()} in your inventory.`}
             </div>
         )}
       </div>

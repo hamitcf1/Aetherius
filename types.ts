@@ -104,10 +104,11 @@ export interface InventoryItem {
   id: string;
   characterId: string;
   name: string;
-  type: 'weapon' | 'apparel' | 'potion' | 'ingredient' | 'misc' | 'key';
+  type: 'weapon' | 'apparel' | 'potion' | 'ingredient' | 'misc' | 'key' | 'food' | 'drink' | 'camping';
   description: string;
   quantity: number;
   equipped: boolean;
+  createdAt?: number;
 }
 
 export interface QuestStep {
@@ -146,6 +147,7 @@ export interface JournalEntry {
   date: string;
   title: string;
   content: string;
+  createdAt?: number;
 }
 
 // Complex object for AI generation

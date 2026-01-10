@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { JournalEntry } from '../types';
-import { Book, Calendar, Trash2, Search, X } from 'lucide-react';
+import { Book, Calendar, Trash2, Search, X, ArrowUpDown, Clock } from 'lucide-react';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -37,6 +37,50 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries }) => {
   const [newEntryContent, setNewEntryContent] = useState('');
   const [newEntryTitle, setNewEntryTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+
+  // Deduplicate and sort entries
+  const sortedEntries = useMemo(() => {
+    // Deduplicate by ID
+    const uniqueMap = new Map<string, JournalEntry>();
+    entries.forEach(entry => {
+      const existing = uniqueMap.get(entry.id);
+      if (!existing || (entry.createdAt || 0) > (existing.createdAt || 0)) {
+        uniqueMap.set(entry.id, entry);
+      }
+    });
+    
+    // Also deduplicate by title+content hash
+    const contentMap = new Map<string, JournalEntry>();
+    Array.from(uniqueMap.values()).forEach(entry => {
+      const hash = `${entry.title}::${entry.content.substring(0, 100)}`;
+      const existing = contentMap.get(hash);
+      if (!existing || (entry.createdAt || 0) > (existing.createdAt || 0)) {
+        contentMap.set(hash, entry);
+      }
+    });
+    
+    const uniqueEntries = Array.from(contentMap.values());
+    
+    // Sort by createdAt
+    return uniqueEntries.sort((a, b) => {
+      const timeA = a.createdAt || 0;
+      const timeB = b.createdAt || 0;
+      return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+    });
+  }, [entries, sortOrder]);
+
+  // Format timestamp for display
+  const formatTimestamp = (timestamp?: number): string => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   const addEntry = () => {
     if (!newEntryContent.trim()) return;
@@ -44,7 +88,8 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries }) => {
         id: uniqueId(),
         date: getSkyrimDate(),
         title: newEntryTitle || 'Untitled Entry',
-        content: newEntryContent
+        content: newEntryContent,
+        createdAt: Date.now()
     };
     setEntries([entry, ...entries]);
     setNewEntryContent('');
@@ -55,7 +100,7 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries }) => {
       setEntries(entries.filter(e => e.id !== id));
   };
 
-  const filteredEntries = entries.filter(entry => 
+  const filteredEntries = sortedEntries.filter(entry => 
     entry.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
     entry.content.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -65,6 +110,19 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries }) => {
       <div className="mb-8 p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center">
         <h1 className="text-4xl font-serif text-skyrim-gold mb-2">Adventurer's Journal</h1>
         <p className="text-gray-500 font-sans text-sm">Thoughts, observations, and discoveries.</p>
+        
+        {/* Sort controls and entry count */}
+        <div className="mt-4 flex items-center justify-center gap-4 text-sm">
+          <span className="text-gray-400">{sortedEntries.length} {sortedEntries.length === 1 ? 'entry' : 'entries'}</span>
+          <button
+            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-black/30 hover:bg-black/50 border border-skyrim-border rounded text-gray-300 hover:text-skyrim-gold transition-colors"
+            title={sortOrder === 'desc' ? 'Showing newest first' : 'Showing oldest first'}
+          >
+            <ArrowUpDown size={14} />
+            <span>{sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-skyrim-paper/50 p-6 rounded border border-skyrim-border mb-8">
@@ -127,9 +185,16 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries }) => {
                        <div className="flex justify-between items-start mb-4 border-b border-gray-800 pb-2">
                            <div>
                                <h3 className="text-xl font-serif text-gray-200">{entry.title}</h3>
-                               <span className="text-xs text-skyrim-gold/70 flex items-center gap-1 mt-1">
-                                   <Calendar size={12} /> {entry.date}
-                               </span>
+                               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-1">
+                                   <span className="text-xs text-skyrim-gold/70 flex items-center gap-1">
+                                       <Calendar size={12} /> {entry.date}
+                                   </span>
+                                   {entry.createdAt && (
+                                       <span className="text-[10px] text-gray-600 flex items-center gap-1" title="Created timestamp">
+                                           <Clock size={10} /> {formatTimestamp(entry.createdAt)}
+                                       </span>
+                                   )}
+                               </div>
                            </div>
                            <button onClick={() => deleteEntry(entry.id)} className="text-gray-600 hover:text-red-500 p-2">
                                <Trash2 size={16} />

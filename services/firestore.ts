@@ -606,3 +606,49 @@ export const clearSimulationState = async (uid: string, characterId: string): Pr
   const docRef = doc(db, 'users', uid, 'characters', characterId, 'simulation', 'state');
   await deleteDoc(docRef);
 };
+
+// Utility: Remove duplicate items by name (keeps the first one found)
+export const removeDuplicateItems = async (uid: string, characterId?: string): Promise<{ removed: string[]; kept: string[] }> => {
+  const db = getDb();
+  if (!db) throw new Error('Firestore not initialized');
+  
+  const items = await loadInventoryItems(uid, characterId);
+  const seen = new Map<string, InventoryItem>();
+  const duplicates: InventoryItem[] = [];
+  
+  items.forEach(item => {
+    const key = item.name.toLowerCase().trim();
+    if (seen.has(key)) {
+      duplicates.push(item);
+    } else {
+      seen.set(key, item);
+    }
+  });
+  
+  // Delete duplicates
+  for (const dup of duplicates) {
+    const docRef = doc(db, 'users', uid, 'items', dup.id);
+    await deleteDoc(docRef);
+  }
+  
+  return {
+    removed: duplicates.map(d => `${d.name} (id: ${d.id})`),
+    kept: Array.from(seen.values()).map(k => `${k.name} (id: ${k.id})`)
+  };
+};
+
+// Utility: Delete a specific item by name (case-insensitive)
+export const deleteItemByName = async (uid: string, itemName: string, characterId?: string): Promise<number> => {
+  const db = getDb();
+  if (!db) throw new Error('Firestore not initialized');
+  
+  const items = await loadInventoryItems(uid, characterId);
+  const toDelete = items.filter(i => i.name.toLowerCase().trim() === itemName.toLowerCase().trim());
+  
+  for (const item of toDelete) {
+    const docRef = doc(db, 'users', uid, 'items', item.id);
+    await deleteDoc(docRef);
+  }
+  
+  return toDelete.length;
+};

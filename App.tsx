@@ -46,6 +46,8 @@ import {
   deleteCharacter,
   batchSaveGameState,
   saveUserMetadata,
+  removeDuplicateItems,
+  deleteItemByName,
   
 } from './services/firestore';
 import {
@@ -158,6 +160,27 @@ const App: React.FC = () => {
 
   // AI Model Selection (global)
   const [aiModel, setAiModel] = useState<PreferredAIModel>('gemma-3-27b-it');
+
+  // Expose database utilities for console access (for admin/debug purposes)
+  useEffect(() => {
+    if (currentUser?.uid) {
+      (window as any).aetheriusUtils = {
+        userId: currentUser.uid,
+        characterId: currentCharacterId,
+        removeDuplicateItems: () => removeDuplicateItems(currentUser.uid, currentCharacterId || undefined),
+        deleteItemByName: (name: string) => deleteItemByName(currentUser.uid, name, currentCharacterId || undefined),
+        reloadItems: async () => {
+          const userItems = await loadInventoryItems(currentUser.uid);
+          setItems(userItems);
+          return userItems;
+        }
+      };
+      console.log('🔧 Database utils available via window.aetheriusUtils');
+      console.log('  - removeDuplicateItems() - removes items with duplicate names');
+      console.log('  - deleteItemByName("lockpicks") - deletes all items with that name');
+      console.log('  - reloadItems() - reloads inventory from database');
+    }
+  }, [currentUser?.uid, currentCharacterId]);
 
   useEffect(() => {
     const key = currentUser?.uid ? `aetherius:aiModel:${currentUser.uid}` : 'aetherius:aiModel';
@@ -1045,8 +1068,23 @@ const App: React.FC = () => {
   const getCharacterItems = () => items.filter((i: any) => i.characterId === currentCharacterId);
   
   const setCharacterItems = (newCharItems: InventoryItem[]) => {
+      const currentCharItems = items.filter((i: any) => i.characterId === currentCharacterId);
       const others = items.filter((i: any) => i.characterId !== currentCharacterId);
       const taggedItems = newCharItems.map(i => ({ ...i, characterId: currentCharacterId }));
+      
+      // Find deleted items (items in current state but not in new state)
+      const newItemIds = new Set(newCharItems.map(i => i.id));
+      const deletedItems = currentCharItems.filter(i => !newItemIds.has(i.id));
+      
+      // Delete removed items from Firestore
+      if (currentUser && deletedItems.length > 0) {
+        deletedItems.forEach(item => {
+          void deleteInventoryItem(currentUser.uid, item.id).catch(err => {
+            console.error('Failed to delete item from Firestore:', err);
+          });
+        });
+      }
+      
       setItems([...others, ...taggedItems]);
       taggedItems.forEach(item => {
         setDirtyEntities(prev => new Set([...prev, item.id]));
