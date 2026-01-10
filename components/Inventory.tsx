@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { InventoryItem } from '../types';
-import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent, ArrowUpDown } from 'lucide-react';
+import { InventoryItem, EquipmentSlot } from '../types';
+import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent, ArrowUpDown, User, Backpack, Check } from 'lucide-react';
+import { EquipmentHUD, getDefaultSlotForItem, SLOT_CONFIGS_EXPORT } from './EquipmentHUD';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -28,8 +29,10 @@ const InventoryItemCard: React.FC<{
     onUpdate: (updated: InventoryItem) => void;
     onRemove: () => void;
     onDeltaQuantity: (delta: number) => void;
+    onEquip?: (item: InventoryItem) => void;
+    onUnequip?: (item: InventoryItem) => void;
     getIcon: (type: string) => React.ReactNode;
-}> = ({ item, onUpdate, onRemove, onDeltaQuantity, getIcon }) => {
+}> = ({ item, onUpdate, onRemove, onDeltaQuantity, onEquip, onUnequip, getIcon }) => {
     const [editMode, setEditMode] = useState(false);
     const [editName, setEditName] = useState(item.name);
     const [editDesc, setEditDesc] = useState(item.description);
@@ -48,12 +51,23 @@ const InventoryItemCard: React.FC<{
         setEditMode(false);
     };
 
+    const canEquip = item.type === 'weapon' || item.type === 'apparel';
+    const isEquipped = item.equipped;
+
     return (
-        <div className="bg-skyrim-paper/60 border border-skyrim-border p-4 rounded flex items-center gap-4 hover:border-skyrim-gold/50 transition-colors">
-            <div className="p-3 rounded-full bg-black/40 text-skyrim-gold border border-skyrim-border">
+        <div className={`bg-skyrim-paper/60 border p-4 rounded flex items-center gap-4 transition-all ${
+          isEquipped 
+            ? 'border-skyrim-gold shadow-[0_0_10px_rgba(192,160,98,0.2)] bg-skyrim-gold/10' 
+            : 'border-skyrim-border hover:border-skyrim-gold/50'
+        }`}>
+            <div className={`p-3 rounded-full border ${
+              isEquipped 
+                ? 'bg-skyrim-gold/30 text-skyrim-gold border-skyrim-gold' 
+                : 'bg-black/40 text-skyrim-gold border-skyrim-border'
+            }`}>
                 {getIcon(item.type)}
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
                 {editMode ? (
                     <>
                         <input
@@ -80,11 +94,46 @@ const InventoryItemCard: React.FC<{
                     </>
                 ) : (
                     <>
-                        <h3 className="text-skyrim-gold font-serif">
-                            {item.name} <span className="text-xs text-gray-500 ml-2">x{item.quantity}</span>
-                        </h3>
-                        <p className="text-sm text-gray-400">{item.description}</p>
-                        <div className="flex gap-2 mt-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-skyrim-gold font-serif truncate">
+                              {item.name}
+                          </h3>
+                          <span className="text-xs text-gray-500">x{item.quantity}</span>
+                          {isEquipped && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-skyrim-gold/30 text-skyrim-gold rounded border border-skyrim-gold/50 flex items-center gap-1">
+                              <Check size={10} /> Equipped
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-400 truncate">{item.description}</p>
+                        {/* Stats display */}
+                        {(item.armor || item.damage) && (
+                          <div className="flex gap-3 mt-1 text-xs">
+                            {item.armor && (
+                              <span className="text-blue-400 flex items-center gap-1">
+                                <Shield size={12} /> {item.armor}
+                              </span>
+                            )}
+                            {item.damage && (
+                              <span className="text-red-400 flex items-center gap-1">
+                                <Sword size={12} /> {item.damage}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                            {canEquip && (
+                              <button 
+                                onClick={() => isEquipped ? onUnequip?.(item) : onEquip?.(item)} 
+                                className={`px-2 py-1 rounded text-xs ${
+                                  isEquipped 
+                                    ? 'bg-red-700/60 text-white hover:bg-red-600' 
+                                    : 'bg-green-700/60 text-white hover:bg-green-600'
+                                }`}
+                              >
+                                {isEquipped ? 'Unequip' : 'Equip'}
+                              </button>
+                            )}
                             <button onClick={startEdit} className="px-2 py-1 bg-skyrim-gold/20 text-skyrim-gold rounded text-xs">Edit</button>
                             <button onClick={() => onDeltaQuantity(1)} className="px-2 py-1 bg-green-700/60 text-white rounded text-xs">+1</button>
                             <button onClick={() => onDeltaQuantity(-1)} className="px-2 py-1 bg-red-700/60 text-white rounded text-xs">-1</button>
@@ -92,7 +141,7 @@ const InventoryItemCard: React.FC<{
                     </>
                 )}
             </div>
-            <button onClick={onRemove} className="text-gray-600 hover:text-red-500">
+            <button onClick={onRemove} className="text-gray-600 hover:text-red-500 flex-shrink-0">
                 <Trash2 size={16} />
             </button>
         </div>
@@ -106,6 +155,9 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
   const [newDesc, setNewDesc] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | InventoryItem['type']>('all');
   const [sortOrder, setSortOrder] = useState<'name' | 'type' | 'newest' | 'quantity'>('name');
+  const [viewMode, setViewMode] = useState<'inventory' | 'equipment'>('inventory');
+  const [equipModalOpen, setEquipModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<EquipmentSlot | null>(null);
 
   // Category tabs configuration
   const CATEGORY_TABS: { key: 'all' | InventoryItem['type']; label: string; icon: React.ReactNode }[] = [
@@ -224,6 +276,54 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
         updateItem({ ...current, quantity: nextQty });
     };
 
+  // Equip an item to a slot
+  const equipItem = (item: InventoryItem, slot?: EquipmentSlot) => {
+    const targetSlot = slot || getDefaultSlotForItem(item);
+    if (!targetSlot) return;
+    
+    // Unequip any item currently in that slot
+    const updatedItems = items.map(i => {
+      if (i.id === item.id) {
+        return { ...i, equipped: true, slot: targetSlot };
+      }
+      // Unequip other items in the same slot
+      if (i.equipped && i.slot === targetSlot) {
+        return { ...i, equipped: false, slot: undefined };
+      }
+      return i;
+    });
+    
+    setItems(updatedItems);
+    setEquipModalOpen(false);
+    setSelectedSlot(null);
+  };
+
+  // Unequip an item
+  const unequipItem = (item: InventoryItem) => {
+    updateItem({ ...item, equipped: false, slot: undefined });
+  };
+
+  // Open equip modal for a specific slot
+  const openEquipModal = (slot: EquipmentSlot) => {
+    setSelectedSlot(slot);
+    setEquipModalOpen(true);
+  };
+
+  // Get items that can be equipped to a specific slot
+  const getEquippableItemsForSlot = (slot: EquipmentSlot) => {
+    const slotConfig = SLOT_CONFIGS_EXPORT.find(s => s.slot === slot);
+    if (!slotConfig) return [];
+    
+    return items.filter(item => {
+      if (item.equipped) return false;
+      if (!slotConfig.allowedTypes.includes(item.type)) return false;
+      
+      // Check if item matches the slot based on name
+      const defaultSlot = getDefaultSlotForItem(item);
+      return defaultSlot === slot || !defaultSlot;
+    });
+  };
+
   const getIcon = (type: string) => {
     switch (type) {
       case 'weapon': return <Sword size={18} />;
@@ -246,6 +346,96 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
         <p className="text-gray-500 font-sans text-sm">Your burdens and your treasures.</p>
       </div>
 
+    {/* View Toggle: Inventory / Equipment */}
+    <div className="mb-6 flex justify-center">
+      <div className="inline-flex rounded-lg border border-skyrim-border overflow-hidden">
+        <button
+          onClick={() => setViewMode('inventory')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+            viewMode === 'inventory'
+              ? 'bg-skyrim-gold text-skyrim-dark font-bold'
+              : 'bg-black/40 text-gray-400 hover:text-skyrim-gold'
+          }`}
+        >
+          <Backpack size={16} />
+          <span>Inventory</span>
+        </button>
+        <button
+          onClick={() => setViewMode('equipment')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+            viewMode === 'equipment'
+              ? 'bg-skyrim-gold text-skyrim-dark font-bold'
+              : 'bg-black/40 text-gray-400 hover:text-skyrim-gold'
+          }`}
+        >
+          <User size={16} />
+          <span>Equipment</span>
+        </button>
+      </div>
+    </div>
+
+    {/* Equipment View */}
+    {viewMode === 'equipment' && (
+      <div className="mb-8">
+        <EquipmentHUD
+          items={items}
+          onUnequip={unequipItem}
+          onEquipFromSlot={openEquipModal}
+        />
+      </div>
+    )}
+
+    {/* Equip Modal */}
+    {equipModalOpen && selectedSlot && (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div className="bg-skyrim-paper border-2 border-skyrim-gold rounded-lg shadow-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
+          <h3 className="text-xl font-serif text-skyrim-gold mb-4">
+            Select item for {selectedSlot.charAt(0).toUpperCase() + selectedSlot.slice(1)}
+          </h3>
+          
+          {getEquippableItemsForSlot(selectedSlot).length > 0 ? (
+            <div className="space-y-2">
+              {getEquippableItemsForSlot(selectedSlot).map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => equipItem(item, selectedSlot)}
+                  className="w-full p-3 bg-black/40 border border-skyrim-border rounded hover:border-skyrim-gold hover:bg-black/60 transition-colors text-left flex items-center gap-3"
+                >
+                  <div className="p-2 rounded-full bg-skyrim-gold/20 text-skyrim-gold">
+                    {getIcon(item.type)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-skyrim-gold font-serif">{item.name}</div>
+                    <div className="text-xs text-gray-400">{item.description}</div>
+                    {(item.armor || item.damage) && (
+                      <div className="flex gap-3 mt-1 text-xs">
+                        {item.armor && <span className="text-blue-400">Armor: {item.armor}</span>}
+                        {item.damage && <span className="text-red-400">Damage: {item.damage}</span>}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 italic text-center py-4">
+              No suitable items for this slot
+            </p>
+          )}
+          
+          <button
+            onClick={() => { setEquipModalOpen(false); setSelectedSlot(null); }}
+            className="mt-4 w-full py-2 bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+
+    {/* Inventory View */}
+    {viewMode === 'inventory' && (
+      <>
     <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-black/40 p-4 rounded border border-skyrim-border">
           <div className="flex items-center gap-3 flex-1">
               <div className="p-3 bg-yellow-900/30 rounded-full border border-yellow-700 text-yellow-500">
@@ -370,6 +560,8 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
           onUpdate={updateItem}
           onDeltaQuantity={(delta) => deltaItemQuantity(item.id, delta)}
           onRemove={() => removeItem(item.id)}
+          onEquip={(item) => equipItem(item)}
+          onUnequip={unequipItem}
         />
       ))}
         {sortedItems.length === 0 && (
@@ -378,6 +570,8 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
             </div>
         )}
       </div>
+      </>
+    )}
     </div>
   );
 };

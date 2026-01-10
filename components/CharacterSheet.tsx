@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Character, Milestone, Perk, InventoryItem, CustomQuest, JournalEntry, StoryChapter } from '../types';
-import { ChevronDown, ChevronRight, User, Brain, ShieldBan, Zap, Map, Activity, Info, Heart, Droplets, BicepsFlexed, CheckCircle, Circle, Trash2, Plus, Star, LayoutList, Layers, Ghost, Sparkles, ScrollText, Download, Image as ImageIcon, Loader2, Moon, Apple } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, Brain, ShieldBan, Zap, Map, Activity, Info, Heart, Droplets, BicepsFlexed, CheckCircle, Circle, Trash2, Plus, Star, LayoutList, Layers, Ghost, Sparkles, ScrollText, Download, Image as ImageIcon, Loader2, Moon, Apple, Shield, Sword, Swords } from 'lucide-react';
 import { generateCharacterProfileImage } from '../services/geminiService';
 import { RestModal, EatModal, DrinkModal, type RestOptions } from './SurvivalModals';
 
@@ -187,6 +187,21 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   const [restModalOpen, setRestModalOpen] = useState(false);
   const [eatModalOpen, setEatModalOpen] = useState(false);
   const [drinkModalOpen, setDrinkModalOpen] = useState(false);
+
+  // Calculate armor and damage from equipped items
+  const equipmentStats = useMemo(() => {
+    let armor = 0;
+    let damage = 0;
+    const equippedItems: InventoryItem[] = [];
+    
+    inventory.filter(i => i.equipped).forEach(item => {
+      armor += item.armor || 0;
+      damage += item.damage || 0;
+      equippedItems.push(item);
+    });
+    
+    return { armor, damage, equippedItems };
+  }, [inventory]);
 
     const time = (character as any).time || { day: 1, hour: 8, minute: 0 };
     const needs = (character as any).needs || { hunger: 0, thirst: 0, fatigue: 0 };
@@ -625,6 +640,47 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                 icon={<BicepsFlexed size={12}/>} 
                 onChange={(v) => updateCharacter('stats', { ...character.stats, stamina: v })}
               />
+          </div>
+
+          {/* Armor & Damage from Equipment */}
+          <div className="mb-6 p-4 bg-black/40 rounded border border-skyrim-border">
+            <div className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-3">Combat Stats (from Equipment)</div>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 flex items-center gap-3 p-3 bg-blue-900/20 border border-blue-700/30 rounded">
+                <div className="p-2 rounded-full bg-blue-900/40 border border-blue-600/50">
+                  <Shield size={20} className="text-blue-400" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-400 uppercase">Armor Rating</div>
+                  <div className="text-2xl font-bold text-blue-400">{equipmentStats.armor}</div>
+                </div>
+              </div>
+              <div className="flex-1 flex items-center gap-3 p-3 bg-red-900/20 border border-red-700/30 rounded">
+                <div className="p-2 rounded-full bg-red-900/40 border border-red-600/50">
+                  <Swords size={20} className="text-red-400" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-400 uppercase">Weapon Damage</div>
+                  <div className="text-2xl font-bold text-red-400">{equipmentStats.damage}</div>
+                </div>
+              </div>
+            </div>
+            {equipmentStats.equippedItems.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-skyrim-border/30">
+                <div className="text-xs text-gray-500 mb-2">Equipped:</div>
+                <div className="flex flex-wrap gap-2">
+                  {equipmentStats.equippedItems.map(item => (
+                    <span 
+                      key={item.id} 
+                      className="text-xs px-2 py-1 bg-skyrim-gold/10 border border-skyrim-gold/30 text-skyrim-gold rounded"
+                      title={`${item.armor ? `Armor: ${item.armor}` : ''} ${item.damage ? `Damage: ${item.damage}` : ''}`}
+                    >
+                      {item.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
                     <div className="mb-6 p-4 bg-black/40 rounded border border-skyrim-border">

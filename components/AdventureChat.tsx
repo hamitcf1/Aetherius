@@ -118,6 +118,26 @@ When to award XP:
 Level thresholds: 100 XP per level (Level 2 = 100 XP, Level 3 = 200 XP, etc.)
 The game will handle level-ups automatically when XP threshold is reached.
 
+=== EQUIPMENT & ITEMS SYSTEM ===
+
+When giving WEAPONS or ARMOR, include stats:
+- Weapons: Include "damage" value (Iron: 5-8, Steel: 9-12, Dwarven: 13-16, Orcish: 17-20, Ebony: 21-25, Daedric: 26-30)
+- Armor/Apparel: Include "armor" value (Leather: 10-15, Iron: 16-22, Steel: 23-30, Dwarven: 31-38, Ebony: 39-50, Daedric: 51-60)
+- Include "slot" for equipment: head, chest, hands, feet, weapon, offhand, ring, necklace
+
+Item Type Guidelines:
+- "weapon": swords, axes, maces, daggers, bows, staves (requires "damage" stat)
+- "apparel": armor, clothing, jewelry (requires "armor" stat for armor pieces)
+- "potion": health/magicka/stamina potions
+- "food": bread, cheese, meat, vegetables
+- "drink": ale, mead, water, wine
+- "misc": lockpicks, gems, misc items
+- "key": keys to doors/chests
+- "camping": bedroll, tent, firewood
+
+Example weapon: { "name": "Steel Sword", "type": "weapon", "description": "A fine steel blade", "quantity": 1, "damage": 11, "slot": "weapon" }
+Example armor: { "name": "Leather Armor", "type": "apparel", "description": "Light leather cuirass", "quantity": 1, "armor": 14, "slot": "chest" }
+
 === SIMULATION STATE RULES (CRITICAL) ===
 
 NPC IDENTITY CONSISTENCY:
@@ -186,7 +206,7 @@ RESPONSE FORMAT:
 Return ONLY a JSON object:
 {
   "narrative": { "title": "Short title", "content": "Your story response here..." },
-  "newItems": [{ "name": "Item", "type": "misc", "description": "...", "quantity": 1 }],
+  "newItems": [{ "name": "Item", "type": "weapon|apparel|potion|misc|key|food|drink|camping|ingredient", "description": "...", "quantity": 1, "armor": 0, "damage": 0, "slot": "head|chest|hands|feet|weapon|offhand|ring|necklace" }],
   "removedItems": [{ "name": "Item", "quantity": 1 }],
   "newQuests": [{ "title": "Quest", "description": "...", "location": "...", "dueDate": "...", "objectives": [{ "description": "...", "completed": false }] }],
   "updateQuests": [{ "title": "Quest Title", "status": "completed" }],

@@ -100,6 +100,8 @@ export interface Character {
   lastPlayed: number;
 }
 
+export type EquipmentSlot = 'head' | 'chest' | 'hands' | 'feet' | 'weapon' | 'offhand' | 'ring' | 'necklace';
+
 export interface InventoryItem {
   id: string;
   characterId: string;
@@ -109,6 +111,12 @@ export interface InventoryItem {
   quantity: number;
   equipped: boolean;
   createdAt?: number;
+  // Equipment stats
+  slot?: EquipmentSlot;
+  armor?: number;
+  damage?: number;
+  weight?: number;
+  value?: number;
 }
 
 export interface QuestStep {
