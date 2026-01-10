@@ -1716,8 +1716,8 @@ const App: React.FC = () => {
       if (updates.ambientContext && !updates.combatStart) {
         // Check if we're in combat from multiple sources
         const isInCombat = updates.ambientContext.inCombat 
-          ?? (updates.simulationUpdate?.phaseChange === 'combat')
-          ?? Boolean(combatState); // Also check existing combat state
+          || (updates.simulationUpdate?.phaseChange === 'combat')
+          || Boolean(combatState); // Also check existing combat state
         
         const ambientCtx: AmbientContext = {
           localeType: updates.ambientContext.localeType,
