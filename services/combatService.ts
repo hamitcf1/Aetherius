@@ -15,6 +15,7 @@ import {
   CombatActionType
 } from '../types';
 import { getFoodNutrition } from './nutritionData';
+import { applyStatToVitals } from './vitals';
 
 // ============================================================================
 // DYNAMIC ENEMY NAME POOLS - For variation
@@ -384,6 +385,8 @@ export const initializeCombat = (
 
   return {
     active: true,
+    // Mark combat start time for duration-based effects
+    combatStartTime: Date.now(),
     turn: 1,
     currentTurnActor: turnOrder[0],
     turnOrder,
@@ -440,6 +443,8 @@ export const calculateDamage = (
 // ============================================================================
 // PLAYER ACTIONS
 // ============================================================================
+
+// Note: stat application moved to shared `services/vitals.ts` (use `applyStatToVitals`).
 
 export const executePlayerAction = (
   state: CombatState,
@@ -692,36 +697,41 @@ export const executePlayerAction = (
 
       // Handle different item types
       if (item.type === 'potion') {
-        // Determine subtype: explicit `item.subtype` preferred, otherwise infer from name
-        const name = (item.name || '').toLowerCase();
-        const inferred = item.subtype || (name.includes('stamina') ? 'stamina' : name.includes('magicka') || name.includes('mana') ? 'magicka' : name.includes('health') || name.includes('heal') ? 'health' : undefined);
-        const subtype = inferred || 'health';
+        // Require explicit subtype (targetStat). Do NOT infer or default.
+        const subtype = item.subtype as 'health' | 'magicka' | 'stamina' | undefined;
         const potency = item.damage || 35;
 
-        if (subtype === 'health') {
-          healAmount = potency;
-        } else if (subtype === 'magicka') {
-          const actualRestore = Math.min(potency, newPlayerStats.maxMagicka - newPlayerStats.currentMagicka);
-          if (actualRestore > 0) {
-            newPlayerStats.currentMagicka += actualRestore;
-            const updatedItem = { ...item, quantity: item.quantity - 1 };
-            inventory[itemIndex] = updatedItem;
-            narrative = `You drink ${item.name} and recover ${actualRestore} magicka!`;
-            newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
-            return { newState, newPlayerStats, narrative, usedItem: updatedItem };
-          }
-        } else if (subtype === 'stamina') {
-          const actualRestore = Math.min(potency, newPlayerStats.maxStamina - newPlayerStats.currentStamina);
-          if (actualRestore > 0) {
-            newPlayerStats.currentStamina += actualRestore;
-            const updatedItem = { ...item, quantity: item.quantity - 1 };
-            inventory[itemIndex] = updatedItem;
-            narrative = `You drink ${item.name} and restore ${actualRestore} stamina!`;
-            newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
-            return { newState, newPlayerStats, narrative, usedItem: updatedItem };
-          }
+        if (!subtype || !['health', 'magicka', 'stamina'].includes(subtype)) {
+          console.error('[combat][potion] misconfigured potion - missing/invalid subtype', { id: item.id, name: item.name, subtype });
+          narrative = `The ${item.name} seems misconfigured and has no effect.`;
+          newState.combatLog.push({ turn: newState.turn, actor: 'system', action: 'item_misconfigured', target: item.name, narrative, timestamp: Date.now() });
+          break;
         }
-        console.log('Potion handling:', { subtype, potency, healAmount });
+
+        // Debug: stats before
+        const before = { health: newPlayerStats.currentHealth, magicka: newPlayerStats.currentMagicka, stamina: newPlayerStats.currentStamina };
+
+        const currentVitals = {
+          currentHealth: newPlayerStats.currentHealth,
+          currentMagicka: newPlayerStats.currentMagicka,
+          currentStamina: newPlayerStats.currentStamina
+        };
+        const maxStats = { health: newPlayerStats.maxHealth, magicka: newPlayerStats.maxMagicka, stamina: newPlayerStats.maxStamina };
+        const { newVitals, actual } = applyStatToVitals(currentVitals, maxStats, subtype, potency as number);
+
+        console.debug('[combat][potion] apply', { id: item.id, name: item.name, subtype, potency, before, after: newVitals, applied: actual });
+
+        if (actual > 0) {
+          newPlayerStats.currentHealth = newVitals.currentHealth;
+          newPlayerStats.currentMagicka = newVitals.currentMagicka;
+          newPlayerStats.currentStamina = newVitals.currentStamina;
+          const updatedItem = { ...item, quantity: item.quantity - 1 };
+          inventory[itemIndex] = updatedItem;
+          narrative = `You drink ${item.name} and recover ${actual} ${subtype}!`;
+          newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
+          return { newState, newPlayerStats, narrative, usedItem: updatedItem };
+        }
+        console.log('Potion handling - no effect:', { subtype, potency });
       } else if (item.type === 'food' || item.type === 'drink') {
         // Food/drink item - use nutrition data for healing or fallback
         const nutrition = getFoodNutrition(item.name);
@@ -1033,6 +1043,26 @@ export const checkCombatEnd = (state: CombatState, playerStats: PlayerCombatStat
     newState.pendingRewards = { xp, gold, items };
     newState.pendingLoot = pendingLoot;
 
+    // Compute elapsed combat time and survival deltas
+    const start = newState.combatStartTime || Date.now();
+    const elapsedSec = Math.max(0, Math.floor((Date.now() - start) / 1000));
+    newState.combatElapsedSec = elapsedSec;
+
+    // Default passive need rates (per minute)
+    const hungerPerMinute = 1 / 180;
+    const thirstPerMinute = 1 / 120;
+    const fatiguePerMinute = 1 / 90;
+    const minutes = elapsedSec / 60;
+    const hungerInc = Math.round(minutes * hungerPerMinute * 10) / 10;
+    const thirstInc = Math.round(minutes * thirstPerMinute * 10) / 10;
+    const fatigueInc = Math.round(minutes * fatiguePerMinute * 10) / 10;
+
+    newState.survivalDelta = {
+      hunger: hungerInc,
+      thirst: thirstInc,
+      fatigue: fatigueInc
+    };
+
     newState.combatLog.push({
       turn: newState.turn,
       actor: 'system',
@@ -1053,6 +1083,19 @@ export const checkCombatEnd = (state: CombatState, playerStats: PlayerCombatStat
       narrative: 'You have been defeated...',
       timestamp: Date.now()
     });
+    // Record elapsed time and survival delta on defeat as well
+    const start = newState.combatStartTime || Date.now();
+    const elapsedSec = Math.max(0, Math.floor((Date.now() - start) / 1000));
+    newState.combatElapsedSec = elapsedSec;
+    const hungerPerMinute = 1 / 180;
+    const thirstPerMinute = 1 / 120;
+    const fatiguePerMinute = 1 / 90;
+    const minutes = elapsedSec / 60;
+    newState.survivalDelta = {
+      hunger: Math.round(minutes * hungerPerMinute * 10) / 10,
+      thirst: Math.round(minutes * thirstPerMinute * 10) / 10,
+      fatigue: Math.round(minutes * fatiguePerMinute * 10) / 10
+    };
   }
   
   return newState;

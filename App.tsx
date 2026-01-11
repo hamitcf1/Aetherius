@@ -89,6 +89,7 @@ import {
   clearActiveCharacter
 } from './services/realtime';
 import { getFoodNutrition, getDrinkNutrition } from './services/nutritionData';
+import { applyStatToVitals } from './services/vitals';
 import { getItemStats, shouldHaveStats } from './services/itemStats';
 import { updateMusicForContext, AmbientContext, audioService, playMusic } from './services/audioService';
 import { getSkyrimCalendarDate, formatSkyrimDate, formatSkyrimDateShort } from './utils/skyrimCalendar';
@@ -149,8 +150,7 @@ const sanitizeInventoryItem = (item: Partial<InventoryItem>): Partial<InventoryI
   if (clean.weight === undefined || !Number.isFinite(clean.weight)) delete clean.weight;
   if (clean.value === undefined || !Number.isFinite(clean.value)) delete clean.value;
 
-  // Ensure potions are tagged for combat filtering
-  if (clean.type === 'potion' && !clean.subtype) clean.subtype = 'health';
+  // Do not default potion subtype here — require explicit `subtype` to avoid incorrect healing.
 
   return clean;
 };
@@ -1352,33 +1352,41 @@ const App: React.FC = () => {
     if (!currentCharacterId || !activeCharacter) return;
 
     if (item.type === 'potion') {
-      // Determine potion type from name or subtype
-      const name = item.name.toLowerCase();
-      let vitalsChange: any = {};
-      let message = '';
-      let healAmount = item.damage || 35; // Default heal amount
+      // Require explicit subtype (targetStat). Do not infer or default.
+      const subtype = item.subtype as 'health' | 'magicka' | 'stamina' | undefined;
+      const potency = item.damage || 35;
 
-      if (name.includes('health') || item.subtype === 'health') {
-        vitalsChange.currentHealth = Math.min(healAmount, (activeCharacter.stats.health || 100) - (activeCharacter.currentVitals?.currentHealth || 100));
-        message = `Restored ${vitalsChange.currentHealth} health!`;
-      } else if (name.includes('magicka') || item.subtype === 'magicka') {
-        vitalsChange.currentMagicka = Math.min(healAmount, (activeCharacter.stats.magicka || 100) - (activeCharacter.currentVitals?.currentMagicka || 100));
-        message = `Restored ${vitalsChange.currentMagicka} magicka!`;
-      } else if (name.includes('stamina') || item.subtype === 'stamina') {
-        vitalsChange.currentStamina = Math.min(healAmount, (activeCharacter.stats.stamina || 100) - (activeCharacter.currentVitals?.currentStamina || 100));
-        message = `Restored ${vitalsChange.currentStamina} stamina!`;
+      if (!subtype || !['health', 'magicka', 'stamina'].includes(subtype)) {
+        console.error('[potion] misconfigured potion, missing or invalid subtype', { id: item.id, name: item.name, subtype });
+        showToast(`The potion ${item.name} appears to be misconfigured and has no effect.`, 'warning');
       } else {
-        // Default to health potion
-        vitalsChange.currentHealth = Math.min(healAmount, (activeCharacter.stats.health || 100) - (activeCharacter.currentVitals?.currentHealth || 100));
-        message = `Restored ${vitalsChange.currentHealth} health!`;
+        // Debugging: log stat before
+        const before = {
+          health: activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health,
+          magicka: activeCharacter.currentVitals?.currentMagicka ?? activeCharacter.stats.magicka,
+          stamina: activeCharacter.currentVitals?.currentStamina ?? activeCharacter.stats.stamina
+        };
+
+        const { newVitals, actual } = applyStatToVitals(activeCharacter.currentVitals, activeCharacter.stats, subtype, potency);
+
+        // Debugging: log potion application
+        console.debug('[potion] apply', { id: item.id, name: item.name, subtype, potency, before, after: newVitals, applied: actual });
+
+        if (actual > 0) {
+          const vitalsChange: any = {};
+          if (subtype === 'health') vitalsChange.currentHealth = newVitals.currentHealth - (activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health);
+          if (subtype === 'magicka') vitalsChange.currentMagicka = newVitals.currentMagicka - (activeCharacter.currentVitals?.currentMagicka ?? activeCharacter.stats.magicka);
+          if (subtype === 'stamina') vitalsChange.currentStamina = newVitals.currentStamina - (activeCharacter.currentVitals?.currentStamina ?? activeCharacter.stats.stamina);
+
+          handleGameUpdate({
+            vitalsChange,
+            removedItems: [{ name: item.name, quantity: 1 }]
+          });
+          showToast(`Restored ${actual} ${subtype}!`, 'success');
+        } else {
+          showToast(`No effect from ${item.name}.`, 'warning');
+        }
       }
-
-      handleGameUpdate({
-        vitalsChange,
-        removedItems: [{ name: item.name, quantity: 1 }]
-      });
-
-      showToast(message, 'success');
 
     } else if (item.type === 'food') {
       handleEatItem(item);

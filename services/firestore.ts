@@ -176,7 +176,13 @@ export const saveInventoryItem = async (uid: string, item: InventoryItem): Promi
   if (!db) throw new Error('Firestore not initialized');
 
   const docRef = doc(db, 'users', uid, 'items', item.id);
-  await setDoc(docRef, item, { merge: true });
+  // Remove any undefined fields before saving to avoid Firestore errors
+  const itemData: any = { ...item };
+  Object.keys(itemData).forEach(key => {
+    if (itemData[key] === undefined) delete itemData[key];
+  });
+
+  await setDoc(docRef, itemData, { merge: true });
 };
 
 export const loadInventoryItems = async (uid: string, characterId?: string): Promise<InventoryItem[]> => {

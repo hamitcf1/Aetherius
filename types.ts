@@ -489,6 +489,12 @@ export interface CombatState {
   }>;
   // Count player action types used during combat to drive skill progression
   playerActionCounts?: Record<string, number>;
+  // Timestamp when combat started (ms since epoch)
+  combatStartTime?: number;
+  // Elapsed seconds recorded when combat ends or for snapshots
+  combatElapsedSec?: number;
+  // Survival needs changes (hunger/thirst/fatigue) computed from combat duration
+  survivalDelta?: Partial<SurvivalNeeds>;
   // Combat result when finished
   result?: 'victory' | 'defeat' | 'fled' | 'surrendered';
   rewards?: {

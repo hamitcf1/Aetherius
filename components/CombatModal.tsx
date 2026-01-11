@@ -223,6 +223,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   );
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [elapsedSecDisplay, setElapsedSecDisplay] = useState<number>(0);
   const [showRoll, setShowRoll] = useState(false);
   const [rollValue, setRollValue] = useState<number | null>(null);
   const [rollActor, setRollActor] = useState<'player' | 'enemy' | null>(null);
@@ -234,6 +235,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   const [showItemSelection, setShowItemSelection] = useState(false);
   const [isHealing, setIsHealing] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
+  const [autoScroll, setAutoScroll] = useState<boolean>(true);
 
   // Auto-select first alive enemy
   useEffect(() => {
@@ -243,12 +245,30 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     }
   }, [combatState.enemies, selectedTarget]);
 
-  // Scroll combat log to bottom
+  // Scroll combat log to bottom (if auto-scroll is enabled)
   useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
-  }, [combatState.combatLog]);
+    if (!autoScroll) return;
+    const el = logRef.current;
+    if (!el) return;
+
+    // Ensure scrolling happens after DOM updates: double rAF is reliable.
+    let raf1 = 0 as number | undefined;
+    let raf2 = 0 as number | undefined;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        try {
+          el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+        } catch (e) {
+          el.scrollTop = el.scrollHeight;
+        }
+      });
+    });
+
+    return () => {
+      if (raf1) cancelAnimationFrame(raf1);
+      if (raf2) cancelAnimationFrame(raf2);
+    };
+  }, [combatState.combatLog.length, autoScroll]);
 
   // Handle combat end
   useEffect(() => {
@@ -271,6 +291,22 @@ export const CombatModal: React.FC<CombatModalProps> = ({
       }, 1500);
     }
   }, [combatState.result]);
+
+  // Live combat timer display (reads combatStartTime from combatState)
+  useEffect(() => {
+    let t: number | undefined;
+    const update = () => {
+      if (combatState.combatStartTime) {
+        const sec = Math.max(0, Math.floor((Date.now() - combatState.combatStartTime) / 1000));
+        setElapsedSecDisplay(sec);
+      } else {
+        setElapsedSecDisplay(0);
+      }
+    };
+    update();
+    t = window.setInterval(update, 1000);
+    return () => { if (t) window.clearInterval(t); };
+  }, [combatState.combatStartTime]);
 
   // When entering loot phase, keep combat UI open and show LootModal
   const handleLootConfirm = (selected: Array<{ name: string; quantity: number }>) => {
@@ -548,7 +584,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold text-amber-100 tracking-wider">⚔️ COMBAT</h2>
-            <p className="text-sm text-stone-400">{combatState.location} • Turn {combatState.turn}</p>
+            <p className="text-sm text-stone-400">{combatState.location} • Turn {combatState.turn} • {String(Math.floor(elapsedSecDisplay/60)).padStart(2,'0')}:{String(elapsedSecDisplay%60).padStart(2,'0')}</p>
           </div>
           <div className={`px-4 py-2 rounded-lg ${isPlayerTurn ? 'bg-green-900/50 text-green-300' : 'bg-red-900/50 text-red-300'}`}>
             {isPlayerTurn ? '🎯 Your Turn' : '⏳ Enemy Turn'}
@@ -625,7 +661,18 @@ export const CombatModal: React.FC<CombatModalProps> = ({
 
           {/* Combat log */}
           <div className="flex-1 bg-stone-900/40 rounded-lg border border-stone-700 flex flex-col min-h-[200px]">
-            <h3 className="text-sm font-bold text-stone-400 p-3 border-b border-stone-700">COMBAT LOG</h3>
+            <div className="flex items-center justify-between p-3 border-b border-stone-700">
+              <h3 className="text-sm font-bold text-stone-400">COMBAT LOG</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setAutoScroll(s => !s)}
+                  aria-pressed={autoScroll}
+                  title={autoScroll ? 'Auto-scroll ON' : 'Auto-scroll OFF'}
+                  className={`px-2 py-1 rounded text-xs font-semibold transition-colors focus:outline-none ${autoScroll ? 'bg-green-700 text-green-100 border border-green-600' : 'bg-stone-800 text-stone-300 border border-stone-600'}`}>
+                  Auto-scroll: {autoScroll ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
             <div ref={logRef} className="flex-1 overflow-y-auto p-3 space-y-2 scroll-smooth">
               {combatState.combatLog.map((entry, i) => (
                 <div 
