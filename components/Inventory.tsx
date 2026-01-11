@@ -135,7 +135,7 @@ const InventoryItemCard: React.FC<{
                           let displayArmor = item.armor;
                           let displayDamage = item.damage;
                           let displayValue = item.value;
-                          
+                          let displayWeight = item.weight;
                           // If item doesn't have stats but should, get from itemStats
                           if ((displayArmor === undefined || displayDamage === undefined) && shouldHaveStats(item.type)) {
                             const stats = getItemStats(item.name, item.type);
@@ -143,26 +143,28 @@ const InventoryItemCard: React.FC<{
                             if (displayDamage === undefined) displayDamage = stats.damage;
                             if (displayValue === undefined) displayValue = stats.value;
                           }
-                          
-                          if (!displayArmor && !displayDamage && !displayValue) return null;
-                          
+                          // Always show weight, use default if not set
+                          if (displayWeight === undefined) displayWeight = getDefaultItemWeight(item.type);
                           return (
                             <div className="flex gap-3 mt-1 text-xs flex-wrap">
-                              {displayDamage && (
+                              {displayDamage !== undefined && displayDamage !== null && (
                                 <span className="text-red-400 flex items-center gap-1">
                                   <Sword size={12} /> {displayDamage}
                                 </span>
                               )}
-                              {displayArmor && (
+                              {displayArmor !== undefined && displayArmor !== null && (
                                 <span className="text-blue-400 flex items-center gap-1">
                                   <Shield size={12} /> {displayArmor}
                                 </span>
                               )}
-                              {displayValue && (
+                              {displayValue !== undefined && displayValue !== null && (
                                 <span className="text-yellow-500 flex items-center gap-1">
                                   <Coins size={12} /> {displayValue}g
                                 </span>
                               )}
+                              <span className="text-gray-300 flex items-center gap-1">
+                                <Weight size={12} /> {displayWeight} <span className="text-gray-500">wt</span>
+                              </span>
                             </div>
                           );
                         })()}

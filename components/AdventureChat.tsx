@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { MinimalQuestModal } from './MinimalQuestModal';
 import { Character, InventoryItem, CustomQuest, JournalEntry, StoryChapter, GameStateUpdate } from '../types';
-import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X, AlertTriangle, Users, Sun, Moon, Sunrise, Sunset, Clock, Map, Lock, Key } from 'lucide-react';
+import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X, AlertTriangle, Users, Sun, Moon, Sunrise, Sunset, Clock, Map, Lock, Key, Flag } from 'lucide-react';
 import { EquipmentHUD, getDefaultSlotForItem, SLOT_CONFIGS_EXPORT } from './EquipmentHUD';
 import { LockpickingMinigame, LockDifficulty } from './LockpickingMinigame';
 import { SkyrimMap, findLocationByName } from './SkyrimMap';
@@ -532,6 +533,29 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showQuestModal, setShowQuestModal] = useState(false);
+  const [toastMessages, setToastMessages] = useState<{ id: string; message: string; type: string }[]>([]);
+    // Show toast notification for new quest
+    useEffect(() => {
+      if (!messages.length) return;
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.role === 'gm' && lastMsg.updates?.newQuests?.length) {
+        lastMsg.updates.newQuests.forEach((q: any) => {
+          setToastMessages((prev) => [
+            ...prev,
+            { id: Math.random().toString(36).substr(2, 9), message: `New Quest Started: ${q.title}`, type: 'success' }
+          ]);
+        });
+      }
+    }, [messages]);
+    // Remove toast after 5s
+    useEffect(() => {
+      if (!toastMessages.length) return;
+      const timers = toastMessages.map(t => setTimeout(() => setToastMessages(msgs => msgs.filter(m => m.id !== t.id)), 5000));
+      return () => { timers.forEach(clearTimeout); };
+    }, [toastMessages]);
+    // ToastNotification import (assume already exists)
+    // import { ToastNotification } from './ToastNotification';
   const [autoApply, setAutoApply] = useState(true);
   const [showModelTip, setShowModelTip] = useState(true);
   const [showSimulationPanel, setShowSimulationPanel] = useState(false);
@@ -1531,6 +1555,27 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       {/* Controls - compact */}
       <div className="flex-shrink-0 py-2 flex flex-wrap gap-2 justify-between items-center">
         <div className="flex gap-1.5">
+          <button
+            onClick={() => setShowQuestModal(v => !v)}
+            className="px-2 py-1.5 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
+            title="Show Quests"
+          >
+            <Flag size={12} /> Quests
+          </button>
+                {/* Minimal Quest Modal */}
+                <MinimalQuestModal quests={quests} open={showQuestModal} onClose={() => setShowQuestModal(false)} />
+
+                {/* Toast Notification for new quest */}
+                {toastMessages.length > 0 && (
+                  <div style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 9999 }}>
+                    {/* Use your ToastNotification component here if available */}
+                    {toastMessages.map(t => (
+                      <div key={t.id} style={{ background: '#2ecc40', color: '#fff', borderRadius: 8, padding: '12px 20px', marginBottom: 8, minWidth: 240, maxWidth: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', fontWeight: 500, fontSize: 16, opacity: 0.95 }}>
+                        {t.message}
+                      </div>
+                    ))}
+                  </div>
+                )}
           <button
             onClick={startNewAdventure}
             className="px-2 py-1.5 bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/50 rounded hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors flex items-center gap-1.5 text-xs"
