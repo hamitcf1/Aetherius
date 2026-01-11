@@ -129,7 +129,11 @@ class VersionCheckService {
       }
 
       return false;
-    } catch (error) {
+    } catch (error: any) {
+      // Silent on deliberate aborts (timeout or manual)
+      if (error?.name === 'AbortError') {
+        return false;
+      }
       // Log only once to avoid console spam when offline/blocked
       if (!this.hasLoggedFailure) {
         console.warn('Version check failed (will be suppressed after this):', error);
