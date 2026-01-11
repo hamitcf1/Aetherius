@@ -28,7 +28,7 @@ import {
   queueOfflineChange,
   processOfflineQueue
 } from './components/StatusIndicators';
-import { COLOR_THEMES } from './components/GameFeatures';
+import { COLOR_THEMES, getEasterEggName } from './components/GameFeatures';
 import { 
   CharacterExportModal, 
   CharacterImportModal,
@@ -2198,7 +2198,7 @@ const App: React.FC = () => {
         try {
           // Optionally set a loading state here if you want to show spinner
           const imageUrl = await import('./services/geminiService').then(m => m.generateCharacterProfileImage(
-            activeCharacter.name,
+            getEasterEggName(activeCharacter.name),
             activeCharacter.race,
             activeCharacter.gender,
             activeCharacter.archetype
@@ -2211,7 +2211,7 @@ const App: React.FC = () => {
       isGeneratingProfileImage: false, // (Optional: implement spinner state if needed)
       handleCreateImagePrompt: () => {
         if (!activeCharacter) return;
-        const prompt = `${activeCharacter.name}, a ${activeCharacter.gender} ${activeCharacter.race} ${activeCharacter.archetype}. ${activeCharacter.identity} ${activeCharacter.psychology} ${activeCharacter.magicApproach}`;
+        const prompt = `${getEasterEggName(activeCharacter.name)}, a ${activeCharacter.gender} ${activeCharacter.race} ${activeCharacter.archetype}. ${activeCharacter.identity} ${activeCharacter.psychology} ${activeCharacter.magicApproach}`;
         window.prompt('Copy this prompt for AI image generation:', prompt);
       },
       handleUploadPhoto: () => {}, // TODO: Implement upload

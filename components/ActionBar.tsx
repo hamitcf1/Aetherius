@@ -367,7 +367,7 @@ const ActionBar: React.FC = () => {
         </div>,
         document.body
       )}
-      {snow && <SnowEffect settings={{ intensity: snowIntensity }} />}
+      {snow && <SnowEffect settings={{ intensity: snowIntensity }} theme={colorTheme} />}
 
       {/* Guest Logout Warning Modal */}
       {showLogoutWarning && createPortal(

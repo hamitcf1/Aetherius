@@ -5,7 +5,7 @@ import { generateCharacterProfileImage } from '../services/geminiService';
 import { RestModal, EatModal, DrinkModal, type RestOptions } from './SurvivalModals';
 import { formatSkyrimDateShort } from '../utils/skyrimCalendar';
 import { getItemStats, shouldHaveStats } from '../services/itemStats';
-import { DropdownSelector } from './GameFeatures';
+import { DropdownSelector, getEasterEggName } from './GameFeatures';
 
 interface CharacterSheetProps {
   character: Character;
@@ -154,7 +154,7 @@ const StatBar: React.FC<{
                 <style>{`
                     @keyframes skyrim-bar-glow-anim {
                         0% { box-shadow: none; }
-                        50% { box-shadow: 0 0 12px 6px rgba(255,255,255,0.18); }
+                        50% { box-shadow: 0 0 12px 6px rgba(192, 160, 98, 0.3); }
                         100% { box-shadow: none; }
                     }
                 `}</style>
@@ -600,13 +600,13 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
               <div className="mb-4 flex justify-center">
                 <img 
                   src={character.profileImage} 
-                  alt={character.name}
+                  alt={getEasterEggName(character.name)}
                   className="w-48 h-48 rounded-lg border-2 border-skyrim-gold object-cover shadow-[0_0_20px_rgba(192,160,98,0.3)]"
                 />
               </div>
             )}
             <div className="relative z-10">
-                <h1 className="text-4xl font-serif text-skyrim-gold mb-2">{character.name}</h1>
+                <h1 className="text-4xl font-serif text-skyrim-gold mb-2">{getEasterEggName(character.name)}</h1>
                 <p className="text-gray-500 font-sans text-sm uppercase tracking-widest">{character.gender} {character.race} {character.archetype} - Level {character.level}</p>
             </div>
           </div>

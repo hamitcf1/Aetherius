@@ -20,6 +20,7 @@ import {
   advanceTurn,
   checkCombatEnd
 } from '../services/combatService';
+import { getEasterEggName } from './GameFeatures';
 
 interface CombatModalProps {
   character: Character;
@@ -416,7 +417,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
         {/* Left side - Player stats */}
         <div className="lg:w-1/4 space-y-4">
           <div className="bg-stone-900/60 rounded-lg p-4 border border-amber-900/30">
-            <h3 className="text-lg font-bold text-amber-100 mb-3">{character.name}</h3>
+            <h3 className="text-lg font-bold text-amber-100 mb-3">{getEasterEggName(character.name)}</h3>
             <div className="space-y-3">
               <HealthBar 
                 current={playerStats.currentHealth} 

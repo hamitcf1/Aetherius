@@ -55,6 +55,22 @@ export const exportCharacter = (
   return JSON.stringify(exportData, null, 2);
 };
 
+// ============================================================================
+// EASTER EGG UTILITIES
+// ============================================================================
+
+/**
+ * Easter egg for characters named "hamit" - they get special display names
+ */
+export const getEasterEggName = (name: string): string => {
+  if (name.toLowerCase() === 'hamit') {
+    // Randomly select one of the easter egg names
+    const easterEggNames = ['Hamilton', 'Hamurzon', 'Hamurhamur'];
+    return easterEggNames[Math.floor(Math.random() * easterEggNames.length)];
+  }
+  return name;
+};
+
 export const downloadCharacterExport = (
   character: Character,
   inventory: InventoryItem[],
