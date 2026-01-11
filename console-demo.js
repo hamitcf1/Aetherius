@@ -140,12 +140,25 @@ window.demo.createTestItem = function(type = null) {
  * Add random items to inventory
  */
 window.demo.addRandomItems = function(count = 5) {
+  const app = window.app;
+  const safeCount = Math.max(1, Number(count) || 1);
+
   const items = [];
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < safeCount; i++) {
     items.push(window.demo.createTestItem());
   }
-  console.log(`Created ${count} test items:`, items);
-  console.log('To add to game: app.handleGameUpdate({ newItems: items })');
+
+  console.log(`Created ${safeCount} test items:`, items);
+
+  if (app && app.handleGameUpdate) {
+    app.handleGameUpdate({ newItems: items });
+    const message = `Added ${safeCount} item(s) to the active character via handleGameUpdate.`;
+    console.log(message);
+    return items;
+  }
+
+  const note = 'App context not available; run app.handleGameUpdate({ newItems: items }) manually to apply.';
+  console.warn(note);
   return items;
 };
 

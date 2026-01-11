@@ -6,6 +6,7 @@
 
 // Current build timestamp - this gets updated on each build
 const BUILD_TIMESTAMP = Date.now();
+const REQUEST_TIMEOUT_MS = 5000;
 
 interface VersionInfo {
   version: string;
@@ -21,6 +22,7 @@ class VersionCheckService {
   private callbacks: UpdateCallback[] = [];
   private hasNewVersion = false;
   private newVersionInfo: VersionInfo | null = null;
+  private hasLoggedFailure = false;
 
   constructor() {
     // Generate version from build timestamp
@@ -71,13 +73,23 @@ class VersionCheckService {
    */
   async checkForUpdate(): Promise<boolean> {
     try {
+      // Avoid noisy errors when offline
+      if (!navigator.onLine) return false;
+
+      // Abort fetch if it hangs
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
       // Fetch the main HTML with cache-busting
       const response = await fetch(`/?_=${Date.now()}`, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
         },
+        signal: controller.signal,
       });
+
+      clearTimeout(timeout);
 
       if (!response.ok) return false;
 
@@ -118,7 +130,11 @@ class VersionCheckService {
 
       return false;
     } catch (error) {
-      console.warn('Version check failed:', error);
+      // Log only once to avoid console spam when offline/blocked
+      if (!this.hasLoggedFailure) {
+        console.warn('Version check failed (will be suppressed after this):', error);
+        this.hasLoggedFailure = true;
+      }
       return false;
     }
   }
