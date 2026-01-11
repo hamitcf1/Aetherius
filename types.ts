@@ -453,6 +453,8 @@ export interface CombatEnemy {
   behavior: 'aggressive' | 'defensive' | 'tactical' | 'support' | 'berserker';
   // Status effects currently on this enemy
   activeEffects?: Array<{ effect: CombatEffect; turnsRemaining: number }>;
+  // Passive health regen per second (optional, fractional allowed)
+  regenHealthPerSec?: number;
 }
 
 export interface CombatState {
@@ -471,6 +473,22 @@ export interface CombatState {
   abilityCooldowns: Record<string, number>;
   // Track recent actions per actor to avoid repetitive AI behavior
   lastActorActions?: Record<string, string[]>;
+  // Whether the combat has reached the loot phase and is waiting on the player
+  lootPending?: boolean;
+  // Pending rewards and loot to be resolved during the loot phase
+  pendingRewards?: {
+    xp: number;
+    gold: number;
+    items: Array<{ name: string; type: string; description?: string; quantity: number }>;
+  };
+  // Per-enemy loot snapshot (so defeated enemy state persists until looted)
+  pendingLoot?: Array<{
+    enemyId: string;
+    enemyName: string;
+    loot: Array<{ name: string; type: string; description?: string; quantity: number; rarity?: string }>;
+  }>;
+  // Count player action types used during combat to drive skill progression
+  playerActionCounts?: Record<string, number>;
   // Combat result when finished
   result?: 'victory' | 'defeat' | 'fled' | 'surrendered';
   rewards?: {
@@ -488,6 +506,11 @@ export interface CombatLogEntry {
   damage?: number;
   healing?: number;
   effect?: string;
+  isCrit?: boolean;
+  // Natural d20 roll for the action (1-20)
+  nat?: number;
+  // Tier derived from nat ("miss","low","mid","high","crit","fail")
+  rollTier?: string;
   narrative: string;
   timestamp: number;
 }
@@ -506,6 +529,10 @@ export interface PlayerCombatStats {
   dodgeChance: number;
   magicResist: number;
   abilities: CombatAbility[];
+  // Passive regeneration per second
+  regenHealthPerSec?: number;
+  regenMagickaPerSec?: number;
+  regenStaminaPerSec?: number;
 }
 
 // ============================================================================

@@ -18,8 +18,11 @@ import {
   executePlayerAction,
   executeEnemyTurn,
   advanceTurn,
+  applyTurnRegen,
   checkCombatEnd
 } from '../services/combatService';
+import { LootModal } from './LootModal';
+import { finalizeLoot } from '../services/lootService';
 import { getEasterEggName } from './GameFeatures';
 
 interface CombatModalProps {
@@ -168,7 +171,7 @@ const ActionButton: React.FC<{
       onClick={onClick}
       disabled={isDisabled}
       className={`
-        relative p-3 rounded-lg border-2 text-left transition-all
+        relative p-3 sm:p-3 lg:p-3 py-3 rounded-lg border-2 text-left transition-all w-full text-base sm:text-sm
         ${isDisabled 
           ? 'bg-stone-800/30 border-stone-700 text-stone-500 cursor-not-allowed' 
           : 'bg-gradient-to-br from-amber-900/40 to-stone-900/60 border-amber-700/50 hover:border-amber-500 hover:from-amber-900/60'
@@ -189,7 +192,7 @@ const ActionButton: React.FC<{
         </span>
       </div>
       
-      <div className="flex gap-3 text-xs">
+      <div className="flex gap-3 text-sm sm:text-xs">
         {ability.damage > 0 && (
           <span className="text-red-400">⚔ {ability.damage}</span>
         )}
@@ -201,11 +204,10 @@ const ActionButton: React.FC<{
       {!canAfford && !cooldown && (
         <span className="text-xs text-red-400 mt-1 block">Not enough {ability.type === 'magic' ? 'magicka' : 'stamina'}</span>
       )}
-    </button>
-  );
+      </button>
+    );
 };
 
-// Main combat modal
 export const CombatModal: React.FC<CombatModalProps> = ({
   character,
   inventory,
@@ -223,6 +225,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   const [isAnimating, setIsAnimating] = useState(false);
   const [showRoll, setShowRoll] = useState(false);
   const [rollValue, setRollValue] = useState<number | null>(null);
+  const [rollActor, setRollActor] = useState<'player' | 'enemy' | null>(null);
   const [floatingHits, setFloatingHits] = useState<Array<{ id: string; actor: string; damage: number; hitLocation?: string; isCrit?: boolean; x?: number; y?: number }>>([]);
   const enemyRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const playerRef = useRef<HTMLDivElement | null>(null);
@@ -269,6 +272,32 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     }
   }, [combatState.result]);
 
+  // When entering loot phase, keep combat UI open and show LootModal
+  const handleLootConfirm = (selected: Array<{ name: string; quantity: number }>) => {
+    const res = finalizeLoot(combatState, selected.length ? selected : null, inventory);
+    setCombatState(res.newState);
+    setPlayerStats(prev => ({ ...prev }));
+    // Notify parent about new items so it may persist inventory changes
+    if (onInventoryUpdate && res.grantedItems.length > 0) {
+      onInventoryUpdate(res.grantedItems.map(i => ({ name: i.name, quantity: i.quantity })));
+    }
+    // After finalizing loot, trigger onCombatEnd with rewards
+    if (res.newState.result === 'victory') {
+      setTimeout(() => {
+        onCombatEnd('victory', res.newState.rewards, {
+          health: playerStats.currentHealth,
+          magicka: playerStats.currentMagicka,
+          stamina: playerStats.currentStamina
+        });
+      }, 300);
+    }
+  };
+
+  const handleLootCancel = () => {
+    // Cancel should simply close the loot modal and leave combat state waiting
+    setCombatState(prev => ({ ...prev, lootPending: false }));
+  };
+
   // Process enemy turns
   const processEnemyTurns = useCallback(async () => {
     let currentState = combatState;
@@ -277,11 +306,25 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     while (currentState.active && currentState.currentTurnActor !== 'player') {
       setIsAnimating(true);
       
-      // Execute enemy turn
+      // Animate enemy d20 roll then execute enemy turn with deterministic nat roll
+      setRollActor('enemy');
+      setShowRoll(true);
+      let finalEnemyRoll = Math.floor(Math.random() * 20) + 1;
+      for (let i = 0; i < 6; i++) {
+        setRollValue(Math.floor(Math.random() * 20) + 1);
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(r => setTimeout(r, 60 + i * 30));
+      }
+      setRollValue(finalEnemyRoll);
+      await new Promise(r => setTimeout(r, 220));
+      setShowRoll(false);
+      setRollActor(null);
+
       const { newState, newPlayerStats, narrative } = executeEnemyTurn(
         currentState,
         currentState.currentTurnActor,
-        currentPlayerStats
+        currentPlayerStats,
+        finalEnemyRoll
       );
       
       currentState = newState;
@@ -313,10 +356,16 @@ export const CombatModal: React.FC<CombatModalProps> = ({
           }
         } catch (e) {}
 
-        setFloatingHits(h => [{ id, actor: last.actor, damage: last.damage, hitLocation: undefined, isCrit: (last.narrative || '').toLowerCase().includes('critical'), x, y }, ...h]);
+          setFloatingHits(h => [{ id, actor: last.actor, damage: last.damage, hitLocation: undefined, isCrit: !!last.isCrit, x, y }, ...h]);
         setTimeout(() => setFloatingHits(h => h.filter(x => x.id !== id)), 1600);
 
-        try { new Audio('/audio/sfx/hit_player.mp3').play().catch(()=>{}); } catch (e) {}
+        try {
+          if (last.isCrit) {
+            new Audio('/audio/sfx/crit_player.mp3').play().catch(() => {});
+          } else {
+            new Audio('/audio/sfx/hit_player.mp3').play().catch(() => {});
+          }
+        } catch (e) {}
       }
       
       // Check for combat end
@@ -325,10 +374,14 @@ export const CombatModal: React.FC<CombatModalProps> = ({
         setCombatState(currentState);
         break;
       }
-      
-      // Advance to next turn
+
+      // Advance to next turn and apply regen for the turn
       currentState = advanceTurn(currentState);
+      const regenRes = applyTurnRegen(currentState, currentPlayerStats);
+      currentState = regenRes.newState;
+      currentPlayerStats = regenRes.newPlayerStats;
       setCombatState(currentState);
+      setPlayerStats(currentPlayerStats);
       
       await new Promise(resolve => setTimeout(resolve, 500));
     }
@@ -349,25 +402,44 @@ export const CombatModal: React.FC<CombatModalProps> = ({
 
     setIsAnimating(true);
 
-    // Show d20 roll animation (visual only) before resolving
-    const roll = Math.floor(Math.random() * 20) + 1;
-    setRollValue(roll);
+    // Animate d20 rolling: show a sequence then finalize to a deterministic nat roll
+    const finalRoll = Math.floor(Math.random() * 20) + 1;
+    setRollActor('player');
     setShowRoll(true);
-    await new Promise(r => setTimeout(r, 600));
+    // quick flicker of numbers to simulate roll
+    for (let i = 0; i < 8; i++) {
+      setRollValue(Math.floor(Math.random() * 20) + 1);
+      // shorten time as it progresses
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(r => setTimeout(r, 50 + i * 20));
+    }
+    // final settle
+    setRollValue(finalRoll);
+    await new Promise(r => setTimeout(r, 220));
     setShowRoll(false);
+    setRollActor(null);
 
-    const { newState, newPlayerStats, narrative, usedItem } = executePlayerAction(
+    const execRes = executePlayerAction(
       combatState,
       playerStats,
       action,
       selectedTarget || undefined,
       abilityId,
       itemId,
-      inventory
+      inventory,
+      finalRoll
     );
+    let newState = execRes.newState;
+    let newPlayerStats = execRes.newPlayerStats;
+    const narrative = execRes.narrative;
+    const usedItem = execRes.usedItem;
 
     if (onNarrativeUpdate && narrative) {
       onNarrativeUpdate(narrative);
+    }
+    // Show toast for low stamina narrative
+    if (narrative && narrative.toLowerCase().includes('low stamina') && showToast) {
+      showToast('Low stamina reduces effectiveness of the ability.', 'warning');
     }
     
     // Trigger healing animation and toast if health was restored
@@ -394,8 +466,11 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     
     if (finalState.active && (action !== 'flee' || !narrative.includes('failed'))) {
       finalState = advanceTurn(finalState);
+      const regenRes = applyTurnRegen(finalState, newPlayerStats);
+      finalState = regenRes.newState;
+      newPlayerStats = regenRes.newPlayerStats;
     }
-    
+
     setCombatState(finalState);
     setPlayerStats(newPlayerStats);
     // Show floating damage based on last combat log entry (if any)
@@ -417,11 +492,17 @@ export const CombatModal: React.FC<CombatModalProps> = ({
         }
       } catch (e) { /* ignore */ }
 
-      setFloatingHits(h => [{ id, actor: 'player', damage: last.damage, hitLocation: undefined, isCrit: (last.narrative || '').toLowerCase().includes('critical'), x, y }, ...h]);
+      setFloatingHits(h => [{ id, actor: 'player', damage: last.damage, hitLocation: undefined, isCrit: !!last.isCrit, x, y }, ...h]);
       setTimeout(() => setFloatingHits(h => h.filter(x => x.id !== id)), 1600);
 
-      // Play hit sound if available
-      try { new Audio('/audio/sfx/hit.mp3').play().catch(()=>{}); } catch (e) {}
+      // Play hit or crit sound if available
+      try {
+        if (last.isCrit) {
+          new Audio('/audio/sfx/crit.mp3').play().catch(() => {});
+        } else {
+          new Audio('/audio/sfx/hit.mp3').play().catch(() => {});
+        }
+      } catch (e) {}
     }
     
     setTimeout(() => setIsAnimating(false), 500);
@@ -458,8 +539,10 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     );
   };
 
+  // Regen is applied after each turn via applyTurnRegen; time-based tick removed.
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--skyrim-dark, #0f0f0f)' }}>
       {/* Combat header */}
       <div className="bg-gradient-to-b from-stone-900 to-transparent p-4 border-b border-amber-900/30">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
@@ -474,10 +557,10 @@ export const CombatModal: React.FC<CombatModalProps> = ({
       </div>
 
       {/* Main combat area */}
-      <div className="flex-1 overflow-hidden flex flex-col lg:flex-row gap-4 p-4 max-w-7xl mx-auto w-full">
+      <div className="flex-1 overflow-auto flex flex-col lg:flex-row gap-4 p-3 sm:p-4 max-w-7xl mx-auto w-full">
         {/* Left side - Player stats */}
-        <div className="lg:w-1/4 space-y-4">
-          <div ref={playerRef} className="bg-stone-900/60 rounded-lg p-4 border border-amber-900/30">
+        <div className="w-full lg:w-1/4 space-y-4">
+          <div ref={playerRef} className="rounded-lg p-4 border border-amber-900/30" style={{ background: 'var(--skyrim-paper, #1a1a1a)' }}>
             <h3 className="text-lg font-bold text-amber-100 mb-3">{getEasterEggName(character.name)}</h3>
             <div className="space-y-3">
               <HealthBar 
@@ -523,7 +606,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
         </div>
 
         {/* Center - Enemies and combat log */}
-        <div className="lg:w-1/2 flex flex-col gap-4">
+        <div className="w-full lg:w-1/2 flex flex-col gap-4">
           {/* Enemies */}
           <div className="bg-stone-900/40 rounded-lg p-4 border border-stone-700">
             <h3 className="text-sm font-bold text-stone-400 mb-3">ENEMIES</h3>
@@ -557,6 +640,9 @@ export const CombatModal: React.FC<CombatModalProps> = ({
                 >
                   <span className="text-xs text-stone-500 mr-2">T{entry.turn}</span>
                   <span className="text-stone-300">{entry.narrative}</span>
+                  {entry.nat !== undefined && (
+                    <span className="text-xs text-stone-400 ml-2">• Roll: {entry.nat}{entry.rollTier ? ` • ${entry.rollTier}` : ''}</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -564,7 +650,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
         </div>
 
         {/* Right side - Actions */}
-        <div className="lg:w-1/4 space-y-4">
+        <div className="w-full lg:w-1/4 space-y-4">
           {/* Abilities */}
           <div className="bg-stone-900/60 rounded-lg p-4 border border-amber-900/30">
             <h3 className="text-sm font-bold text-stone-400 mb-3">ABILITIES</h3>
@@ -578,7 +664,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
                   canAfford={
                     ability.type === 'magic' 
                       ? playerStats.currentMagicka >= ability.cost
-                      : playerStats.currentStamina >= ability.cost
+                      : true
                   }
                   onClick={() => handlePlayerAction('attack', ability.id)}
                 />
@@ -623,7 +709,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
                             <span className="text-xs text-stone-400">x{item.quantity}</span>
                           </div>
                           <div className="text-xs text-stone-400 mt-1">
-                            {item.type === 'potion' ? '💊 Health Potion' : 
+                            {item.type === 'potion' ? (item.subtype === 'stamina' ? '💪 Stamina Potion' : item.subtype === 'magicka' ? '✨ Magicka Potion' : '💊 Health Potion') : 
                              item.type === 'food' ? '🍖 Food' : '🥤 Drink'}
                           </div>
                         </button>
@@ -708,31 +794,51 @@ export const CombatModal: React.FC<CombatModalProps> = ({
         </div>
       )}
 
-      {/* D20 roll visual */}
-      {showRoll && (
-        <div className="absolute left-1/2 top-20 transform -translate-x-1/2 z-50 pointer-events-none">
-          <div className="w-16 h-16 rounded-full bg-black/80 border-2 border-amber-500 flex items-center justify-center text-2xl text-amber-200 animate-bounce">
-            {rollValue}
-          </div>
-        </div>
+      {/* Loot modal shown when combatState indicates loot is pending */}
+      {combatState.lootPending && (
+        <LootModal
+          combatState={combatState}
+          onCancel={handleLootCancel}
+          onConfirm={handleLootConfirm}
+        />
       )}
 
-      {/* Floating damage / hit indicators */}
-      {floatingHits.map((hit) => (
-        <div
-          key={hit.id}
-          className="absolute z-50 pointer-events-none"
-          style={{
-            left: hit.x ? `${hit.x}px` : '50%',
-            top: hit.y ? `${hit.y}px` : '120px',
-            transform: 'translate(-50%, -50%)'
-          }}
-        >
-          <div className={`px-3 py-1 rounded-lg text-sm font-bold ${hit.actor === 'player' ? 'bg-green-900/60 text-green-200 border border-green-400' : 'bg-red-900/60 text-red-200 border border-red-400'} transition-transform duration-300`}>
-            {hit.isCrit ? '💥 ' : ''}-{hit.damage} {hit.hitLocation ? `(${hit.hitLocation})` : ''}
-          </div>
+      {/* D20 roll visual */}
+      <div className="absolute left-1/2 top-16 sm:top-20 transform -translate-x-1/2 z-50 pointer-events-none">
+        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-black/60 border-2 flex items-center justify-center text-xl sm:text-2xl ${rollActor === 'enemy' ? 'border-red-500 text-red-300' : 'border-amber-500 text-amber-200'}`}>
+          {showRoll && rollValue ? (
+            <span className={`animate-bounce`}>{rollValue}</span>
+          ) : (
+            <span className="text-stone-500">&nbsp;</span>
+          )}
         </div>
-      ))}
+      </div>
+
+      {/* Floating damage / hit indicators */}
+      {floatingHits.map((hit) => {
+        const base = hit.actor === 'player'
+          ? 'bg-green-900/60 text-green-200 border border-green-400'
+          : 'bg-red-900/60 text-red-200 border border-red-400';
+        const critClasses = hit.isCrit
+          ? 'scale-110 ring-2 ring-amber-400 text-amber-200 font-extrabold animate-pulse'
+          : '';
+
+        return (
+          <div
+            key={hit.id}
+            className="absolute z-50 pointer-events-none"
+            style={{
+              left: hit.x ? `${hit.x}px` : '50%',
+              top: hit.y ? `${hit.y}px` : '120px',
+              transform: 'translate(-50%, -50%)'
+            }}
+          >
+            <div className={`px-3 py-1 rounded-lg text-sm font-bold ${base} ${critClasses} transition-transform duration-300`}>
+              {hit.isCrit ? '💥 ' : ''}-{hit.damage} {hit.hitLocation ? `(${hit.hitLocation})` : ''}
+            </div>
+          </div>
+        );
+      })}
 
       {/* Defeat overlay */}
       {showDefeat && (

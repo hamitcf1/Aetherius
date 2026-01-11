@@ -64,49 +64,76 @@ const rollDice = (count: number, sides: number) => {
   for (let i = 0; i < count; i++) rolls.push(Math.floor(Math.random() * sides) + 1);
   return { total: rolls.reduce((s, r) => s + r, 0), rolls };
 };
-
-// Resolve attack using a DnD-like d20 roll + attack bonus vs a target threshold derived from armor/dodge
+// Resolve attack using nat-only mapping. The nat (1-20) fully determines hit/tier per design.
+// If opts.natRoll is provided it is used; otherwise a d20 is rolled.
 const resolveAttack = (opts: {
   attackerLevel: number;
-  attackBonus?: number; // extra to hit
+  attackBonus?: number;
   targetArmor: number;
-  targetDodge?: number; // 0-100
-  critChance?: number; // fallback crit chance
-}): { hit: boolean; isCrit: boolean; attackRoll: number; targetThreshold: number; natRoll: number } => {
-  const { attackerLevel, attackBonus = 0, targetArmor, targetDodge = 0, critChance = 0 } = opts;
-  const d20 = rollDice(1, 20);
+  targetDodge?: number;
+  critChance?: number;
+  natRoll?: number;
+}): { hit: boolean; isCrit: boolean; natRoll: number; rollTier: 'fail' | 'miss' | 'low' | 'mid' | 'high' | 'crit' } => {
+  const { natRoll } = opts;
+  const d20 = natRoll && natRoll >= 1 && natRoll <= 20 ? { rolls: [natRoll] } : rollDice(1, 20);
   const nat = d20.rolls[0];
-  // Map armor to an AC-like threshold: higher armor raises threshold slowly
-  const armorFactor = Math.floor(targetArmor / 5);
-  // Dodge effectively raises target threshold slightly
-  const dodgeFactor = Math.floor(targetDodge / 10);
-  const targetThreshold = 10 + armorFactor + dodgeFactor;
-  const attackRoll = nat + Math.floor(attackerLevel / 2) + attackBonus;
 
-  // Natural 20 always hits and crits, natural 1 always misses
-  if (nat === 20) return { hit: true, isCrit: true, attackRoll, targetThreshold, natRoll: nat };
-  if (nat === 1) return { hit: false, isCrit: false, attackRoll, targetThreshold, natRoll: nat };
+  // Determine outcome solely based on nat value ranges:
+  // 1 -> critical failure (fail)
+  // 2-4 -> miss
+  // 5-9 -> low damage
+  // 10-14 -> mid damage
+  // 15-19 -> high damage
+  // 20 -> absolute success (crit)
+  // Special case: nat === 7 is treated as a critical hit
 
-  const hit = attackRoll >= targetThreshold;
-  // Crit if roll qualifies OR random crit chance
-  const isCrit = (Math.random() * 100 < critChance) && hit;
-  return { hit, isCrit, attackRoll, targetThreshold, natRoll: nat };
+  if (nat === 1) return { hit: false, isCrit: false, natRoll: nat, rollTier: 'fail' };
+  if (nat >= 2 && nat <= 4) return { hit: false, isCrit: false, natRoll: nat, rollTier: 'miss' };
+  if (nat === 7) return { hit: true, isCrit: true, natRoll: nat, rollTier: 'crit' };
+  if (nat >= 5 && nat <= 9) return { hit: true, isCrit: false, natRoll: nat, rollTier: 'low' };
+  if (nat >= 10 && nat <= 14) return { hit: true, isCrit: false, natRoll: nat, rollTier: 'mid' };
+  if (nat >= 15 && nat <= 19) return { hit: true, isCrit: false, natRoll: nat, rollTier: 'high' };
+  // nat === 20
+  return { hit: true, isCrit: true, natRoll: nat, rollTier: 'crit' };
 };
 
-// Compute damage using dice variability and hit location multipliers
-const rollDamage = (baseDamage: number, attackerLevel: number, isCrit: boolean, hitLocation?: string) => {
-  const diceCount = Math.max(1, Math.floor(baseDamage / 6));
-  const dice = rollDice(diceCount, 6).total;
+// Deterministic damage calculation derived from nat roll and tier.
+// Ensures higher nat => equal or higher damage.
+const computeDamageFromNat = (
+  baseDamage: number,
+  attackerLevel: number,
+  natRoll: number,
+  rollTier: 'fail' | 'miss' | 'low' | 'mid' | 'high' | 'crit',
+  isCrit: boolean
+) => {
   const levelBonus = Math.floor(attackerLevel * 0.2);
-  let damage = Math.floor(dice + levelBonus + baseDamage * 0.15);
+  const base = Math.max(1, Math.floor(baseDamage + levelBonus));
 
-  // Hit location multipliers
-  const loc = hitLocation || randomChoice(['torso', 'arm', 'leg', 'head']);
-  const multipliers: Record<string, number> = { head: 1.6, torso: 1.0, arm: 0.9, leg: 0.85 };
-  damage = Math.floor(damage * (multipliers[loc] || 1));
+  const tierMultipliers: Record<string, number> = {
+    fail: 0,
+    miss: 0,
+    low: 0.75,
+    mid: 1.0,
+    high: 1.25,
+    crit: 1.75
+  };
 
-  if (isCrit) damage = Math.floor(damage * 1.75);
-  return { damage, hitLocation: loc };
+  const tierMult = tierMultipliers[rollTier] ?? 1;
+  const critExtra = isCrit ? 1.15 : 1;
+
+  const raw = Math.floor(base * tierMult * critExtra);
+  const damage = Math.max(0, raw);
+
+  // Deterministic hit location for consistent display (does not affect damage)
+  const locs = ['torso', 'arm', 'leg', 'head'];
+  const hitLocation = locs[natRoll % locs.length];
+
+  // Debug logging for troubleshooting roll->damage mapping
+  try {
+    console.debug('[combat] computeDamageFromNat', { natRoll, rollTier, baseDamage, attackerLevel, base, tierMult, isCrit, critExtra, damage });
+  } catch (e) {}
+
+  return { damage, hitLocation };
 };
 
 // ============================================================================
@@ -171,7 +198,11 @@ export const calculatePlayerCombatStats = (
     critChance,
     dodgeChance,
     magicResist,
-    abilities
+    abilities,
+    // Passive regen: base 0.25 per second (== 1 per 4s). Can be increased by progression later.
+    regenHealthPerSec: 0.25,
+    regenMagickaPerSec: 0.25,
+    regenStaminaPerSec: 0.25
   };
 };
 
@@ -341,7 +372,9 @@ export const initializeCombat = (
     currentHealth: enemy.maxHealth,
     currentMagicka: enemy.maxMagicka,
     currentStamina: enemy.maxStamina,
-    activeEffects: []
+    activeEffects: [],
+    // Default regen: 0.25 per second (== 1 per 4s), override via enemy.regenHealthPerSec
+    regenHealthPerSec: enemy.regenHealthPerSec ?? 0.25
   }));
 
   // Calculate turn order (player first unless ambushed)
@@ -389,8 +422,10 @@ export const calculateDamage = (
   // Backwards-compatible: keep a simple path but prefer dice-based resolution
   const resisted = damageType ? targetResistances.includes(damageType) : false;
 
-  // Use dice-based damage with variability
-  const { damage: rolled } = rollDamage(baseDamage, attackerLevel, Math.random() * 100 < critChance);
+  // Use deterministic mapping for compatibility: assume a mid roll
+  const assumedNat = 12;
+  const assumedTier: any = 'mid';
+  const { damage: rolled } = computeDamageFromNat(baseDamage, attackerLevel, assumedNat, assumedTier, Math.random() * 100 < critChance);
 
   // Armor reduction (diminishing returns)
   const armorReduction = targetArmor / (targetArmor + 100);
@@ -413,7 +448,8 @@ export const executePlayerAction = (
   targetId?: string,
   abilityId?: string,
   itemId?: string,
-  inventory?: InventoryItem[]
+  inventory?: InventoryItem[],
+  natRoll?: number
 ): { newState: CombatState; newPlayerStats: PlayerCombatStats; narrative: string; usedItem?: InventoryItem } => {
   let newState = { ...state };
   let newPlayerStats = { ...playerStats };
@@ -439,15 +475,35 @@ export const executePlayerAction = (
         break;
       }
 
-      // Check cost
-      const costType = ability.type === 'magic' ? 'currentMagicka' : 'currentStamina';
-      if (newPlayerStats[costType] < ability.cost) {
-        narrative = `Not enough ${ability.type === 'magic' ? 'magicka' : 'stamina'} for ${ability.name}!`;
-        break;
-      }
+      // Track action counts for skill progression
+      newState.playerActionCounts = newState.playerActionCounts || {};
+      const actionKey = ability.type === 'magic' ? 'magic' : ability.type === 'melee' ? (ability.id || 'melee') : ability.type;
+      newState.playerActionCounts[actionKey] = (newState.playerActionCounts[actionKey] || 0) + 1;
 
-      // Pay cost
-      newPlayerStats[costType] -= ability.cost;
+      // Check cost and handle stamina-shortage by scaling damage instead of blocking
+      const costType = ability.type === 'magic' ? 'currentMagicka' : 'currentStamina';
+      let staminaMultiplier = 1;
+      if (ability.type === 'magic') {
+        if (newPlayerStats.currentMagicka < ability.cost) {
+          narrative = `Not enough magicka for ${ability.name}!`;
+          break;
+        }
+        newPlayerStats.currentMagicka -= ability.cost;
+      } else {
+        const available = newPlayerStats.currentStamina || 0;
+        if (available <= 0) {
+          // No stamina: allow a weak attack
+          staminaMultiplier = 0.25;
+        } else if (available < ability.cost) {
+          // Partial stamina: scale effectiveness proportionally but keep a floor
+          staminaMultiplier = Math.max(0.25, available / ability.cost);
+        }
+        // Consume what stamina is available (don't force negative)
+        newPlayerStats.currentStamina = Math.max(0, newPlayerStats.currentStamina - Math.min(ability.cost, available));
+        if (staminaMultiplier < 1) {
+          narrative = `Low stamina reduces the effectiveness of ${ability.name}.`;
+        }
+      }
 
       // Find target
       const target = targetId 
@@ -461,25 +517,22 @@ export const executePlayerAction = (
 
       // Resolve attack (d20 + bonuses vs armor/dodge) then roll damage dice
       const attackBonus = Math.floor(playerStats.weaponDamage / 10);
-      const attackResolved = resolveAttack({
-        attackerLevel: 12,
-        attackBonus,
-        targetArmor: target.armor,
-        targetDodge: target.dodgeChance || 0,
-        critChance: playerStats.critChance
-      });
+      const attackResolved = resolveAttack({ attackerLevel: 12, attackBonus, targetArmor: target.armor, targetDodge: (target as any).dodgeChance || 0, critChance: playerStats.critChance, natRoll });
 
+      // If nat indicates miss/fail, log accordingly
       if (!attackResolved.hit) {
-        narrative = `You use ${ability.name} on ${target.name} but miss!`;
-        newState.combatLog.push({ turn: newState.turn, actor: 'player', action: ability.name, target: target.name, damage: 0, narrative, timestamp: Date.now() });
+        const rollText = attackResolved.rollTier === 'fail' ? 'critical failure' : 'miss';
+        narrative = `You roll ${attackResolved.natRoll} (${rollText}) and ${ability.name} against ${target.name} fails to connect.`;
+        newState.combatLog.push({ turn: newState.turn, actor: 'player', action: ability.name, target: target.name, damage: 0, isCrit: false, nat: attackResolved.natRoll, rollTier: attackResolved.rollTier, narrative, timestamp: Date.now() });
         break;
       }
 
-      const { damage, hitLocation } = rollDamage(
-        ability.damage + Math.floor(playerStats.weaponDamage * (ability.type === 'melee' ? 0.5 : 0)),
-        12,
-        attackResolved.isCrit
-      );
+      // Determine damage tier multipliers based on rollTier
+      const tierMultipliers: Record<string, number> = { low: 0.6, mid: 1.0, high: 1.25, crit: 1.75 };
+      const baseDamage = ability.damage + Math.floor(playerStats.weaponDamage * (ability.type === 'melee' ? 0.5 : 0));
+      const tierMult = tierMultipliers[attackResolved.rollTier] ?? 1;
+      const scaledBase = Math.max(1, Math.floor(baseDamage * staminaMultiplier * tierMult));
+      const { damage, hitLocation } = computeDamageFromNat(scaledBase, 12, attackResolved.natRoll, attackResolved.rollTier, attackResolved.isCrit);
 
       // Apply armor/resistance reductions (post-roll)
       const armorReduction = target.armor / (target.armor + 100);
@@ -493,7 +546,7 @@ export const executePlayerAction = (
       const enemyIndex = newState.enemies.findIndex(e => e.id === target.id);
       newState.enemies[enemyIndex] = {
         ...target,
-        currentHealth: Math.max(0, target.currentHealth - damage)
+        currentHealth: Math.max(0, target.currentHealth - appliedDamage)
       };
 
       // Set cooldown
@@ -546,6 +599,9 @@ export const executePlayerAction = (
         action: ability.name,
         target: target.name,
         damage: appliedDamage,
+        isCrit: !!isCrit,
+        nat: attackResolved.natRoll,
+        rollTier: attackResolved.rollTier,
         narrative,
         timestamp: Date.now()
       });
@@ -555,6 +611,8 @@ export const executePlayerAction = (
     case 'defend': {
       newState.playerDefending = true;
       narrative = 'You raise your guard, reducing incoming damage by 50% this turn.';
+      newState.playerActionCounts = newState.playerActionCounts || {};
+      newState.playerActionCounts['defend'] = (newState.playerActionCounts['defend'] || 0) + 1;
       newState.combatLog.push({
         turn: newState.turn,
         actor: 'player',
@@ -634,10 +692,36 @@ export const executePlayerAction = (
 
       // Handle different item types
       if (item.type === 'potion') {
-        // All potions provide healing - use damage value or default to 35
-        healAmount = item.damage || 35;
-        usedItem = item;
-        console.log('Potion healing:', healAmount);
+        // Determine subtype: explicit `item.subtype` preferred, otherwise infer from name
+        const name = (item.name || '').toLowerCase();
+        const inferred = item.subtype || (name.includes('stamina') ? 'stamina' : name.includes('magicka') || name.includes('mana') ? 'magicka' : name.includes('health') || name.includes('heal') ? 'health' : undefined);
+        const subtype = inferred || 'health';
+        const potency = item.damage || 35;
+
+        if (subtype === 'health') {
+          healAmount = potency;
+        } else if (subtype === 'magicka') {
+          const actualRestore = Math.min(potency, newPlayerStats.maxMagicka - newPlayerStats.currentMagicka);
+          if (actualRestore > 0) {
+            newPlayerStats.currentMagicka += actualRestore;
+            const updatedItem = { ...item, quantity: item.quantity - 1 };
+            inventory[itemIndex] = updatedItem;
+            narrative = `You drink ${item.name} and recover ${actualRestore} magicka!`;
+            newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
+            return { newState, newPlayerStats, narrative, usedItem: updatedItem };
+          }
+        } else if (subtype === 'stamina') {
+          const actualRestore = Math.min(potency, newPlayerStats.maxStamina - newPlayerStats.currentStamina);
+          if (actualRestore > 0) {
+            newPlayerStats.currentStamina += actualRestore;
+            const updatedItem = { ...item, quantity: item.quantity - 1 };
+            inventory[itemIndex] = updatedItem;
+            narrative = `You drink ${item.name} and restore ${actualRestore} stamina!`;
+            newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
+            return { newState, newPlayerStats, narrative, usedItem: updatedItem };
+          }
+        }
+        console.log('Potion handling:', { subtype, potency, healAmount });
       } else if (item.type === 'food' || item.type === 'drink') {
         // Food/drink item - use nutrition data for healing or fallback
         const nutrition = getFoodNutrition(item.name);
@@ -674,6 +758,7 @@ export const executePlayerAction = (
           action: 'item',
           target: item.name,
           narrative,
+          isCrit: false,
           timestamp: Date.now()
         });
 
@@ -682,12 +767,16 @@ export const executePlayerAction = (
         narrative = `You cannot use ${item.name} in combat.`;
       }
 
+      newState.playerActionCounts = newState.playerActionCounts || {};
+      newState.playerActionCounts['use_item'] = (newState.playerActionCounts['use_item'] || 0) + 1;
+
       newState.combatLog.push({
         turn: newState.turn,
         actor: 'player',
         action: 'item',
         target: item.name,
         narrative,
+        isCrit: false,
         timestamp: Date.now()
       });
       break;
@@ -704,7 +793,8 @@ export const executePlayerAction = (
 export const executeEnemyTurn = (
   state: CombatState,
   enemyId: string,
-  playerStats: PlayerCombatStats
+  playerStats: PlayerCombatStats,
+  natRoll?: number
 ): { newState: CombatState; newPlayerStats: PlayerCombatStats; narrative: string } => {
   let newState = { ...state };
   let newPlayerStats = { ...playerStats };
@@ -742,8 +832,8 @@ export const executeEnemyTurn = (
   // Choose ability based on behavior
   let chosenAbility: CombatAbility;
   const availableAbilities = enemy.abilities.filter(a => {
+    // Disallow magic if not enough magicka, but allow melee even with low stamina
     if (a.type === 'magic' && enemy.currentMagicka && enemy.currentMagicka < a.cost) return false;
-    if (a.type === 'melee' && enemy.currentStamina && enemy.currentStamina < a.cost) return false;
     return true;
   });
 
@@ -792,14 +882,29 @@ export const executeEnemyTurn = (
 
   // Resolve enemy attack via d20 + attack bonus
   const attackBonus = Math.max(0, Math.floor(enemy.damage / 8));
-  const resolved = resolveAttack({ attackerLevel: enemy.level, attackBonus, targetArmor: playerStats.armor, targetDodge: playerStats.dodgeChance, critChance: 10 });
+  const resolved = resolveAttack({ attackerLevel: enemy.level, attackBonus, targetArmor: playerStats.armor, targetDodge: playerStats.dodgeChance, critChance: 10, natRoll });
 
+  // If stamina is low, scale enemy melee damage instead of preventing the attack
   let appliedDamage = 0;
   let hitLocation = 'torso';
   if (!resolved.hit) {
     appliedDamage = 0;
   } else {
-    const rollRes = rollDamage(chosenAbility.damage || enemy.damage, enemy.level, resolved.isCrit);
+    let enemyStaminaMultiplier = 1;
+    if (chosenAbility.type === 'melee') {
+      const avail = enemy.currentStamina || 0;
+      if (avail <= 0) enemyStaminaMultiplier = 0.25;
+      else if (avail < (chosenAbility.cost || 0)) enemyStaminaMultiplier = Math.max(0.25, avail / (chosenAbility.cost || 1));
+      enemy.currentStamina = Math.max(0, (enemy.currentStamina || 0) - Math.min(chosenAbility.cost || 0, avail));
+    } else if (chosenAbility.type === 'magic') {
+      if (enemy.currentMagicka && enemy.currentMagicka >= (chosenAbility.cost || 0)) {
+        enemy.currentMagicka = Math.max(0, enemy.currentMagicka - (chosenAbility.cost || 0));
+      }
+    }
+
+    const base = (chosenAbility.damage || enemy.damage) * enemyStaminaMultiplier;
+    const scaledBase = Math.max(1, Math.floor(base));
+    const rollRes = computeDamageFromNat(scaledBase, enemy.level, resolved.natRoll, resolved.rollTier, resolved.isCrit);
     hitLocation = rollRes.hitLocation;
     // Apply armor reduction
     const armorReduction = playerStats.armor / (playerStats.armor + 100);
@@ -823,7 +928,9 @@ export const executeEnemyTurn = (
 
   // Build narrative
   let narrative = `${enemy.name} uses ${chosenAbility.name}`;
-  if (appliedDamage === 0) {
+  if (!resolved.hit) {
+    narrative += ` and rolls ${resolved.natRoll} (${resolved.rollTier}), missing you.`;
+  } else if (appliedDamage === 0) {
     narrative += ` but you avoid the attack!`;
   } else {
     narrative += ` and deals ${appliedDamage} damage to your ${hitLocation}!`;
@@ -843,6 +950,9 @@ export const executeEnemyTurn = (
     action: chosenAbility.name,
     target: 'player',
     damage: appliedDamage,
+    isCrit: !!resolved.isCrit,
+    nat: resolved.natRoll,
+    rollTier: resolved.rollTier,
     narrative,
     timestamp: Date.now()
   });
@@ -897,34 +1007,37 @@ export const checkCombatEnd = (state: CombatState, playerStats: PlayerCombatStat
   // Check if all enemies are defeated
   const allEnemiesDefeated = newState.enemies.every(e => e.currentHealth <= 0);
   if (allEnemiesDefeated) {
-    newState.result = 'victory';
+    // Move into loot phase. Do not grant rewards yet — collect possible drops and wait for player selection.
     newState.active = false;
-    
-    // Calculate rewards
-    const xp = newState.enemies.reduce((sum, e) => sum + e.xpReward, 0);
+    newState.lootPending = true;
+
+    const xp = newState.enemies.reduce((sum, e) => sum + (e.xpReward || 0), 0);
     const gold = newState.enemies.reduce((sum, e) => sum + (e.goldReward || 0), 0);
+
+    // Create per-enemy loot snapshots based on drop chances
+    const pendingLoot: typeof newState.pendingLoot = [];
     const items: Array<{ name: string; type: string; description: string; quantity: number }> = [];
-    
+
     newState.enemies.forEach(enemy => {
+      const enemyLoot: typeof pendingLoot[number] = { enemyId: enemy.id, enemyName: enemy.name, loot: [] };
       enemy.loot?.forEach(lootItem => {
-        if (Math.random() * 100 < lootItem.dropChance) {
-          items.push({
-            name: lootItem.name,
-            type: lootItem.type,
-            description: lootItem.description,
-            quantity: lootItem.quantity
-          });
+        if (Math.random() * 100 < (lootItem.dropChance || 0)) {
+          const found = { name: lootItem.name, type: lootItem.type, description: lootItem.description, quantity: lootItem.quantity, rarity: (lootItem as any).rarity };
+          enemyLoot.loot.push(found);
+          items.push({ name: lootItem.name, type: lootItem.type, description: lootItem.description, quantity: lootItem.quantity });
         }
       });
+      if (enemyLoot.loot.length > 0) pendingLoot.push(enemyLoot);
     });
-    
-    newState.rewards = { xp, gold, items };
-    
+
+    newState.pendingRewards = { xp, gold, items };
+    newState.pendingLoot = pendingLoot;
+
     newState.combatLog.push({
       turn: newState.turn,
       actor: 'system',
-      action: 'victory',
-      narrative: `Victory! You have defeated all enemies and earned ${xp} XP${gold > 0 ? ` and ${gold} gold` : ''}!`,
+      action: 'loot_phase',
+      narrative: `All enemies defeated — enter loot phase.`,
       timestamp: Date.now()
     });
   }
@@ -943,6 +1056,31 @@ export const checkCombatEnd = (state: CombatState, playerStats: PlayerCombatStat
   }
   
   return newState;
+};
+
+// Apply regen after a turn. Uses per-second regen values but applies them for a turn-length equivalent.
+// By default a "turn" yields the same healing as the previous 4s tick (regenPerSec * 4).
+export const applyTurnRegen = (state: CombatState, playerStats: PlayerCombatStats, secondsPerTurn = 4) => {
+  let newPlayerStats = { ...playerStats };
+  const multiplier = secondsPerTurn;
+  const nh = Math.min(newPlayerStats.maxHealth, newPlayerStats.currentHealth + Math.floor((newPlayerStats.regenHealthPerSec || 0) * multiplier));
+  const nm = Math.min(newPlayerStats.maxMagicka, newPlayerStats.currentMagicka + Math.floor((newPlayerStats.regenMagickaPerSec || 0) * multiplier));
+  const ns = Math.min(newPlayerStats.maxStamina, newPlayerStats.currentStamina + Math.floor((newPlayerStats.regenStaminaPerSec || 0) * multiplier));
+  newPlayerStats.currentHealth = nh;
+  newPlayerStats.currentMagicka = nm;
+  newPlayerStats.currentStamina = ns;
+
+  const enemies = state.enemies.map(e => {
+    if (!e || e.currentHealth <= 0) return e;
+    const regen = e.regenHealthPerSec || 0;
+    if (!regen) return e;
+    const nh = Math.min(e.maxHealth, (e.currentHealth || 0) + Math.floor(regen * multiplier));
+    if (nh !== e.currentHealth) return { ...e, currentHealth: nh };
+    return e;
+  });
+
+  const newState = { ...state, enemies };
+  return { newState, newPlayerStats };
 };
 
 // ============================================================================
@@ -972,8 +1110,6 @@ interface BaseEnemyTemplate {
 
 const BASE_ENEMY_TEMPLATES: Record<string, BaseEnemyTemplate> = {
   bandit: {
-    baseName: 'Bandit',
-    type: 'humanoid',
     baseLevel: 5,
     baseHealth: 50,
     baseArmor: 15,

@@ -346,6 +346,8 @@ const App: React.FC = () => {
       setConsoleKeyBuffer(prev => {
         const newBuffer = (prev + key).slice(-7); // Keep last 7 characters
         if (newBuffer.includes('console')) {
+          // Prevent the final keypress from being applied to the newly-focused console input
+          try { e.preventDefault(); } catch (err) {}
           setShowConsole(true);
           return '';
         }
@@ -355,6 +357,30 @@ const App: React.FC = () => {
 
     window.addEventListener('keypress', handleKeyPress);
     return () => window.removeEventListener('keypress', handleKeyPress);
+  }, []);
+
+  // Global Backquote / ~ key toggles the developer console (outside of text inputs)
+  useEffect(() => {
+    const handleBackquote = (e: KeyboardEvent) => {
+      // Prefer code for layout independence, but also accept key values
+      const isBackquote = e.code === 'Backquote' || e.key === '`' || e.key === '~';
+      if (!isBackquote) return;
+
+      const active = document.activeElement as HTMLElement | null;
+      if (!active) return;
+
+      const tag = active.tagName;
+      const isEditable = active.isContentEditable;
+
+      // Do not toggle if focus is inside inputs, textareas, or contenteditable elements
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || isEditable) return;
+
+      try { e.preventDefault(); } catch { /* ignore */ }
+      setShowConsole(prev => !prev);
+    };
+
+    window.addEventListener('keydown', handleBackquote);
+    return () => window.removeEventListener('keydown', handleBackquote);
   }, []);
 
   // AI Model Selection (global)
