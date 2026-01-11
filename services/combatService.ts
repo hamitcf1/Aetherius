@@ -15,7 +15,8 @@ import {
   CombatActionType
 } from '../types';
 import { getFoodNutrition } from './nutritionData';
-import { applyStatToVitals } from './vitals';
+import { applyStatToVitals, modifyPlayerCombatStat } from './vitals';
+import { resolvePotionEffect } from './potionResolver';
 
 // ============================================================================
 // DYNAMIC ENEMY NAME POOLS - For variation
@@ -697,27 +698,30 @@ export const executePlayerAction = (
 
       // Handle different item types
       if (item.type === 'potion') {
-        // Determine subtype: explicit `item.subtype` preferred, otherwise infer from name
-        const name = (item.name || '').toLowerCase();
-        const inferred = item.subtype || (name.includes('stamina') ? 'stamina' : name.includes('magicka') || name.includes('mana') ? 'magicka' : name.includes('health') || name.includes('heal') ? 'health' : undefined);
-        const subtype = (inferred as 'health' | 'magicka' | 'stamina') || 'health';
-        const potency = item.damage || 35;
+        // Resolve potion effect centrally (no default to health)
+        const resolved = resolvePotionEffect(item);
+        if (!resolved.stat) {
+          // Ambiguous or no confident inference — fail safely
+          console.error('[combat] Cannot resolve potion stat:', item.name, 'reason=', resolved.reason);
 
-        // Apply to the correct stat using shared vitals helper
-        const currentVitals = {
-          currentHealth: newPlayerStats.currentHealth,
-          currentMagicka: newPlayerStats.currentMagicka,
-          currentStamina: newPlayerStats.currentStamina
-        };
-        const maxStats = { health: newPlayerStats.maxHealth, magicka: newPlayerStats.maxMagicka, stamina: newPlayerStats.maxStamina };
-        const { newVitals, actual } = applyStatToVitals(currentVitals, maxStats, subtype, potency as number);
-        if (actual > 0) {
-          newPlayerStats.currentHealth = newVitals.currentHealth;
-          newPlayerStats.currentMagicka = newVitals.currentMagicka;
-          newPlayerStats.currentStamina = newVitals.currentStamina;
+        const amount = resolved.amount ?? item.damage ?? 0;
+        if (!amount || amount <= 0) {
+          narrative = `The ${item.name} seems to be empty.`;
+        // Use strict modifier to update player combat stats
+        const mod = modifyPlayerCombatStat(newPlayerStats, resolved.stat, amount);
+        if (mod.actual > 0) {
+          newPlayerStats = mod.newPlayerStats;
           const updatedItem = { ...item, quantity: item.quantity - 1 };
           inventory[itemIndex] = updatedItem;
-          narrative = `You drink ${item.name} and recover ${actual} ${subtype}!`;
+          narrative = `You drink ${item.name} and recover ${mod.actual} ${resolved.stat}!`;
+          newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
+          return { newState, newPlayerStats, narrative, usedItem: updatedItem };
+        }
+
+        narrative = `The ${item.name} had no effect.`;
+        newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
+        break;
+      }
           newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
           return { newState, newPlayerStats, narrative, usedItem: updatedItem };
         }

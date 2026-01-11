@@ -90,6 +90,7 @@ import {
 } from './services/realtime';
 import { getFoodNutrition, getDrinkNutrition } from './services/nutritionData';
 import { applyStatToVitals } from './services/vitals';
+import { resolvePotionEffect } from './services/potionResolver';
 import { getItemStats, shouldHaveStats } from './services/itemStats';
 import { updateMusicForContext, AmbientContext, audioService, playMusic } from './services/audioService';
 import { getSkyrimCalendarDate, formatSkyrimDate, formatSkyrimDateShort } from './utils/skyrimCalendar';
@@ -150,9 +151,8 @@ const sanitizeInventoryItem = (item: Partial<InventoryItem>): Partial<InventoryI
   if (clean.weight === undefined || !Number.isFinite(clean.weight)) delete clean.weight;
   if (clean.value === undefined || !Number.isFinite(clean.value)) delete clean.value;
 
-  // Ensure potions are tagged for combat filtering
-  if (clean.type === 'potion' && !clean.subtype) clean.subtype = 'health';
-
+  // Do NOT default potion subtype to 'health' here. Leave subtype undefined so
+  // the centralized resolver can infer or reject it at runtime.
   return clean;
 };
 
@@ -1353,26 +1353,31 @@ const App: React.FC = () => {
     if (!currentCharacterId || !activeCharacter) return;
 
     if (item.type === 'potion') {
-      // Determine subtype from explicit field or infer from name
-      const name = item.name.toLowerCase();
-      const inferred = item.subtype || (name.includes('stamina') ? 'stamina' : name.includes('magicka') || name.includes('mana') ? 'magicka' : name.includes('health') || name.includes('heal') ? 'health' : undefined);
-      const subtype = (inferred as 'health' | 'magicka' | 'stamina') || 'health';
-      const potency = item.damage || 35;
-
-      const { newVitals, actual } = applyStatToVitals(activeCharacter.currentVitals, activeCharacter.stats, subtype, potency);
-      if (actual > 0) {
-        const vitalsChange: any = {};
-        if (subtype === 'health') vitalsChange.currentHealth = newVitals.currentHealth - (activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health);
-        if (subtype === 'magicka') vitalsChange.currentMagicka = newVitals.currentMagicka - (activeCharacter.currentVitals?.currentMagicka ?? activeCharacter.stats.magicka);
-        if (subtype === 'stamina') vitalsChange.currentStamina = newVitals.currentStamina - (activeCharacter.currentVitals?.currentStamina ?? activeCharacter.stats.stamina);
-
-        handleGameUpdate({
-          vitalsChange,
-          removedItems: [{ name: item.name, quantity: 1 }]
-        });
-        showToast(`Restored ${actual} ${subtype}!`, 'success');
+      const resolved = resolvePotionEffect(item);
+      if (!resolved.stat) {
+        console.error('[app] Potion stat unresolved for', item.name, 'reason=', resolved.reason);
+        showToast(`The effect of ${item.name} is unclear and it has no effect.`, 'warning');
       } else {
-        showToast(`No effect from ${item.name}.`, 'warning');
+        const amount = resolved.amount ?? item.damage ?? 0;
+        if (!amount || amount <= 0) {
+          showToast(`The ${item.name} seems to be empty.`, 'warning');
+        } else {
+          const { newVitals, actual } = applyStatToVitals(activeCharacter.currentVitals, activeCharacter.stats, resolved.stat, amount);
+          if (actual > 0) {
+            const vitalsChange: any = {};
+            if (resolved.stat === 'health') vitalsChange.currentHealth = newVitals.currentHealth - (activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health);
+            if (resolved.stat === 'magicka') vitalsChange.currentMagicka = newVitals.currentMagicka - (activeCharacter.currentVitals?.currentMagicka ?? activeCharacter.stats.magicka);
+            if (resolved.stat === 'stamina') vitalsChange.currentStamina = newVitals.currentStamina - (activeCharacter.currentVitals?.currentStamina ?? activeCharacter.stats.stamina);
+
+            handleGameUpdate({
+              vitalsChange,
+              removedItems: [{ name: item.name, quantity: 1 }]
+            });
+            showToast(`Restored ${actual} ${resolved.stat}!`, 'success');
+          } else {
+            showToast(`No effect from ${item.name}.`, 'warning');
+          }
+        }
       }
 
     } else if (item.type === 'food') {
