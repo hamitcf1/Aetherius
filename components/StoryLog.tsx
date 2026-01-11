@@ -232,7 +232,32 @@ export const StoryLog: React.FC<StoryLogProps> = ({
       const sortedJournal = [...journal].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
       const sortedMessages = adventureMessages.sort((a, b) => a.timestamp - b.timestamp);
 
-      // Build the source material for AI
+      // Build summarized source material for AI (limit to avoid token overflow)
+      const maxChapters = 10; // Limit chapters to prevent token overflow
+      const maxJournal = 8; // Limit journal entries
+      const maxMessages = 20; // Limit adventure messages
+      
+      const limitedChapters = sortedChapters.slice(0, maxChapters); // Oldest chapters first for chronological storytelling
+      const limitedJournal = sortedJournal.slice(0, maxJournal); // Oldest journal entries first
+      const limitedMessages = sortedMessages.slice(0, maxMessages); // Oldest adventure messages first
+      
+      // Create concise summaries
+      const chapterSummary = limitedChapters.map((c, i) => 
+        `Chapter ${i+1}: ${c.title} - ${c.content.substring(0, 200)}...`
+      ).join('\n');
+      
+      const journalSummary = limitedJournal.map(j => 
+        `${j.title}: ${j.content.substring(0, 150)}...`
+      ).join('\n');
+      
+      const adventureSummary = limitedMessages.map(m => 
+        `${m.role === 'player' ? 'HERO' : 'NARRATOR'}: ${m.content.substring(0, 100)}...`
+      ).join('\n');
+      
+      const questSummary = quests.slice(0, 5).map(q => 
+        `${q.title} (${q.status}): ${q.description?.substring(0, 100) || 'No description'}`
+      ).join('\n');
+
       const sourceMaterial = {
         character: {
           name: character.name,
@@ -244,93 +269,292 @@ export const StoryLog: React.FC<StoryLogProps> = ({
           psychology: character.psychology,
           moralCode: character.moralCode
         },
-        chapters: sortedChapters.map(c => ({ title: c.title, content: c.content, date: c.date })),
-        journal: sortedJournal.slice(-20).map(j => ({ title: j.title, content: j.content, date: j.date })),
-        adventures: sortedMessages.slice(-100).map(m => ({ role: m.role, content: m.content.substring(0, 500) })),
-        quests: quests.map(q => ({ title: q.title, status: q.status, description: q.description }))
+        totalChapters: sortedChapters.length,
+        totalJournalEntries: sortedJournal.length,
+        totalAdventures: sortedMessages.length,
+        chapterSummary,
+        journalSummary,
+        adventureSummary,
+        questSummary
       };
 
       // If no content, show error
-      if (sortedChapters.length === 0 && sortedMessages.length === 0 && sortedJournal.length === 0) {
-        throw new Error('No story content found. Create some chapters or play some adventures first!');
+      const totalContentItems = sortedChapters.length + sortedJournal.length + sortedMessages.length;
+      if (totalContentItems === 0) {
+        throw new Error('No story content found. Create some chapters, journal entries, or play some adventures first!');
       }
 
-      setFinalizeProgress('AI is crafting your story... (this may take a minute)');
+      console.log(`Processing ${totalContentItems} total content items: ${sortedChapters.length} chapters, ${sortedJournal.length} journal entries, ${sortedMessages.length} adventure messages`);
+      console.log(`Story will start chronologically from oldest entries: ${limitedChapters.length} chapters, ${limitedJournal.length} journal entries, ${limitedMessages.length} adventure messages`);
 
-      // Generate the book using AI
-      const bookPrompt = `You are a master storyteller tasked with writing a complete narrative book based on a character's adventures in Skyrim.
+      setFinalizeProgress('AI is crafting your complete story... (this may take 5-10 minutes for a full book)');
 
-CHARACTER:
-Name: ${sourceMaterial.character.name}
-Race: ${sourceMaterial.character.race} ${sourceMaterial.character.gender}
-Class: ${sourceMaterial.character.archetype}
-Level: ${sourceMaterial.character.level}
-Identity: ${sourceMaterial.character.identity || 'Unknown'}
-Psychology: ${sourceMaterial.character.psychology || 'Unknown'}
-Moral Code: ${sourceMaterial.character.moralCode || 'Unknown'}
+      // Multi-phase story generation for comprehensive coverage
+  const generateCompleteStory = async (
+    sourceMaterial: any,
+    sortedChapters: any[],
+    sortedJournal: any[],
+    sortedMessages: any[],
+    quests: any[],
+    character: any
+  ): Promise<{ title: string; content: string }[]> => {
+    const allChapters: { title: string; content: string }[] = [];
+    let coveredContent: string[] = [];
+    let phase = 1;
 
-SOURCE MATERIALS (use these as the basis for the story):
-${sortedChapters.length > 0 ? `\n=== STORY CHAPTERS ===\n${sortedChapters.map(c => `[${c.title}]\n${c.content}`).join('\n\n')}` : ''}
-${sortedJournal.length > 0 ? `\n=== JOURNAL ENTRIES ===\n${sortedJournal.slice(-15).map(j => `[${j.title}]\n${j.content}`).join('\n\n')}` : ''}
-${sortedMessages.length > 0 ? `\n=== ADVENTURE CONVERSATIONS ===\n${sortedMessages.slice(-50).map(m => `${m.role === 'player' ? 'HERO' : 'NARRATOR'}: ${m.content.substring(0, 300)}`).join('\n')}` : ''}
-${quests.length > 0 ? `\n=== QUESTS ===\n${quests.map(q => `- ${q.title} (${q.status}): ${q.description || ''}`).join('\n')}` : ''}
+    // Phase 1: Generate foundation chapters (early story - chronological beginning)
+    setFinalizeProgress(`Phase 1: Crafting the foundation of ${character.name}'s legend from the very beginning...`);
+    const foundationPrompt = `You are a master storyteller creating the FOUNDATION of a hero's epic Skyrim chronicle, starting from the VERY BEGINNING of their journey.
 
-TASK:
-Write a compelling narrative book (like a novel) about ${sourceMaterial.character.name}'s journey. 
+CHARACTER: ${sourceMaterial.character.name}, ${sourceMaterial.character.race} ${sourceMaterial.character.gender}, ${sourceMaterial.character.archetype} (Level ${sourceMaterial.character.level})
 
-CRITICAL: You MUST cover ALL the source material provided above from the BEGINNING to the LATEST events. Do not skip any major story chapters or events. Create a complete chronicle that spans the entire journey chronologically.
+EARLIEST STORY ELEMENTS TO COVER (chronological start):
+${sourceMaterial.chapterSummary.split('\n').slice(0, 3).join('\n')}
+${sourceMaterial.journalSummary.split('\n').slice(0, 3).join('\n')}
+${sourceMaterial.adventureSummary.split('\n').slice(0, 5).join('\n')}
 
-RULES:
-1. Write in third-person narrative prose, like a fantasy novel
-2. Transform the raw events into flowing, dramatic storytelling
-3. Include vivid descriptions, dialogue, and emotional depth
-4. Organize into clear chapters with titles (create ${Math.max(sortedChapters.length, 3)}-${sortedChapters.length + 5} chapters to cover everything)
-5. Each chapter should be 2-4 paragraphs
-6. Maintain the character's personality and decisions
-7. Use proper Skyrim lore and terminology
-8. Make it feel like an Elder Scrolls book you'd find in-game
-9. IMPORTANT: Cover events from the character's earliest adventures to their most recent experiences
+IMPORTANT: Write TWO separate chapters covering the hero's ORIGINS and EARLIEST ADVENTURES. This is the beginning of their legendary journey. Each chapter should be 600-800 words with vivid details, dialogue, and character development.
 
-FORMAT YOUR RESPONSE AS:
-===CHAPTER: [Title]===
-[Chapter content here...]
+Format your response EXACTLY like this:
 
-===CHAPTER: [Title]===
-[Chapter content here...]
+Chapter 1: [Descriptive Title for Chapter 1]
+[Full chapter content here covering the hero's origins and first steps]
 
-(Continue with ALL chapters covering the complete journey)
+Chapter 2: [Descriptive Title for Chapter 2]
+[Full chapter content here continuing from the earliest adventures]
 
-Write the complete book now, ensuring you cover ALL the provided chapters and adventures from start to finish:`;
+Each chapter should be a complete, self-contained story segment showing how the hero began their journey. DO NOT skip Chapter 1.`;
 
-      const response = await generateGameMasterResponse(bookPrompt, JSON.stringify(sourceMaterial));
-      
-      if (!response.narrative?.content) {
-        throw new Error('AI did not generate story content. Please try again.');
-      }
+    console.log('Phase 1 prompt:', foundationPrompt.substring(0, 200) + '...');
+    const foundationResponse = await generateGameMasterResponse(foundationPrompt, '');
+    console.log('Phase 1 RAW response:', foundationResponse.narrative?.content);
+    const foundationChapters = parseChaptersFromResponse(foundationResponse.narrative?.content || '');
+    console.log(`Phase 1 parsed chapters:`, foundationChapters.map(c => c.title));
+    allChapters.push(...foundationChapters);
+    coveredContent.push('foundation', 'origins', 'early-adventures');
 
-      // Parse the generated book into chapters
-      const bookContent = response.narrative.content;
-      const chapterRegex = /===CHAPTER:\s*(.+?)===\s*([\s\S]*?)(?====CHAPTER:|$)/gi;
-      const generatedChapters: { title: string; content: string }[] = [];
-      
-      let match;
-      while ((match = chapterRegex.exec(bookContent)) !== null) {
-        const title = match[1].trim();
-        const content = match[2].trim();
-        if (title && content) {
-          generatedChapters.push({ title, content });
+    // Phase 2: Generate middle chapters (main story development)
+    if (sortedChapters.length > 1 || sortedJournal.length > 1 || sortedMessages.length > 2) {
+      setFinalizeProgress(`Phase 2: Developing the main narrative arc...`);
+      const middlePrompt = `Continue the epic Skyrim chronicle. Previous chapters covered: ${coveredContent.join(', ')}
+
+CHARACTER: ${sourceMaterial.character.name} (continuing their journey)
+
+MAIN STORY ELEMENTS TO COVER NOW:
+${sourceMaterial.chapterSummary.split('\n').slice(3, 8).join('\n')}
+${sourceMaterial.journalSummary.split('\n').slice(3, 6).join('\n')}
+${sourceMaterial.adventureSummary.split('\n').slice(5, 12).join('\n')}
+${sourceMaterial.questSummary}
+
+IMPORTANT: Write THREE separate chapters, each 600-800 words long. Format your response EXACTLY like this:
+
+Chapter 3: [Descriptive Title for Chapter 3]
+[Full chapter content here with major conflicts and character development]
+
+Chapter 4: [Descriptive Title for Chapter 4]
+[Full chapter content here continuing the story with key relationships]
+
+Chapter 5: [Descriptive Title for Chapter 5]
+[Full chapter content here building toward the climax]
+
+Each chapter should advance the plot significantly and show character growth. Reference specific events from the story elements provided above.`;
+
+      console.log('Phase 2 prompt:', middlePrompt.substring(0, 200) + '...');
+      const middleResponse = await generateGameMasterResponse(middlePrompt, '');
+      console.log('Phase 2 response preview:', middleResponse.narrative?.content?.substring(0, 300) + '...');
+      const middleChapters = parseChaptersFromResponse(middleResponse.narrative?.content || '');
+      console.log(`Phase 2 generated ${middleChapters.length} chapters`);
+      allChapters.push(...middleChapters);
+      coveredContent.push('main-conflicts', 'character-development', 'key-relationships');
+    }
+
+    // Phase 3: Generate recent events and climax
+    setFinalizeProgress(`Phase 3: Reaching the story's climax and recent events...`);
+    const recentPrompt = `Complete the epic Skyrim chronicle. Previous chapters covered: ${coveredContent.join(', ')}
+
+CHARACTER: ${sourceMaterial.character.name} (Level ${sourceMaterial.character.level}, ${sourceMaterial.character.archetype})
+
+RECENT AND FINAL ELEMENTS TO COVER:
+${sourceMaterial.chapterSummary.split('\n').slice(-3).join('\n')}
+${sourceMaterial.journalSummary.split('\n').slice(-3).join('\n')}
+${sourceMaterial.adventureSummary.split('\n').slice(-8).join('\n')}
+
+IMPORTANT: Write THREE separate chapters, each 600-800 words long. Format your response EXACTLY like this:
+
+Chapter 6: [Descriptive Title for Chapter 6]
+[Full chapter content here covering recent events and building tension]
+
+Chapter 7: [Descriptive Title for Chapter 7]
+[Full chapter content here reaching the story climax]
+
+Chapter 8: [Descriptive Title for Chapter 8]
+[Full chapter content here showing resolution and character growth]
+
+Show how the hero has grown and what challenges remain. Each chapter should be substantial and advance the plot to its conclusion.`;
+
+    console.log('Phase 3 prompt:', recentPrompt.substring(0, 200) + '...');
+    const recentResponse = await generateGameMasterResponse(recentPrompt, '');
+    console.log('Phase 3 response preview:', recentResponse.narrative?.content?.substring(0, 300) + '...');
+    const recentChapters = parseChaptersFromResponse(recentResponse.narrative?.content || '');
+    console.log(`Phase 3 generated ${recentChapters.length} chapters`);
+    allChapters.push(...recentChapters);
+
+    // Phase 4: Generate epilogue (always run for complete conclusion)
+    setFinalizeProgress(`Phase 4: Crafting a legendary conclusion...`);
+    const epiloguePrompt = `Write a GRAND EPILOGUE chapter for ${sourceMaterial.character.name}'s Skyrim chronicle.
+
+This should be a substantial chapter (600-800 words) that reflects on the hero's complete journey, their growth from ${sourceMaterial.character.identity || 'ordinary beginnings'} to legendary status, their lasting impact on Skyrim, and their future prospects.
+
+Chapter 9: Legacy of ${sourceMaterial.character.name}
+[Write a comprehensive epilogue showing the hero's legendary status, their reflections on the journey, and their place in Skyrim's history. Include vivid descriptions of their achievements and the mark they've left on the world.]`;
+
+    console.log('Phase 4 prompt:', epiloguePrompt.substring(0, 200) + '...');
+    const epilogueResponse = await generateGameMasterResponse(epiloguePrompt, '');
+    console.log('Phase 4 response preview:', epilogueResponse.narrative?.content?.substring(0, 300) + '...');
+    const epilogueChapters = parseChaptersFromResponse(epilogueResponse.narrative?.content || '');
+    console.log(`Phase 4 generated ${epilogueChapters.length} chapters`);
+    allChapters.push(...epilogueChapters);
+
+    // Renumber chapters to ensure proper sequence
+    const renumberedChapters = allChapters.map((chapter, index) => {
+      const newTitle = chapter.title.replace(/^Chapter \d+:/, `Chapter ${index + 1}:`);
+      console.log(`Renumbering: "${chapter.title}" -> "${newTitle}"`);
+      return {
+        title: newTitle,
+        content: chapter.content
+      };
+    });
+
+    console.log(`Final story generation complete: ${renumberedChapters.length} chapters total`);
+    renumberedChapters.forEach((ch, i) => {
+      console.log(`Final Chapter ${i + 1}: ${ch.title} (${ch.content.split(/\s+/).length} words)`);
+    });
+
+    // Ensure we always start with Chapter 1
+    if (renumberedChapters.length > 0 && !renumberedChapters[0].title.startsWith('Chapter 1:')) {
+      console.warn('First chapter does not start with Chapter 1, forcing renumbering...');
+      return renumberedChapters.map((chapter, index) => ({
+        title: chapter.title.replace(/^Chapter \d+:/, `Chapter ${index + 1}:`),
+        content: chapter.content
+      }));
+    }
+
+    return renumberedChapters;
+  };
+
+  // Helper function to parse chapters from AI response
+  const parseChaptersFromResponse = (content: string): { title: string; content: string }[] => {
+    console.log('Parsing chapters from response:', content.substring(0, 500) + '...');
+
+    const chapters: { title: string; content: string }[] = [];
+
+    // Strategy 1: Look for "Chapter X: Title" format (more flexible)
+    const chapterPattern = /Chapter\s*(\d+)[\s:]+([^\n\r]+)[\r\n]+([\s\S]*?)(?=Chapter\s*\d+|^\s*$|$)/gmi;
+    let match;
+    let matchCount = 0;
+    while ((match = chapterPattern.exec(content)) !== null) {
+      matchCount++;
+      console.log(`Found chapter ${match[1]}: ${match[2].trim()}`);
+      chapters.push({
+        title: `Chapter ${match[1]}: ${match[2].trim()}`,
+        content: match[3].trim()
+      });
+    }
+
+    if (chapters.length > 0) {
+      console.log(`Strategy 1: Found ${chapters.length} chapters using regex parsing`);
+      return chapters;
+    }
+
+    console.log('Strategy 1 failed, trying Strategy 2...');
+
+    // Strategy 2: Split by chapter markers (more flexible)
+    const lines = content.split('\n');
+    let currentChapter: { title: string; content: string[] } | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+
+      // Look for chapter headers (various formats)
+      if (line.match(/^Chapter\s*\d+[\s:]/i) ||
+          line.match(/^\d+\.\s*Chapter/i) ||
+          (line.match(/^Chapter\s*\d+/i) && line.length < 100)) {
+
+        // Save previous chapter if exists
+        if (currentChapter && currentChapter.content.length > 0) {
+          chapters.push({
+            title: currentChapter.title,
+            content: currentChapter.content.join('\n').trim()
+          });
         }
-      }
 
-      // If regex didn't work, just use the whole content as one chapter
-      if (generatedChapters.length === 0) {
-        generatedChapters.push({
-          title: `The Tale of ${character.name}`,
-          content: bookContent
+        // Start new chapter
+        currentChapter = {
+          title: line,
+          content: []
+        };
+        console.log(`Strategy 2: Found chapter header: ${line}`);
+      } else if (currentChapter && line) {
+        currentChapter.content.push(line);
+      }
+    }
+
+    // Add the last chapter
+    if (currentChapter && currentChapter.content.length > 0) {
+      chapters.push({
+        title: currentChapter.title,
+        content: currentChapter.content.join('\n').trim()
+      });
+    }
+
+    if (chapters.length > 0) {
+      console.log(`Strategy 2: Found ${chapters.length} chapters using line-by-line parsing`);
+      return chapters;
+    }
+
+    console.log('Strategy 2 failed, trying Strategy 3...');
+
+    // Strategy 3: If no chapters found, split content into reasonable chunks
+    console.log('No chapters found, using fallback chunking');
+    const paragraphs = content.split('\n\n').filter(p => p.trim().length > 50);
+    const wordsPerChapter = Math.max(800, Math.floor(content.split(/\s+/).length / 6)); // Aim for 6 chapters
+
+    let currentWords = 0;
+    let chapterNum = 1;
+    let chapterContent: string[] = [];
+
+    for (const paragraph of paragraphs) {
+      const words = paragraph.split(/\s+/).length;
+      chapterContent.push(paragraph);
+
+      currentWords += words;
+      if (currentWords >= wordsPerChapter && chapterNum < 6) {
+        chapters.push({
+          title: `Chapter ${chapterNum}: ${chapterNum === 1 ? 'Origins' : chapterNum === 2 ? 'Early Adventures' : chapterNum === 3 ? 'Rising Conflicts' : chapterNum === 4 ? 'Character Growth' : chapterNum === 5 ? 'Climax' : 'Resolution'}`,
+          content: chapterContent.join('\n\n')
         });
+        chapterContent = [];
+        currentWords = 0;
+        chapterNum++;
       }
+    }
 
-      setGeneratedBook(generatedChapters.map(c => `## ${c.title}\n\n${c.content}`));
+    // Add remaining content as final chapter
+    if (chapterContent.length > 0) {
+      chapters.push({
+        title: `Chapter ${chapterNum}: Conclusion`,
+        content: chapterContent.join('\n\n')
+      });
+    }
+
+    console.log(`Strategy 3: Created ${chapters.length} chapters using fallback chunking`);
+    return chapters.length > 0 ? chapters : [{ title: 'The Complete Saga', content }];
+  };
+      const allGeneratedChapters = await generateCompleteStory(sourceMaterial, sortedChapters, sortedJournal, sortedMessages, quests, character);
+
+      console.log(`Final story has ${allGeneratedChapters.length} chapters`);
+
+      setGeneratedBook(allGeneratedChapters.map(c => `## ${c.title}\n\n${c.content}`));
       setFinalizeProgress('Generating PDF...');
 
       // Generate PDF
@@ -407,7 +631,7 @@ Write the complete book now, ensuring you cover ALL the provided chapters and ad
       }
 
       // Book chapters
-      generatedChapters.forEach((chapter, index) => {
+      allGeneratedChapters.forEach((chapter, index) => {
         doc.addPage();
         drawBackground();
         yPos = margin + 10;
