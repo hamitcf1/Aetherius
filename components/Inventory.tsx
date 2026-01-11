@@ -300,6 +300,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
     if (!newName.trim()) return;
     const newItem: InventoryItem = {
       id: uniqueId(),
+      characterId: '', // Will be set by setCharacterItems
       name: newName,
       type: newType,
       description: newDesc,
@@ -411,17 +412,12 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
         <h1 className="text-4xl font-serif text-skyrim-gold mb-2">Inventory</h1>
         <p className="text-gray-500 font-sans text-sm">Your burdens and your treasures.</p>
         
-        {/* Encumbrance & Gold Display */}
+        {/* Encumbrance Display */}
         <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
           <EncumbranceIndicator 
             currentWeight={totalWeight} 
             maxWeight={maxCarryWeight} 
           />
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-black/30 rounded border border-skyrim-border">
-            <Coins size={16} className="text-yellow-500" />
-            <span className="text-yellow-400 font-medium">{gold}</span>
-            <span className="text-gray-500 text-xs">gold</span>
-          </div>
         </div>
         
         {isOverEncumbered && (

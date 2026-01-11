@@ -31,6 +31,7 @@ interface CombatModalProps {
     items: Array<{ name: string; type: string; description: string; quantity: number }>;
   }, finalVitals?: { health: number; magicka: number; stamina: number }) => void;
   onNarrativeUpdate?: (narrative: string) => void;
+  onInventoryUpdate?: (removedItems: Array<{ name: string; quantity: number }>) => void;
 }
 
 // Health bar component
@@ -40,7 +41,8 @@ const HealthBar: React.FC<{
   label: string;
   color: string;
   showNumbers?: boolean;
-}> = ({ current, max, label, color, showNumbers = true }) => {
+  isHealing?: boolean;
+}> = ({ current, max, label, color, showNumbers = true, isHealing = false }) => {
   const percentage = Math.max(0, Math.min(100, (current / max) * 100));
   
   return (
@@ -51,9 +53,14 @@ const HealthBar: React.FC<{
       </div>
       <div className="h-3 bg-stone-900/80 rounded-full overflow-hidden border border-stone-700">
         <div 
-          className={`h-full transition-all duration-500 ${color}`}
+          className={`h-full transition-all duration-500 ${isHealing ? 'bg-green-400 animate-pulse' : color}`}
           style={{ width: `${percentage}%` }}
         />
+        {isHealing && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className="text-green-300 text-lg animate-bounce">✨</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -200,7 +207,8 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   inventory,
   initialCombatState,
   onCombatEnd,
-  onNarrativeUpdate
+  onNarrativeUpdate,
+  onInventoryUpdate
 }) => {
   const [combatState, setCombatState] = useState<CombatState>(initialCombatState);
   const [playerStats, setPlayerStats] = useState<PlayerCombatStats>(() => 
@@ -210,6 +218,8 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   const [isAnimating, setIsAnimating] = useState(false);
   const [showVictory, setShowVictory] = useState(false);
   const [showDefeat, setShowDefeat] = useState(false);
+  const [showItemSelection, setShowItemSelection] = useState(false);
+  const [isHealing, setIsHealing] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
   // Auto-select first alive enemy
@@ -302,21 +312,34 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   }, [combatState.currentTurnActor, combatState.active, isAnimating]);
 
   // Handle player action
-  const handlePlayerAction = (action: CombatActionType, abilityId?: string) => {
+  const handlePlayerAction = (action: CombatActionType, abilityId?: string, itemId?: string) => {
     if (isAnimating || combatState.currentTurnActor !== 'player') return;
     
     setIsAnimating(true);
     
-    const { newState, newPlayerStats, narrative } = executePlayerAction(
+    const { newState, newPlayerStats, narrative, usedItem } = executePlayerAction(
       combatState,
       playerStats,
       action,
       selectedTarget || undefined,
-      abilityId
+      abilityId,
+      itemId,
+      inventory
     );
     
     if (onNarrativeUpdate && narrative) {
       onNarrativeUpdate(narrative);
+    }
+    
+    // Trigger healing animation if health was restored
+    if (action === 'item' && newPlayerStats.currentHealth > playerStats.currentHealth) {
+      setIsHealing(true);
+      setTimeout(() => setIsHealing(false), 1000);
+    }
+    
+    // Update inventory if item was used
+    if (usedItem && onInventoryUpdate) {
+      onInventoryUpdate([{ name: usedItem.name, quantity: 1 }]);
     }
     
     // Check combat end
@@ -352,6 +375,17 @@ export const CombatModal: React.FC<CombatModalProps> = ({
 
   const isPlayerTurn = combatState.currentTurnActor === 'player' && combatState.active;
 
+  // Get usable items for combat (potions and food)
+  const getUsableItems = () => {
+    return inventory.filter(item => 
+      item.quantity > 0 && (
+        (item.type === 'potion' && item.subtype === 'health') ||
+        item.type === 'food' ||
+        item.type === 'drink'
+      )
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
       {/* Combat header */}
@@ -378,7 +412,8 @@ export const CombatModal: React.FC<CombatModalProps> = ({
                 current={playerStats.currentHealth} 
                 max={playerStats.maxHealth} 
                 label="Health" 
-                color="bg-gradient-to-r from-red-600 to-red-500" 
+                color="bg-gradient-to-r from-red-600 to-red-500"
+                isHealing={isHealing}
               />
               <HealthBar 
                 current={playerStats.currentMagicka} 
@@ -475,6 +510,59 @@ export const CombatModal: React.FC<CombatModalProps> = ({
                   onClick={() => handlePlayerAction('attack', ability.id)}
                 />
               ))}
+            </div>
+          </div>
+
+          {/* Items */}
+          <div className="bg-stone-900/60 rounded-lg p-4 border border-green-900/30">
+            <h3 className="text-sm font-bold text-stone-400 mb-3">ITEMS</h3>
+            <div className="space-y-2">
+              {getUsableItems().length > 0 ? (
+                <>
+                  {!showItemSelection ? (
+                    <button
+                      onClick={() => setShowItemSelection(true)}
+                      disabled={!isPlayerTurn || isAnimating}
+                      className="w-full p-2 rounded bg-green-900/40 border border-green-700/50 text-green-200 hover:bg-green-900/60 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      🧪 Use Item ({getUsableItems().length})
+                    </button>
+                  ) : (
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                      <button
+                        onClick={() => setShowItemSelection(false)}
+                        className="w-full p-1 text-xs rounded bg-stone-700/40 border border-stone-600 text-stone-300 hover:bg-stone-700/60"
+                      >
+                        ← Back
+                      </button>
+                      {getUsableItems().map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            handlePlayerAction('item', undefined, item.id);
+                            setShowItemSelection(false);
+                          }}
+                          disabled={!isPlayerTurn || isAnimating}
+                          className="w-full p-2 rounded bg-green-900/40 border border-green-700/50 text-green-200 hover:bg-green-900/60 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                        >
+                          <div className="flex justify-between items-center">
+                            <span>{item.name}</span>
+                            <span className="text-xs text-stone-400">x{item.quantity}</span>
+                          </div>
+                          <div className="text-xs text-stone-400 mt-1">
+                            {item.type === 'potion' ? '💊 Health Potion' : 
+                             item.type === 'food' ? '🍖 Food' : '🥤 Drink'}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-xs text-stone-500 text-center py-2">
+                  No usable items
+                </div>
+              )}
             </div>
           </div>
 

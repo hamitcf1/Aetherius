@@ -287,7 +287,7 @@ export const loadJournalEntries = async (uid: string, characterId?: string): Pro
     constraints.push(where('characterId', '==', characterId));
   }
   
-  const q = query(collRef, ...constraints, orderBy('date', 'desc'));
+  const q = query(collRef, ...constraints, orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => doc.data());
 };

@@ -87,6 +87,7 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries, onDeleteE
     if (!newEntryContent.trim()) return;
     const entry: JournalEntry = {
         id: uniqueId(),
+        characterId: '', // Will be set by setCharacterJournal
         date: getSkyrimDate(),
         title: newEntryTitle || 'Untitled Entry',
         content: newEntryContent,

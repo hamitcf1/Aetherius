@@ -14,6 +14,7 @@ import {
   PlayerCombatStats,
   CombatActionType
 } from '../types';
+import { getFoodNutrition } from './nutritionData';
 
 // ============================================================================
 // DYNAMIC ENEMY NAME POOLS - For variation
@@ -361,8 +362,9 @@ export const executePlayerAction = (
   action: CombatActionType,
   targetId?: string,
   abilityId?: string,
-  itemId?: string
-): { newState: CombatState; newPlayerStats: PlayerCombatStats; narrative: string } => {
+  itemId?: string,
+  inventory?: InventoryItem[]
+): { newState: CombatState; newPlayerStats: PlayerCombatStats; narrative: string; usedItem?: InventoryItem } => {
   let newState = { ...state };
   let newPlayerStats = { ...playerStats };
   let narrative = '';
@@ -532,13 +534,76 @@ export const executePlayerAction = (
     }
 
     case 'item': {
-      // Item usage would be handled by checking inventory
-      // For now, placeholder
-      narrative = 'You use an item.';
+      // Item usage in combat - healing potions and food
+      if (!itemId || !inventory) {
+        narrative = 'No item selected or inventory not available!';
+        break;
+      }
+
+      // Find the item in inventory
+      const itemIndex = inventory.findIndex(item => item.id === itemId);
+      if (itemIndex === -1) {
+        narrative = 'Item not found in inventory!';
+        break;
+      }
+
+      const item = inventory[itemIndex];
+      if (item.quantity <= 0) {
+        narrative = 'You don\'t have any of that item!';
+        break;
+      }
+
+      let healAmount = 0;
+      let usedItem: InventoryItem | undefined;
+
+      // Handle different item types
+      if (item.type === 'potion' && item.name.toLowerCase().includes('health')) {
+        // Health potion - use the item's damage value as healing amount
+        healAmount = item.damage || 35;
+        usedItem = item;
+      } else if (item.type === 'food' || item.type === 'drink') {
+        // Food/drink item - use nutrition data for healing
+        const nutrition = getFoodNutrition(item.name);
+        if (nutrition) {
+          // Food provides minor healing based on nutrition value
+          healAmount = Math.floor(nutrition.hungerReduction / 2) + 5; // 5-15 health from food
+          usedItem = item;
+        }
+      }
+
+      if (healAmount > 0 && usedItem) {
+        const actualHeal = Math.min(healAmount, newPlayerStats.maxHealth - newPlayerStats.currentHealth);
+        newPlayerStats.currentHealth += actualHeal;
+
+        // Remove one from inventory
+        const updatedItem = { ...item, quantity: item.quantity - 1 };
+        inventory[itemIndex] = updatedItem;
+
+        narrative = `You consume ${item.name} and recover ${actualHeal} health!`;
+
+        if (actualHeal < healAmount) {
+          narrative += ` (You were already near full health)`;
+        }
+
+        newState.combatLog.push({
+          turn: newState.turn,
+          actor: 'player',
+          action: 'item',
+          target: item.name,
+          narrative,
+          timestamp: Date.now()
+        });
+
+        return { newState, newPlayerStats, narrative, usedItem: updatedItem };
+      } else {
+        narrative = `You cannot use ${item.name} in combat.`;
+      }
+
       newState.combatLog.push({
         turn: newState.turn,
         actor: 'player',
         action: 'item',
+        target: item.name,
         narrative,
         timestamp: Date.now()
       });

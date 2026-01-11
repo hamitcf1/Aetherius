@@ -15,6 +15,7 @@ import { AdventureChat } from './components/AdventureChat';
 import { CharacterSelect } from './components/CharacterSelect';
 import { OnboardingModal } from './components/OnboardingModal';
 import { CombatModal } from './components/CombatModal';
+import { ConsoleOverlay } from './components/ConsoleOverlay';
 import { Changelog } from './components/Changelog';
 import UpdateNotification from './components/UpdateNotification';
 import { 
@@ -210,6 +211,10 @@ const App: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
+  // Console Overlay State
+  const [showConsole, setShowConsole] = useState(false);
+  const [consoleKeyBuffer, setConsoleKeyBuffer] = useState('');
+
   // Encumbrance calculation
   const calculateCarryWeight = useCallback((characterItems: InventoryItem[]) => {
     return characterItems.reduce((total, item) => {
@@ -293,27 +298,31 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Console keypress tracking
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Only track if not in an input field
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      setConsoleKeyBuffer(prev => {
+        const newBuffer = (prev + key).slice(-7); // Keep last 7 characters
+        if (newBuffer.includes('console')) {
+          setShowConsole(true);
+          return '';
+        }
+        return newBuffer;
+      });
+    };
+
+    window.addEventListener('keypress', handleKeyPress);
+    return () => window.removeEventListener('keypress', handleKeyPress);
+  }, []);
+
   // AI Model Selection (global)
   const [aiModel, setAiModel] = useState<PreferredAIModel>('gemma-3-27b-it');
-
-  // Expose database utilities for console access (for admin/debug purposes)
-  useEffect(() => {
-    if (currentUser?.uid) {
-      (window as any).aetheriusUtils = {
-        userId: currentUser.uid,
-        characterId: currentCharacterId,
-        removeDuplicateItems: () => removeDuplicateItems(currentUser.uid, currentCharacterId || undefined),
-        reloadItems: async () => {
-          const userItems = await loadInventoryItems(currentUser.uid);
-          setItems(userItems);
-          return userItems;
-        }
-      };
-      console.log('🔧 Database utils available via window.aetheriusUtils');
-      console.log('  - removeDuplicateItems() - removes items with duplicate names');
-      console.log('  - reloadItems() - reloads inventory from database');
-    }
-  }, [currentUser?.uid, currentCharacterId]);
 
   useEffect(() => {
     const key = currentUser?.uid ? `aetherius:aiModel:${currentUser.uid}` : 'aetherius:aiModel';
@@ -333,6 +342,28 @@ const App: React.FC = () => {
       // ignore
     }
   }, [aiModel, currentUser?.uid]);
+
+  // Expose database utilities and app context for console access (for admin/debug purposes)
+  // Note: We update this on every render to ensure window.app always has the latest references
+  useEffect(() => {
+    if (currentUser?.uid) {
+      (window as any).aetheriusUtils = {
+        userId: currentUser.uid,
+        characterId: currentCharacterId,
+        removeDuplicateItems: () => removeDuplicateItems(currentUser.uid, currentCharacterId || undefined),
+        reloadItems: async () => {
+          const userItems = await loadInventoryItems(currentUser.uid);
+          setItems(userItems);
+          return userItems;
+        }
+      };
+
+      console.log('🔧 Database utils available via window.aetheriusUtils');
+      console.log('  - removeDuplicateItems() - removes items with duplicate names');
+      console.log('  - reloadItems() - reloads inventory from database');
+      console.log('🎮 Demo commands available via window.demo (see CONSOLE_COMMANDS.md)');
+    }
+  }, [currentUser?.uid, currentCharacterId]);
 
   // Firebase Authentication Listener + Firestore Data Loading
   useEffect(() => {
@@ -711,6 +742,18 @@ const App: React.FC = () => {
       setIsSaving(false);
     }
   };
+
+  // Console command execution handler
+  const handleConsoleCommand = (command: string) => {
+    try {
+      // Execute the command in global scope
+      const result = (window as any).eval(command);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const handleRegister = async (email: string, password: string, username: string) => {
     setAuthError(null);
     try {
@@ -1959,6 +2002,29 @@ const App: React.FC = () => {
       }
   };
 
+  // Expose app context for demo commands (updated on every render)
+  if (currentUser?.uid) {
+    (window as any).app = {
+      currentUser,
+      currentCharacterId,
+      currentProfileId,
+      activeTab,
+      characters,
+      items,
+      quests,
+      journalEntries,
+      storyChapters,
+      handleGameUpdate,
+      setCharacters,
+      setItems,
+      setQuests,
+      setJournalEntries,
+      setStoryChapters,
+      setActiveTab,
+      setCurrentCharacterId
+    };
+  }
+
   const getAIContext = () => {
     if (!activeCharacter) return "";
     return JSON.stringify({
@@ -2260,6 +2326,9 @@ const App: React.FC = () => {
               // For now, just console log
               console.log('[Combat Narrative]', narrative);
             }}
+            onInventoryUpdate={(removedItems) => {
+              handleGameUpdate({ removedItems });
+            }}
           />
         )}
 
@@ -2268,6 +2337,13 @@ const App: React.FC = () => {
 
         {/* Changelog - subtle bottom left */}
         <Changelog />
+
+        {/* Console Overlay */}
+        <ConsoleOverlay
+          isOpen={showConsole}
+          onClose={() => setShowConsole(false)}
+          onExecuteCommand={handleConsoleCommand}
+        />
 
       </div>
     </AppContext.Provider>
