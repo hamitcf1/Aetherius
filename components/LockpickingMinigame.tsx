@@ -264,7 +264,7 @@ export const LockpickingMinigame: React.FC<LockpickingMinigameProps> = ({
         {/* Lock visualization */}
         <div className="relative w-64 h-64 mx-auto mb-6">
           {/* Lock body */}
-          <div className="absolute inset-0 rounded-full border-4 border-gray-700 bg-gradient-to-br from-gray-800 to-gray-900 shadow-inner">
+          <div className="absolute inset-0 rounded-full border-4 border-skyrim-border bg-gradient-to-br from-gray-800 to-gray-900 shadow-inner">
             {/* Keyhole */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-16 bg-black rounded-t-full">
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-8 bg-black rounded-sm"></div>

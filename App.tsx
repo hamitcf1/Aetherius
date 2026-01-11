@@ -978,7 +978,7 @@ const App: React.FC = () => {
               <input 
                 type="email"
                 placeholder="Email"
-                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-border rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogin(loginEmail, loginPassword)}
@@ -986,7 +986,7 @@ const App: React.FC = () => {
               <input 
                 type="password"
                 placeholder="Password"
-                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-border rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogin(loginEmail, loginPassword)}
@@ -1000,14 +1000,14 @@ const App: React.FC = () => {
               </button>
 
               <div className="relative flex items-center my-4">
-                <div className="flex-grow border-t border-gray-600"></div>
+                <div className="flex-grow border-t border-skyrim-border"></div>
                 <span className="flex-shrink mx-3 text-gray-500 text-sm">or</span>
-                <div className="flex-grow border-t border-gray-600"></div>
+                <div className="flex-grow border-t border-skyrim-border"></div>
               </div>
 
               <button 
                 onClick={handleGuestLogin}
-                className="w-full bg-gray-700 text-gray-200 font-bold py-2 rounded hover:bg-gray-600 transition-colors border border-gray-600"
+                className="w-full bg-gray-700 text-gray-200 font-bold py-2 rounded hover:bg-gray-600 transition-colors border border-skyrim-border"
               >
                 🎮 Continue as Guest
               </button>
@@ -1038,21 +1038,21 @@ const App: React.FC = () => {
               <input 
                 type="text"
                 placeholder="Name / Nickname"
-                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-border rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
                 value={loginUsername}
                 onChange={(e) => setLoginUsername(e.target.value)}
               />
               <input 
                 type="email"
                 placeholder="Email"
-                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-border rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
               />
               <input 
                 type="password"
                 placeholder="Password (min 6 characters)"
-                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+                className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-border rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
               />
@@ -1097,7 +1097,7 @@ const App: React.FC = () => {
                   <input 
                     type="email"
                     placeholder="Email"
-                    className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-gold/30 rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
+                    className="w-full px-4 py-2 bg-skyrim-dark/50 border border-skyrim-border rounded text-skyrim-text placeholder-gray-500 focus:outline-none focus:border-skyrim-gold"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleForgotPassword(loginEmail)}

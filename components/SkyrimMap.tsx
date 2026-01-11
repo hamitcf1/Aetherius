@@ -241,7 +241,7 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
           <button onClick={() => setZoom(prev => Math.max(0.5, prev - 0.2))} className="p-2 bg-black/60 border border-skyrim-gold/50 rounded hover:bg-skyrim-gold/20">
             <ZoomOut size={18} className="text-skyrim-gold" />
           </button>
-          <button onClick={() => setShowLabels(!showLabels)} className={`px-3 py-2 border rounded text-sm ${showLabels ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold' : 'border-gray-600 text-gray-400'}`}>
+          <button onClick={() => setShowLabels(!showLabels)} className={`px-3 py-2 border rounded text-sm ${showLabels ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold' : 'border-skyrim-border text-gray-400'}`}>
             Labels
           </button>
           {currentLocationObj && (
@@ -495,7 +495,7 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
             </div>
 
             {selectedLocation.rumors && selectedLocation.rumors.length > 0 && (
-              <div className="border-t border-gray-700 pt-3 mt-2">
+              <div className="border-t border-skyrim-border pt-3 mt-2">
                 <h4 className="text-xs text-skyrim-gold font-semibold mb-2">📜 Rumors & Knowledge</h4>
                 <ul className="space-y-1.5">
                   {selectedLocation.rumors.map((rumor, idx) => (
@@ -533,7 +533,7 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
             <div className="flex items-center gap-2"><Castle size={12} color="#22c55e" fill="#22c55e" /><span className="text-green-400">Current Location</span></div>
             <div className="flex items-center gap-2"><div className="w-2 h-2 bg-yellow-400 rounded-full" /><span className="text-yellow-400">Quest Objective</span></div>
             <div className="flex items-center gap-2"><Castle size={12} color="#3b82f6" /><span className="text-blue-400">Visited</span></div>
-            <div className="border-t border-gray-700 my-2" />
+            <div className="border-t border-skyrim-border my-2" />
             <div className="flex items-center gap-2"><Castle size={12} color="#d4a44a" /><span className="text-gray-400">City</span></div>
             <div className="flex items-center gap-2"><Home size={12} color="#8b7355" /><span className="text-gray-400">Town/Village</span></div>
             <div className="flex items-center gap-2"><Skull size={12} color="#dc2626" /><span className="text-gray-400">Dungeon</span></div>

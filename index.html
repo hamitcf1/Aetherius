@@ -83,6 +83,17 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #c0a062; 
       }
+      /* Theme the browser focus outline and Tailwind ring color */
+      :root {
+        --tw-ring-color: color-mix(in srgb, var(--skyrim-gold) 50%, transparent);
+      }
+      :focus {
+        outline: 1px solid var(--skyrim-gold);
+        outline-offset: 2px;
+      }
+      :focus:not(:focus-visible) {
+        outline: none;
+      }
     </style>
   <script type="importmap">
 {

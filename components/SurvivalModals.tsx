@@ -93,7 +93,7 @@ export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedr
                 className={`p-3 rounded border flex flex-col items-center gap-2 transition-colors ${
                   restType === 'outside'
                     ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold'
-                    : 'bg-black/30 border-skyrim-border text-gray-400 hover:border-gray-500'
+                    : 'bg-black/30 border-skyrim-border text-gray-400 hover:border-skyrim-border'
                 }`}
               >
                 <TreePine size={20} />
@@ -104,7 +104,7 @@ export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedr
                 className={`p-3 rounded border flex flex-col items-center gap-2 transition-colors ${
                   restType === 'camp'
                     ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold'
-                    : 'bg-black/30 border-skyrim-border text-gray-400 hover:border-gray-500'
+                    : 'bg-black/30 border-skyrim-border text-gray-400 hover:border-skyrim-border'
                 }`}
               >
                 <Tent size={20} />
@@ -120,7 +120,7 @@ export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedr
                   restType === 'inn'
                     ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold'
                     : canAffordInn
-                    ? 'bg-black/30 border-skyrim-border text-gray-400 hover:border-gray-500'
+                    ? 'bg-black/30 border-skyrim-border text-gray-400 hover:border-skyrim-border'
                     : 'bg-black/20 border-red-900/30 text-gray-600 cursor-not-allowed'
                 }`}
               >
@@ -134,7 +134,7 @@ export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedr
           </div>
 
           {/* Rest Quality Info */}
-          <div className="p-3 bg-black/30 border border-skyrim-border/60 rounded">
+          <div className="p-3 bg-black/30 border border-skyrim-border rounded">
             <div className="flex items-center justify-between mb-1">
               <span className="text-sm text-gray-300">{restQuality.label}</span>
               <span className="text-xs text-green-400">-{restQuality.fatigueReduction} fatigue</span>
@@ -238,7 +238,7 @@ export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
         </div>
 
         {/* Category Tabs */}
-        <div className="flex border-b border-skyrim-border/60 bg-black/20">
+        <div className="flex border-b border-skyrim-border bg-black/20">
           <button
             onClick={() => setActiveCategory('food')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-colors ${
@@ -278,7 +278,7 @@ export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
                   <button
                     key={item.id}
                     onClick={() => handleEat(item)}
-                    className="w-full p-3 bg-black/30 border border-skyrim-border/60 rounded hover:border-skyrim-gold/50 transition-colors text-left flex items-center justify-between"
+                    className="w-full p-3 bg-black/30 border border-skyrim-border rounded hover:border-skyrim-gold/50 transition-colors text-left flex items-center justify-between"
                   >
                     <div>
                       <div className="text-gray-200 font-semibold text-sm">{item.name}</div>
@@ -359,7 +359,7 @@ export function DrinkModal({ open, onClose, onDrink, drinkItems }: DrinkModalPro
                   <button
                     key={item.id}
                     onClick={() => handleDrink(item)}
-                    className="w-full p-3 bg-black/30 border border-skyrim-border/60 rounded hover:border-skyrim-gold/50 transition-colors text-left flex items-center justify-between"
+                    className="w-full p-3 bg-black/30 border border-skyrim-border rounded hover:border-skyrim-gold/50 transition-colors text-left flex items-center justify-between"
                   >
                     <div>
                       <div className="text-gray-200 font-semibold text-sm">{item.name}</div>

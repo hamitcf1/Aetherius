@@ -388,7 +388,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                         <div className="mt-3 flex gap-2">
                             <input 
                                 type="text" 
-                                className="flex-1 bg-transparent border-b border-gray-700 text-xs text-gray-300 p-1 focus:outline-none focus:border-skyrim-gold placeholder-gray-600"
+                                className="flex-1 bg-transparent border-b border-skyrim-border text-xs text-gray-300 p-1 focus:outline-none focus:border-skyrim-gold placeholder-gray-600"
                                 placeholder="Add objective..."
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {

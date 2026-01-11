@@ -1450,7 +1450,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     const tamrielDate = getTamrielDate(time.day);
     
     return (
-      <div className={`flex flex-col sm:flex-row items-center gap-2 sm:gap-3 px-4 py-2 rounded-lg border border-skyrim-gold/30 ${bgClass}`}>
+      <div className={`flex flex-col sm:flex-row items-center gap-2 sm:gap-3 px-4 py-2 rounded-lg border border-skyrim-border ${bgClass}`}>
         {/* Time of day */}
         <div className="flex items-center gap-2">
           {icon}
@@ -1502,7 +1502,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   // --- Rate Limit Toggle Button ---
   const RateLimitToggle = () => (
     <button
-      className="ml-2 px-2 py-1 text-xs rounded bg-gray-800/60 hover:bg-gray-700/80 border border-gray-700 text-gray-300 hover:text-skyrim-gold transition-colors"
+      className="ml-2 px-2 py-1 text-xs rounded bg-gray-800/60 hover:bg-gray-700/80 border border-skyrim-border text-gray-300 hover:text-skyrim-gold transition-colors"
       style={{ marginTop: 4 }}
       onClick={() => setShowRateLimit(v => !v)}
       title={showRateLimit ? 'Hide rate limit bar' : 'Show rate limit bar'}
@@ -1557,7 +1557,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         <div className="flex gap-1.5">
           <button
             onClick={() => setShowQuestModal(v => !v)}
-            className="px-2 py-1.5 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
+            className="px-2 py-1.5 text-gray-400 border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
             title="Show Quests"
           >
             <Flag size={12} /> Quests
@@ -1585,7 +1585,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
           <button
             onClick={clearChat}
             disabled={messages.length === 0}
-            className="px-2 py-1.5 text-gray-400 border border-gray-600 rounded hover:text-red-400 hover:border-red-400 transition-colors flex items-center gap-1.5 text-xs disabled:opacity-50"
+            className="px-2 py-1.5 text-gray-400 border border-skyrim-border rounded hover:text-red-400 hover:border-red-400 transition-colors flex items-center gap-1.5 text-xs disabled:opacity-50"
           >
             <Trash2 size={12} /> Clear
           </button>
@@ -1593,27 +1593,27 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         <div className="flex gap-1.5">
           <button
             onClick={() => setShowSimulationPanel(!showSimulationPanel)}
-            className="px-2 py-1.5 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
+            className="px-2 py-1.5 text-gray-400 border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
           >
             <Users size={12} /> State {showSimulationPanel ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
           </button>
           <button
             onClick={() => setShowEquipment(true)}
-            className="px-2 py-1.5 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
+            className="px-2 py-1.5 text-gray-400 border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
             title="Open Equipment"
           >
             <User size={12} /> Equip
           </button>
           <button
             onClick={() => setShowMap(true)}
-            className="px-2 py-1.5 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
+            className="px-2 py-1.5 text-gray-400 border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
             title="View Skyrim Map"
           >
             <Map size={12} /> Map
           </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="px-2 py-1.5 text-gray-400 border border-gray-600 rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
+            className="px-2 py-1.5 text-gray-400 border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
           >
             <Settings size={12} /> {showSettings ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
           </button>
@@ -1962,7 +1962,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                             <span className={`px-2 py-0.5 rounded border ${
                               msg.updates.xpChange > 0 
                                 ? 'text-purple-400 bg-purple-900/20 border-purple-900/30' 
-                                : 'text-gray-400 bg-gray-900/20 border-gray-900/30'
+                                : 'text-gray-400 bg-gray-900/20 border-skyrim-border/30'
                             }`}>
                               {msg.updates.xpChange > 0 ? '+' : ''}{msg.updates.xpChange} XP ✨
                             </span>

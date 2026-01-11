@@ -297,7 +297,7 @@ const ActionBar: React.FC = () => {
             </div>
             {/* Snow intensity options */}
             {snow && showSnowOptions && isFeatureEnabled('snowEffect') && (
-              <div className="mt-2 p-2 bg-gray-800 rounded border border-gray-700">
+              <div className="mt-2 p-2 bg-gray-800 rounded border border-skyrim-border">
                 <div className="text-xs text-gray-400 mb-1">Snow Intensity</div>
                 <div className="flex flex-wrap gap-1">
                   {SNOW_INTENSITY_OPTIONS.map(opt => (

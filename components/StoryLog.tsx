@@ -1022,7 +1022,7 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
                   />
               </div>
 
-              <div className="mb-4 p-2 sm:p-4 bg-black/30 border border-gray-700 rounded">
+              <div className="mb-4 p-2 sm:p-4 bg-black/30 border border-skyrim-border rounded">
                   <p className="text-xs text-gray-400 mb-3 uppercase tracking-wider font-bold">Or Generate with AI</p>
                   <div className="flex gap-2">
                       <input 
@@ -1044,7 +1044,7 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
                   </div>
               </div>
 
-              <div className="mb-4 p-2 sm:p-4 bg-black/30 border border-gray-700 rounded">
+              <div className="mb-4 p-2 sm:p-4 bg-black/30 border border-skyrim-border rounded">
                   <p className="text-xs text-gray-400 mb-3 uppercase tracking-wider font-bold">Add Quest (Optional)</p>
                   <div className="grid gap-3">
                       <input

@@ -70,11 +70,12 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries, onDeleteE
     const uniqueEntries = Array.from(contentMap.values());
     
     // Sort by createdAt
-    return uniqueEntries.sort((a, b) => {
+    const sorted = uniqueEntries.sort((a, b) => {
       const timeA = a.createdAt || 0;
       const timeB = b.createdAt || 0;
       return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
     });
+    return sorted;
   }, [entries, sortOrder]);
 
   // Format timestamp for display
@@ -186,8 +187,8 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries, onDeleteE
           {filteredEntries.map(entry => (
               <div key={entry.id} className="relative md:pl-12 group">
                    <div className="hidden md:block absolute left-[11px] top-6 w-3 h-3 bg-skyrim-gold rounded-full border-2 border-skyrim-dark z-10"></div>
-                   <div className="bg-skyrim-paper p-6 rounded border border-skyrim-border shadow-lg hover:border-skyrim-gold/30 transition-colors">
-                       <div className="flex justify-between items-start mb-4 border-b border-gray-800 pb-2">
+                   <div className="bg-skyrim-paper p-6 rounded border border-skyrim-border shadow-lg hover:border-skyrim-gold transition-colors">
+                       <div className="flex justify-between items-start mb-4 border-b border-skyrim-border pb-2">
                            <div>
                                <h3 className="text-xl font-serif text-gray-200">{entry.title}</h3>
                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-1">

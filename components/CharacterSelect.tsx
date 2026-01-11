@@ -380,7 +380,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                <div className="flex-1 overflow-y-auto space-y-4 mb-4">
                                    {chatHistory.map((msg, idx) => (
                                        <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                           <div className={`max-w-[80%] p-3 rounded-lg text-sm font-serif leading-relaxed ${msg.role === 'user' ? 'bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/30' : 'bg-gray-800 text-gray-300 border border-gray-700'}`}>
+                                           <div className={`max-w-[80%] p-3 rounded-lg text-sm font-serif leading-relaxed ${msg.role === 'user' ? 'bg-skyrim-gold/20 text-skyrim-gold border border-skyrim-gold/30' : 'bg-gray-800 text-gray-300 border border-skyrim-border'}`}>
                                                {msg.parts[0].text}
                                            </div>
                                        </div>
@@ -492,7 +492,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                         <MessageSquare size={20} /> Scribe Chat
                                     </button>
 
-                        <button onClick={() => setCreationMode('import')} disabled={!profileId} className="w-full sm:flex-1 py-3 bg-skyrim-dark hover:bg-black text-gray-300 font-bold rounded flex items-center justify-center gap-2 border border-gray-600 whitespace-nowrap px-4 disabled:opacity-50">
+                        <button onClick={() => setCreationMode('import')} disabled={!profileId} className="w-full sm:flex-1 py-3 bg-skyrim-dark hover:bg-black text-gray-300 font-bold rounded flex items-center justify-center gap-2 border border-skyrim-border whitespace-nowrap px-4 disabled:opacity-50">
                                         <FileText size={20} /> Import Text
                                     </button>
                                 </div>

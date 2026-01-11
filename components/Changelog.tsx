@@ -118,7 +118,7 @@ const getChangeColor = (type: string) => {
     case 'improvement': return 'border-blue-900/50 bg-blue-900/10';
     case 'fix': return 'border-orange-900/50 bg-orange-900/10';
     case 'combat': return 'border-red-900/50 bg-red-900/10';
-    default: return 'border-gray-800 bg-gray-900/10';
+    default: return 'border-skyrim-border bg-gray-900/10';
   }
 };
 
@@ -218,7 +218,7 @@ export const Changelog: React.FC = () => {
                     
                     {/* Version header */}
                     <div className="flex items-start gap-3 mb-3">
-                      <div className={`w-4 h-4 rounded-full border-2 ${idx === 0 ? 'bg-skyrim-gold border-skyrim-gold' : 'bg-gray-800 border-gray-600'} flex-shrink-0 mt-1`} />
+                      <div className={`w-4 h-4 rounded-full border-2 ${idx === 0 ? 'bg-skyrim-gold border-skyrim-gold' : 'bg-gray-800 border-skyrim-border'} flex-shrink-0 mt-1`} />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={`font-mono text-sm ${idx === 0 ? 'text-skyrim-gold' : 'text-gray-400'}`}>
@@ -252,7 +252,7 @@ export const Changelog: React.FC = () => {
               </div>
 
               {/* Footer */}
-              <div className="mt-8 pt-4 border-t border-gray-800/50 text-center">
+              <div className="mt-8 pt-4 border-t border-skyrim-border/50 text-center">
                 <p className="text-[10px] text-gray-600">
                   Made with ❤️ for Skyrim fans
                 </p>

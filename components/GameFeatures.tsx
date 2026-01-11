@@ -242,7 +242,7 @@ export const CharacterImportModal: React.FC<CharacterImportModalProps> = ({
         
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="w-full px-4 py-8 border-2 border-dashed border-gray-600 rounded-lg hover:border-skyrim-gold transition-colors text-gray-400 hover:text-skyrim-gold mb-4"
+          className="w-full px-4 py-8 border-2 border-dashed border-skyrim-border rounded-lg hover:border-skyrim-gold transition-colors text-gray-400 hover:text-skyrim-gold mb-4"
         >
           <FileJson size={32} className="mx-auto mb-2" />
           Click to select a character file
@@ -905,7 +905,7 @@ export const ThemeSelector: React.FC<{
               }`}
             >
               <div 
-                className="w-4 h-4 rounded-full border border-white/20"
+                className="w-4 h-4 rounded-full border border-skyrim-border/20"
                 style={{ backgroundColor: theme.colors.gold }}
               />
               {theme.name}
@@ -953,7 +953,7 @@ export const AIModelSelector: React.FC<{
                 model.id === currentModel ? 'text-skyrim-gold' : 'text-gray-300'
               }`}
             >
-              <div className="w-4 h-4 rounded-full border border-white/20 bg-gradient-to-r from-blue-500 to-purple-500" />
+              <div className="w-4 h-4 rounded-full border border-skyrim-border/20 bg-gradient-to-r from-blue-500 to-purple-500" />
               {model.label}
               {model.id === currentModel && <Check size={14} className="ml-auto" />}
             </button>
@@ -1188,7 +1188,7 @@ export const StatusEffectsPanel: React.FC<{
     switch (type) {
       case 'buff': return 'text-green-400 border-green-600 bg-green-900/30';
       case 'debuff': return 'text-red-400 border-red-600 bg-red-900/30';
-      default: return 'text-gray-400 border-gray-600 bg-gray-900/30';
+      default: return 'text-gray-400 border-skyrim-border bg-gray-900/30';
     }
   };
 

@@ -133,7 +133,7 @@ export const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({
       status === 'saved' ? 'bg-green-900/90 border-green-700 text-green-200' :
       status === 'error' ? 'bg-red-900/90 border-red-700 text-red-200' :
       status === 'offline' ? 'bg-yellow-900/90 border-yellow-700 text-yellow-200' :
-      'bg-gray-900/90 border-gray-700 text-gray-200'
+      'bg-gray-900/90 border-skyrim-border text-gray-200'
     }`}>
       {status === 'saving' && (
         <>
@@ -194,7 +194,7 @@ export const RateLimitIndicator: React.FC<RateLimitIndicatorProps> = ({ stats, c
     <div className={`flex items-center gap-3 px-3 py-1.5 rounded border text-xs ${
       isCritical ? 'bg-red-900/50 border-red-700 text-red-300' :
       isWarning ? 'bg-yellow-900/50 border-yellow-700 text-yellow-300' :
-      'bg-gray-900/50 border-gray-700 text-gray-400'
+      'bg-gray-900/50 border-skyrim-border text-gray-400'
     } ${className}`}>
       <Clock size={14} />
       

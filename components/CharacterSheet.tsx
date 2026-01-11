@@ -112,7 +112,7 @@ const StatBar: React.FC<{
                 />
             </div>
             <div
-                className="relative h-2 bg-black rounded-full overflow-hidden border border-transparent group-hover:border-gray-800 transition-colors cursor-pointer skyrim-bar-glow"
+                className="relative h-2 bg-black rounded-full overflow-hidden border border-transparent group-hover:border-skyrim-border transition-colors cursor-pointer skyrim-bar-glow"
                 onClick={e => {
                     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                     const x = e.clientX - rect.left;
@@ -544,14 +544,14 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                         </h4>
                         <div className="space-y-3">
                             {grouped[skill].sort((a,b) => a.rank - b.rank).map(perk => (
-                                <div key={perk.id} className="relative bg-skyrim-paper/40 p-3 rounded border border-gray-800 ml-2 group hover:border-skyrim-gold/50 transition-colors">
+                                <div key={perk.id} className="relative bg-skyrim-paper/40 p-3 rounded border border-skyrim-border ml-2 group hover:border-skyrim-gold transition-colors">
                                     <div className="absolute top-1/2 -left-4 w-4 h-px bg-skyrim-border/50"></div>
                                     
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <div className="text-gray-200 text-sm font-bold flex items-center gap-2">
                                                 <Star size={12} fill={perk.rank > 1 ? "currentColor" : "none"} className="text-skyrim-gold" /> 
-                                                {perk.name} <span className="text-xs text-gray-500 font-normal border border-gray-700 px-1 rounded">Rank {perk.rank}</span>
+                                                {perk.name} <span className="text-xs text-gray-500 font-normal border border-skyrim-border px-1 rounded">Rank {perk.rank}</span>
                                             </div>
                                             {perk.description && <div className="text-xs text-gray-500 mt-1 italic leading-relaxed">{perk.description}</div>}
                                         </div>
@@ -573,7 +573,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
     return (
         <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
              {sorted.map(perk => (
-                 <div key={perk.id} className="flex justify-between items-center bg-skyrim-paper/40 p-3 rounded border border-gray-800 group hover:border-skyrim-gold/30">
+                 <div key={perk.id} className="flex justify-between items-center bg-skyrim-paper/40 p-3 rounded border border-skyrim-border group hover:border-skyrim-gold">
                      <div>
                          <div className="text-skyrim-gold text-sm font-bold flex items-center gap-2">
                              <Star size={12} className="text-skyrim-gold" /> {perk.name} 
@@ -616,7 +616,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
               <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-full border-2 border-skyrim-gold flex items-center justify-center bg-skyrim-paper relative shadow-[0_0_15px_rgba(192,160,98,0.2)]">
                       <span className="text-2xl font-serif text-skyrim-gold">{character.level}</span>
-                      <div className="absolute -bottom-2 text-[10px] uppercase bg-black px-1 border border-gray-700 rounded">Level</div>
+                      <div className="absolute -bottom-2 text-[10px] uppercase bg-black px-1 border border-skyrim-border rounded">Level</div>
                   </div>
                   <div className="flex flex-col">
                        <div className="text-xs text-gray-400 uppercase tracking-widest mb-1">Experience</div>
@@ -631,8 +631,8 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                   </div>
               </div>
               <div className="flex items-center gap-2">
-                  <button onClick={() => updateCharacter('level', Math.max(1, character.level - 1))} className="w-8 h-8 rounded border border-gray-600 hover:border-skyrim-gold flex items-center justify-center">-</button>
-                  <button onClick={() => updateCharacter('level', character.level + 1)} className="w-8 h-8 rounded border border-gray-600 hover:border-skyrim-gold flex items-center justify-center">+</button>
+                  <button onClick={() => updateCharacter('level', Math.max(1, character.level - 1))} className="w-8 h-8 rounded border border-skyrim-border hover:border-skyrim-gold flex items-center justify-center">-</button>
+                  <button onClick={() => updateCharacter('level', character.level + 1)} className="w-8 h-8 rounded border border-skyrim-border hover:border-skyrim-gold flex items-center justify-center">+</button>
               </div>
           </div>
 
@@ -808,7 +808,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                                     <span>Hunger</span>
                                     <span className="text-gray-300">{clampNeed(needs.hunger)}</span>
                                 </div>
-                                <div className="h-2 bg-black rounded-full overflow-hidden border border-gray-800 mb-2">
+                                <div className="h-2 bg-black rounded-full overflow-hidden border border-skyrim-border mb-2">
                                     <div
                                         className="h-full bg-orange-500/70"
                                         style={{ width: `${Math.max(0, Math.min(100, clampNeed(needs.hunger)))}%` }}
@@ -830,7 +830,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                                     <span>Thirst</span>
                                     <span className="text-gray-300">{clampNeed(needs.thirst)}</span>
                                 </div>
-                                <div className="h-2 bg-black rounded-full overflow-hidden border border-gray-800 mb-2">
+                                <div className="h-2 bg-black rounded-full overflow-hidden border border-skyrim-border mb-2">
                                     <div
                                         className="h-full bg-blue-500/70"
                                         style={{ width: `${Math.max(0, Math.min(100, clampNeed(needs.thirst)))}%` }}
@@ -852,7 +852,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                                     <span>Fatigue</span>
                                     <span className="text-gray-300">{clampNeed(needs.fatigue)}</span>
                                 </div>
-                                <div className="h-2 bg-black rounded-full overflow-hidden border border-gray-800 mb-2">
+                                <div className="h-2 bg-black rounded-full overflow-hidden border border-skyrim-border mb-2">
                                     <div
                                         className="h-full bg-purple-500/70"
                                         style={{ width: `${Math.max(0, Math.min(100, clampNeed(needs.fatigue)))}%` }}
@@ -994,12 +994,12 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* Skills List */}
                   <div className="space-y-3">
-                      <h3 className="text-sm uppercase tracking-widest text-skyrim-gold border-b border-gray-700 pb-2 mb-4">Skill Proficiency</h3>
+                      <h3 className="text-sm uppercase tracking-widest text-skyrim-gold border-b border-skyrim-border pb-2 mb-4">Skill Proficiency</h3>
                       <div className="grid grid-cols-1 gap-2 max-h-[500px] overflow-y-auto pr-2">
                           {character.skills.sort((a,b) => b.level - a.level).map(skill => (
                               <div key={skill.name} className="flex items-center gap-3 text-sm">
                                   <span className="w-28 text-gray-400 font-serif">{skill.name}</span>
-                                  <div className="flex-1 relative h-3 bg-black border border-gray-800 rounded-sm">
+                                  <div className="flex-1 relative h-3 bg-black border border-skyrim-border rounded-sm">
                                       <div className="absolute top-0 left-0 h-full bg-skyrim-accent opacity-50" style={{ width: `${Math.min(skill.level, 100)}%` }}></div>
                                   </div>
                                   <input 
@@ -1015,7 +1015,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
 
                   {/* Perks Management */}
                   <div>
-                       <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                       <div className="flex justify-between items-center mb-4 border-b border-skyrim-border pb-2">
                             <h3 className="text-sm uppercase tracking-widest text-skyrim-gold">Active Perks</h3>
                             <div className="flex gap-2">
                                 <button 
