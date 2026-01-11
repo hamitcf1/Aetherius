@@ -44,12 +44,12 @@ const SHOP_INVENTORY: ShopItem[] = [
 
   // === POTIONS ===
   { id: 'health_potion_minor', name: 'Minor Health Potion', type: 'potion', description: 'Restores 25 health.', price: 15, category: 'Potions' },
-  { id: 'health_potion', name: 'Health Potion', type: 'potion', description: 'Restores 50 health.', price: 35, category: 'Potions' },
-  { id: 'health_potion_major', name: 'Plentiful Health Potion', type: 'potion', description: 'Restores 100 health.', price: 75, category: 'Potions' },
+  { id: 'health_potion', name: 'Health Potion', type: 'potion', subtype: 'health', description: 'Restores 50 health.', price: 35, category: 'Potions' },
+  { id: 'health_potion_major', name: 'Plentiful Health Potion', type: 'potion', subtype: 'health', description: 'Restores 100 health.', price: 75, category: 'Potions' },
   { id: 'magicka_potion_minor', name: 'Minor Magicka Potion', type: 'potion', description: 'Restores 25 magicka.', price: 15, category: 'Potions' },
-  { id: 'magicka_potion', name: 'Magicka Potion', type: 'potion', description: 'Restores 50 magicka.', price: 35, category: 'Potions' },
+  { id: 'magicka_potion', name: 'Magicka Potion', type: 'potion', subtype: 'magicka', description: 'Restores 50 magicka.', price: 35, category: 'Potions' },
   { id: 'stamina_potion_minor', name: 'Minor Stamina Potion', type: 'potion', description: 'Restores 25 stamina.', price: 15, category: 'Potions' },
-  { id: 'stamina_potion', name: 'Stamina Potion', type: 'potion', description: 'Restores 50 stamina.', price: 35, category: 'Potions' },
+  { id: 'stamina_potion', name: 'Stamina Potion', type: 'potion', subtype: 'stamina', description: 'Restores 50 stamina.', price: 35, category: 'Potions' },
   { id: 'cure_disease', name: 'Cure Disease Potion', type: 'potion', description: 'Cures all diseases.', price: 50, category: 'Potions' },
   { id: 'cure_poison', name: 'Cure Poison', type: 'potion', description: 'Removes poison effects.', price: 40, category: 'Potions' },
   { id: 'invisibility_potion', name: 'Invisibility Potion', type: 'potion', description: 'Become invisible for 30 seconds.', price: 120, category: 'Potions' },

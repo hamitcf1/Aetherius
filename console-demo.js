@@ -173,6 +173,81 @@ window.demo.addRandomItems = function(count = 5) {
   return items;
 };
 
+// One-time migration helper to fix potion items in player inventories
+window.demo.migratePotions = async function(options = { dryRun: false }) {
+  try {
+    if (!window.app) {
+      console.error('App context not available. Open the game first.');
+      return { ok: false, message: 'app missing' };
+    }
+
+    const items = Array.isArray(window.app.items) ? window.app.items : [];
+    const charId = window.app.currentCharacterId;
+    const toUpdate = [];
+
+    const inferSubtype = (name = '', desc = '') => {
+      const n = (name || '').toLowerCase();
+      const d = (desc || '').toLowerCase();
+      if (n.includes('magicka') || d.includes('magicka')) return 'magicka';
+      if (n.includes('stamina') || d.includes('stamina')) return 'stamina';
+      if (n.includes('health') || d.includes('health') || n.includes('heal') || d.includes('heal')) return 'health';
+      return null;
+    };
+
+    for (const it of items) {
+      if (!it || it.type !== 'potion') continue;
+      const valid = ['health', 'magicka', 'stamina'];
+      if (it.subtype && valid.includes(it.subtype)) continue; // already ok
+
+      const inferred = inferSubtype(it.name, it.description);
+      if (!inferred) continue; // non-targeted potion (resist, invisibility, etc.)
+
+      // Build a minimal newItem payload so handleGameUpdate will merge by name
+      const payload = {
+        name: it.name,
+        type: 'potion',
+        subtype: inferred,
+        quantity: it.quantity || 1,
+        description: it.description || '',
+      };
+      toUpdate.push(payload);
+    }
+
+    console.log(`Potion migration: found ${toUpdate.length} potion(s) to update.`);
+
+    // Backup affected items into localStorage (timestamped)
+    if (toUpdate.length > 0) {
+      const backupKey = `aetherius:potion_migration_backup:${Date.now()}`;
+      const affected = items.filter(i => i.type === 'potion');
+      try {
+        localStorage.setItem(backupKey, JSON.stringify(affected));
+        console.log('Backed up current potions to localStorage key:', backupKey);
+      } catch (e) {
+        console.warn('Failed to write backup to localStorage', e);
+      }
+    }
+
+    if (options.dryRun) return { ok: true, updated: toUpdate.length, dryRun: true };
+
+    if (toUpdate.length > 0) {
+      // Use handleGameUpdate(newItems) which merges by name and will mark items dirty for save
+      if (window.app.handleGameUpdate) {
+        window.app.handleGameUpdate({ newItems: toUpdate });
+        console.log('Dispatched updates via handleGameUpdate; items will be saved by the app debounced save.');
+        return { ok: true, updated: toUpdate.length };
+      } else {
+        console.error('handleGameUpdate not available on window.app; cannot persist updates.');
+        return { ok: false, message: 'no handleGameUpdate' };
+      }
+    }
+
+    return { ok: true, updated: 0 };
+  } catch (err) {
+    console.error('Migration failed:', err);
+    return { ok: false, error: String(err) };
+  }
+};
+
 /**
  * Add gold to character
  */

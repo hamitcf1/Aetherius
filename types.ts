@@ -271,6 +271,13 @@ export interface GameStateUpdate {
   
   // Vitals (health, magicka, stamina) changes for adventure
   vitalsChange?: Partial<CurrentVitals>;
+  // Effect objects representing atomic game effects (applied via central gate)
+  effects?: Array<{
+    type: 'modifyStat';
+    stat: 'health' | 'magicka' | 'stamina';
+    value: number; // positive to increase, negative to decrease
+    source?: { id?: string; name?: string };
+  }>;
 
   // New locations discovered during gameplay (added to map)
   discoveredLocations?: Array<{

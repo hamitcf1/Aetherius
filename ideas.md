@@ -2,7 +2,7 @@
 
 - [x] All potions are either bugged or hardcoded as health potions, stamina and magical tries to add up to health. Fix
 
-- [] Using items - potions are not allowed during combat. 
+- [] Using items - potions are not allowed during combat, they should be allowed.. 
 
 - [] Enemies does not have loot, they should have items and gold depending on their type, currently all enemies defeated shows no loot in loot phase. Gained experience is not shown in loot phase, which it should be shown.
 

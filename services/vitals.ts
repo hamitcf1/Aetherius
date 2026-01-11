@@ -35,3 +35,21 @@ export const applyStatToVitals = (
 };
 
 export default applyStatToVitals;
+
+// Central mutation gate: all stat changes must go through this function.
+// Returns the new vitals and the actual applied delta for the requested stat.
+export const modifyPlayerStat = (
+  currentVitals: CurrentVitals | undefined,
+  maxStats: Stats,
+  stat: string,
+  amount: number
+): { newVitals: CurrentVitals; actual: number } => {
+  if (!['health', 'magicka', 'stamina'].includes(stat)) {
+    console.error('[modifyPlayerStat] unknown stat requested', { stat, amount });
+    return { newVitals: currentVitals || { currentHealth: maxStats.health, currentMagicka: maxStats.magicka, currentStamina: maxStats.stamina }, actual: 0 };
+  }
+
+  // Never remap unknown or ambiguous stats to health — validate strictly.
+  const s = stat as 'health' | 'magicka' | 'stamina';
+  return applyStatToVitals(currentVitals, maxStats, s, amount);
+};

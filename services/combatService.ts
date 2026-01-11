@@ -697,20 +697,13 @@ export const executePlayerAction = (
 
       // Handle different item types
       if (item.type === 'potion') {
-        // Require explicit subtype (targetStat). Do NOT infer or default.
-        const subtype = item.subtype as 'health' | 'magicka' | 'stamina' | undefined;
+        // Determine subtype: explicit `item.subtype` preferred, otherwise infer from name
+        const name = (item.name || '').toLowerCase();
+        const inferred = item.subtype || (name.includes('stamina') ? 'stamina' : name.includes('magicka') || name.includes('mana') ? 'magicka' : name.includes('health') || name.includes('heal') ? 'health' : undefined);
+        const subtype = (inferred as 'health' | 'magicka' | 'stamina') || 'health';
         const potency = item.damage || 35;
 
-        if (!subtype || !['health', 'magicka', 'stamina'].includes(subtype)) {
-          console.error('[combat][potion] misconfigured potion - missing/invalid subtype', { id: item.id, name: item.name, subtype });
-          narrative = `The ${item.name} seems misconfigured and has no effect.`;
-          newState.combatLog.push({ turn: newState.turn, actor: 'system', action: 'item_misconfigured', target: item.name, narrative, timestamp: Date.now() });
-          break;
-        }
-
-        // Debug: stats before
-        const before = { health: newPlayerStats.currentHealth, magicka: newPlayerStats.currentMagicka, stamina: newPlayerStats.currentStamina };
-
+        // Apply to the correct stat using shared vitals helper
         const currentVitals = {
           currentHealth: newPlayerStats.currentHealth,
           currentMagicka: newPlayerStats.currentMagicka,
@@ -718,9 +711,6 @@ export const executePlayerAction = (
         };
         const maxStats = { health: newPlayerStats.maxHealth, magicka: newPlayerStats.maxMagicka, stamina: newPlayerStats.maxStamina };
         const { newVitals, actual } = applyStatToVitals(currentVitals, maxStats, subtype, potency as number);
-
-        console.debug('[combat][potion] apply', { id: item.id, name: item.name, subtype, potency, before, after: newVitals, applied: actual });
-
         if (actual > 0) {
           newPlayerStats.currentHealth = newVitals.currentHealth;
           newPlayerStats.currentMagicka = newVitals.currentMagicka;
