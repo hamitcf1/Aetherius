@@ -58,6 +58,57 @@ const shuffleArray = <T>(arr: T[]): T[] => {
   return shuffled;
 };
 
+// Dice helper: roll `count` d`sides`
+const rollDice = (count: number, sides: number) => {
+  const rolls: number[] = [];
+  for (let i = 0; i < count; i++) rolls.push(Math.floor(Math.random() * sides) + 1);
+  return { total: rolls.reduce((s, r) => s + r, 0), rolls };
+};
+
+// Resolve attack using a DnD-like d20 roll + attack bonus vs a target threshold derived from armor/dodge
+const resolveAttack = (opts: {
+  attackerLevel: number;
+  attackBonus?: number; // extra to hit
+  targetArmor: number;
+  targetDodge?: number; // 0-100
+  critChance?: number; // fallback crit chance
+}): { hit: boolean; isCrit: boolean; attackRoll: number; targetThreshold: number; natRoll: number } => {
+  const { attackerLevel, attackBonus = 0, targetArmor, targetDodge = 0, critChance = 0 } = opts;
+  const d20 = rollDice(1, 20);
+  const nat = d20.rolls[0];
+  // Map armor to an AC-like threshold: higher armor raises threshold slowly
+  const armorFactor = Math.floor(targetArmor / 5);
+  // Dodge effectively raises target threshold slightly
+  const dodgeFactor = Math.floor(targetDodge / 10);
+  const targetThreshold = 10 + armorFactor + dodgeFactor;
+  const attackRoll = nat + Math.floor(attackerLevel / 2) + attackBonus;
+
+  // Natural 20 always hits and crits, natural 1 always misses
+  if (nat === 20) return { hit: true, isCrit: true, attackRoll, targetThreshold, natRoll: nat };
+  if (nat === 1) return { hit: false, isCrit: false, attackRoll, targetThreshold, natRoll: nat };
+
+  const hit = attackRoll >= targetThreshold;
+  // Crit if roll qualifies OR random crit chance
+  const isCrit = (Math.random() * 100 < critChance) && hit;
+  return { hit, isCrit, attackRoll, targetThreshold, natRoll: nat };
+};
+
+// Compute damage using dice variability and hit location multipliers
+const rollDamage = (baseDamage: number, attackerLevel: number, isCrit: boolean, hitLocation?: string) => {
+  const diceCount = Math.max(1, Math.floor(baseDamage / 6));
+  const dice = rollDice(diceCount, 6).total;
+  const levelBonus = Math.floor(attackerLevel * 0.2);
+  let damage = Math.floor(dice + levelBonus + baseDamage * 0.15);
+
+  // Hit location multipliers
+  const loc = hitLocation || randomChoice(['torso', 'arm', 'leg', 'head']);
+  const multipliers: Record<string, number> = { head: 1.6, torso: 1.0, arm: 0.9, leg: 0.85 };
+  damage = Math.floor(damage * (multipliers[loc] || 1));
+
+  if (isCrit) damage = Math.floor(damage * 1.75);
+  return { damage, hitLocation: loc };
+};
+
 // ============================================================================
 // PLAYER COMBAT STATS CALCULATION
 // ============================================================================
@@ -263,6 +314,15 @@ const generatePlayerAbilities = (
   return abilities;
 };
 
+// Grant a new ability to the player's combat stats (idempotent)
+export const grantAbilityToPlayer = (playerStats: PlayerCombatStats, ability: CombatAbility): PlayerCombatStats => {
+  const existing = playerStats.abilities.find(a => a.id === ability.id);
+  if (!existing) {
+    playerStats.abilities = [...playerStats.abilities, ability];
+  }
+  return playerStats;
+};
+
 // ============================================================================
 // COMBAT STATE MANAGEMENT
 // ============================================================================
@@ -309,7 +369,8 @@ export const initializeCombat = (
     }],
     playerDefending: false,
     playerActiveEffects: [],
-    abilityCooldowns: {}
+    abilityCooldowns: {},
+    lastActorActions: {}
   };
 };
 
@@ -325,30 +386,19 @@ export const calculateDamage = (
   damageType?: string,
   critChance: number = 0
 ): { damage: number; isCrit: boolean; resisted: boolean } => {
-  // Check for resistance
+  // Backwards-compatible: keep a simple path but prefer dice-based resolution
   const resisted = damageType ? targetResistances.includes(damageType) : false;
-  
-  // Base damage with level scaling
-  let damage = baseDamage + Math.floor(attackerLevel * 0.5);
-  
+
+  // Use dice-based damage with variability
+  const { damage: rolled } = rollDamage(baseDamage, attackerLevel, Math.random() * 100 < critChance);
+
   // Armor reduction (diminishing returns)
   const armorReduction = targetArmor / (targetArmor + 100);
-  damage = Math.floor(damage * (1 - armorReduction));
-  
-  // Resistance halves damage
-  if (resisted) {
-    damage = Math.floor(damage * 0.5);
-  }
-  
-  // Crit check
-  const isCrit = Math.random() * 100 < critChance;
-  if (isCrit) {
-    damage = Math.floor(damage * 1.5);
-  }
-  
-  // Minimum damage
+  let damage = Math.floor(rolled * (1 - armorReduction));
+
+  if (resisted) damage = Math.floor(damage * 0.5);
   damage = Math.max(1, damage);
-  
+  const isCrit = Math.random() * 100 < critChance;
   return { damage, isCrit, resisted };
 };
 
@@ -409,15 +459,35 @@ export const executePlayerAction = (
         break;
       }
 
-      // Calculate damage
-      const { damage, isCrit, resisted } = calculateDamage(
-        ability.damage + playerStats.weaponDamage * (ability.type === 'melee' ? 0.5 : 0),
-        12, // Player level - should come from character
-        target.armor,
-        target.resistances,
-        ability.type === 'magic' ? 'magic' : undefined,
-        playerStats.critChance
+      // Resolve attack (d20 + bonuses vs armor/dodge) then roll damage dice
+      const attackBonus = Math.floor(playerStats.weaponDamage / 10);
+      const attackResolved = resolveAttack({
+        attackerLevel: 12,
+        attackBonus,
+        targetArmor: target.armor,
+        targetDodge: target.dodgeChance || 0,
+        critChance: playerStats.critChance
+      });
+
+      if (!attackResolved.hit) {
+        narrative = `You use ${ability.name} on ${target.name} but miss!`;
+        newState.combatLog.push({ turn: newState.turn, actor: 'player', action: ability.name, target: target.name, damage: 0, narrative, timestamp: Date.now() });
+        break;
+      }
+
+      const { damage, hitLocation } = rollDamage(
+        ability.damage + Math.floor(playerStats.weaponDamage * (ability.type === 'melee' ? 0.5 : 0)),
+        12,
+        attackResolved.isCrit
       );
+
+      // Apply armor/resistance reductions (post-roll)
+      const armorReduction = target.armor / (target.armor + 100);
+      const finalDamage = Math.max(1, Math.floor(damage * (1 - armorReduction)));
+
+      const isCrit = attackResolved.isCrit;
+      const resisted = ability.type === 'magic' && target.resistances?.includes('magic');
+      const appliedDamage = resisted ? Math.floor(finalDamage * 0.5) : finalDamage;
 
       // Apply damage
       const enemyIndex = newState.enemies.findIndex(e => e.id === target.id);
@@ -432,7 +502,7 @@ export const executePlayerAction = (
       }
 
       // Build narrative
-      let damageNarrative = `deals ${damage} damage`;
+      let damageNarrative = `deals ${appliedDamage} damage to the ${hitLocation}`;
       if (isCrit) damageNarrative = `CRITICAL HIT! ` + damageNarrative;
       if (resisted) damageNarrative += ` (resisted)`;
 
@@ -441,6 +511,10 @@ export const executePlayerAction = (
       if (newState.enemies[enemyIndex].currentHealth <= 0) {
         narrative += ` ${target.name} is defeated!`;
       }
+
+      // Record player's last action to avoid immediate repetition in AI (for flavor)
+      newState.lastActorActions = newState.lastActorActions || {};
+      newState.lastActorActions['player'] = [ability.id, ...(newState.lastActorActions['player'] || [])].slice(0, 4);
 
       // Apply effects
       if (ability.effects) {
@@ -471,7 +545,7 @@ export const executePlayerAction = (
         actor: 'player',
         action: ability.name,
         target: target.name,
-        damage,
+        damage: appliedDamage,
         narrative,
         timestamp: Date.now()
       });
@@ -707,36 +781,53 @@ export const executeEnemyTurn = (
     };
   }
 
-  // Calculate damage to player
-  let { damage, isCrit } = calculateDamage(
-    chosenAbility.damage,
-    enemy.level,
-    playerStats.armor,
-    [],
-    chosenAbility.type === 'magic' ? 'magic' : undefined,
-    10 // Enemy crit chance
-  );
+  // Avoid repeating the exact same ability if other options exist
+  newState.lastActorActions = newState.lastActorActions || {};
+  const recent = newState.lastActorActions[enemy.id] || [];
+  if (availableAbilities.length > 1 && recent[0] && chosenAbility && recent.includes(chosenAbility.id)) {
+    const alt = availableAbilities.find(a => !recent.includes(a.id));
+    if (alt) chosenAbility = alt;
+  }
 
-  // Dodge check
-  if (Math.random() * 100 < playerStats.dodgeChance) {
-    damage = 0;
+
+  // Resolve enemy attack via d20 + attack bonus
+  const attackBonus = Math.max(0, Math.floor(enemy.damage / 8));
+  const resolved = resolveAttack({ attackerLevel: enemy.level, attackBonus, targetArmor: playerStats.armor, targetDodge: playerStats.dodgeChance, critChance: 10 });
+
+  let appliedDamage = 0;
+  let hitLocation = 'torso';
+  if (!resolved.hit) {
+    appliedDamage = 0;
+  } else {
+    const rollRes = rollDamage(chosenAbility.damage || enemy.damage, enemy.level, resolved.isCrit);
+    hitLocation = rollRes.hitLocation;
+    // Apply armor reduction
+    const armorReduction = playerStats.armor / (playerStats.armor + 100);
+    let d = Math.floor(rollRes.damage * (1 - armorReduction));
+    if (resolved.isCrit) d = Math.floor(d * 1.25);
+    appliedDamage = Math.max(0, d);
+  }
+
+  // Dodge check still allows extra chance
+  if (appliedDamage > 0 && Math.random() * 100 < playerStats.dodgeChance) {
+    appliedDamage = 0;
   }
 
   // Defending reduces damage
-  if (newState.playerDefending) {
-    damage = Math.floor(damage * 0.5);
+  if (newState.playerDefending && appliedDamage > 0) {
+    appliedDamage = Math.floor(appliedDamage * 0.5);
   }
 
   // Apply damage to player
-  newPlayerStats.currentHealth = Math.max(0, newPlayerStats.currentHealth - damage);
+  newPlayerStats.currentHealth = Math.max(0, newPlayerStats.currentHealth - appliedDamage);
 
   // Build narrative
   let narrative = `${enemy.name} uses ${chosenAbility.name}`;
-  if (damage === 0) {
-    narrative += ` but you dodge the attack!`;
+  if (appliedDamage === 0) {
+    narrative += ` but you avoid the attack!`;
   } else {
-    narrative += ` and deals ${damage} damage!`;
-    if (isCrit) narrative = `${enemy.name} lands a CRITICAL HIT with ${chosenAbility.name} for ${damage} damage!`;
+    narrative += ` and deals ${appliedDamage} damage to your ${hitLocation}!`;
+    if (resolved.isCrit) narrative = `${enemy.name} lands a CRITICAL HIT with ${chosenAbility.name} for ${appliedDamage} damage!`;
   }
 
   if (newPlayerStats.currentHealth <= 0) {
@@ -751,10 +842,13 @@ export const executeEnemyTurn = (
     actor: enemy.name,
     action: chosenAbility.name,
     target: 'player',
-    damage,
+    damage: appliedDamage,
     narrative,
     timestamp: Date.now()
   });
+
+  // Record enemy last action
+  newState.lastActorActions[enemy.id] = [chosenAbility.id, ...(newState.lastActorActions[enemy.id] || [])].slice(0, 4);
 
   return { newState, newPlayerStats, narrative };
 };

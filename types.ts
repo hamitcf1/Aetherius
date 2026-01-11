@@ -469,6 +469,8 @@ export interface CombatState {
   playerActiveEffects: Array<{ effect: CombatEffect; turnsRemaining: number }>;
   // Cooldowns for player abilities
   abilityCooldowns: Record<string, number>;
+  // Track recent actions per actor to avoid repetitive AI behavior
+  lastActorActions?: Record<string, string[]>;
   // Combat result when finished
   result?: 'victory' | 'defeat' | 'fled' | 'surrendered';
   rewards?: {

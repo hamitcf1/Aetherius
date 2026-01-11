@@ -73,12 +73,14 @@ const EnemyCard: React.FC<{
   enemy: CombatEnemy;
   isTarget: boolean;
   onClick: () => void;
-}> = ({ enemy, isTarget, onClick }) => {
+  containerRef?: (el: HTMLDivElement | null) => void;
+}> = ({ enemy, isTarget, onClick, containerRef }) => {
   const healthPercent = (enemy.currentHealth / enemy.maxHealth) * 100;
   const isDead = enemy.currentHealth <= 0;
   
   return (
     <div 
+      ref={containerRef}
       onClick={isDead ? undefined : onClick}
       className={`
         relative p-3 rounded-lg border-2 transition-all duration-300
@@ -219,6 +221,11 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   );
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [showRoll, setShowRoll] = useState(false);
+  const [rollValue, setRollValue] = useState<number | null>(null);
+  const [floatingHits, setFloatingHits] = useState<Array<{ id: string; actor: string; damage: number; hitLocation?: string; isCrit?: boolean; x?: number; y?: number }>>([]);
+  const enemyRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const playerRef = useRef<HTMLDivElement | null>(null);
   const [showVictory, setShowVictory] = useState(false);
   const [showDefeat, setShowDefeat] = useState(false);
   const [showItemSelection, setShowItemSelection] = useState(false);
@@ -289,6 +296,28 @@ export const CombatModal: React.FC<CombatModalProps> = ({
       if (onNarrativeUpdate && narrative) {
         onNarrativeUpdate(narrative);
       }
+
+      // Show floating damage for enemy action if present
+      const last = newState.combatLog[newState.combatLog.length - 1];
+      if (last && last.actor !== 'player' && last.damage && last.damage > 0) {
+        const id = `hit_e_${Date.now()}`;
+        // Anchor to the player stats panel
+        let x: number | undefined;
+        let y: number | undefined;
+        try {
+          const el = playerRef.current;
+          if (el) {
+            const r = el.getBoundingClientRect();
+            x = r.left + r.width / 2;
+            y = r.top + r.height / 2;
+          }
+        } catch (e) {}
+
+        setFloatingHits(h => [{ id, actor: last.actor, damage: last.damage, hitLocation: undefined, isCrit: (last.narrative || '').toLowerCase().includes('critical'), x, y }, ...h]);
+        setTimeout(() => setFloatingHits(h => h.filter(x => x.id !== id)), 1600);
+
+        try { new Audio('/audio/sfx/hit_player.mp3').play().catch(()=>{}); } catch (e) {}
+      }
       
       // Check for combat end
       currentState = checkCombatEnd(currentState, currentPlayerStats);
@@ -315,11 +344,18 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   }, [combatState.currentTurnActor, combatState.active, isAnimating]);
 
   // Handle player action
-  const handlePlayerAction = (action: CombatActionType, abilityId?: string, itemId?: string) => {
+  const handlePlayerAction = async (action: CombatActionType, abilityId?: string, itemId?: string) => {
     if (isAnimating || combatState.currentTurnActor !== 'player') return;
-    
+
     setIsAnimating(true);
-    
+
+    // Show d20 roll animation (visual only) before resolving
+    const roll = Math.floor(Math.random() * 20) + 1;
+    setRollValue(roll);
+    setShowRoll(true);
+    await new Promise(r => setTimeout(r, 600));
+    setShowRoll(false);
+
     const { newState, newPlayerStats, narrative, usedItem } = executePlayerAction(
       combatState,
       playerStats,
@@ -329,7 +365,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
       itemId,
       inventory
     );
-    
+
     if (onNarrativeUpdate && narrative) {
       onNarrativeUpdate(narrative);
     }
@@ -362,6 +398,31 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     
     setCombatState(finalState);
     setPlayerStats(newPlayerStats);
+    // Show floating damage based on last combat log entry (if any)
+    const last = finalState.combatLog[finalState.combatLog.length - 1];
+    if (last && last.actor === 'player' && last.damage && last.damage > 0) {
+      const id = `hit_p_${Date.now()}`;
+      // Try to anchor to selected target element
+      let x: number | undefined;
+      let y: number | undefined;
+      try {
+        const targetEnemy = combatState.enemies.find(e => e.id === selectedTarget);
+        if (targetEnemy) {
+          const el = enemyRefs.current[targetEnemy.id];
+          if (el) {
+            const r = el.getBoundingClientRect();
+            x = r.left + r.width / 2;
+            y = r.top + r.height / 2;
+          }
+        }
+      } catch (e) { /* ignore */ }
+
+      setFloatingHits(h => [{ id, actor: 'player', damage: last.damage, hitLocation: undefined, isCrit: (last.narrative || '').toLowerCase().includes('critical'), x, y }, ...h]);
+      setTimeout(() => setFloatingHits(h => h.filter(x => x.id !== id)), 1600);
+
+      // Play hit sound if available
+      try { new Audio('/audio/sfx/hit.mp3').play().catch(()=>{}); } catch (e) {}
+    }
     
     setTimeout(() => setIsAnimating(false), 500);
   };
@@ -416,7 +477,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
       <div className="flex-1 overflow-hidden flex flex-col lg:flex-row gap-4 p-4 max-w-7xl mx-auto w-full">
         {/* Left side - Player stats */}
         <div className="lg:w-1/4 space-y-4">
-          <div className="bg-stone-900/60 rounded-lg p-4 border border-amber-900/30">
+          <div ref={playerRef} className="bg-stone-900/60 rounded-lg p-4 border border-amber-900/30">
             <h3 className="text-lg font-bold text-amber-100 mb-3">{getEasterEggName(character.name)}</h3>
             <div className="space-y-3">
               <HealthBar 
@@ -473,6 +534,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
                   enemy={enemy}
                   isTarget={selectedTarget === enemy.id}
                   onClick={() => setSelectedTarget(enemy.id)}
+                  containerRef={(el) => { enemyRefs.current[enemy.id] = el; }}
                 />
               ))}
             </div>
@@ -645,6 +707,32 @@ export const CombatModal: React.FC<CombatModalProps> = ({
           </div>
         </div>
       )}
+
+      {/* D20 roll visual */}
+      {showRoll && (
+        <div className="absolute left-1/2 top-20 transform -translate-x-1/2 z-50 pointer-events-none">
+          <div className="w-16 h-16 rounded-full bg-black/80 border-2 border-amber-500 flex items-center justify-center text-2xl text-amber-200 animate-bounce">
+            {rollValue}
+          </div>
+        </div>
+      )}
+
+      {/* Floating damage / hit indicators */}
+      {floatingHits.map((hit) => (
+        <div
+          key={hit.id}
+          className="absolute z-50 pointer-events-none"
+          style={{
+            left: hit.x ? `${hit.x}px` : '50%',
+            top: hit.y ? `${hit.y}px` : '120px',
+            transform: 'translate(-50%, -50%)'
+          }}
+        >
+          <div className={`px-3 py-1 rounded-lg text-sm font-bold ${hit.actor === 'player' ? 'bg-green-900/60 text-green-200 border border-green-400' : 'bg-red-900/60 text-red-200 border border-red-400'} transition-transform duration-300`}>
+            {hit.isCrit ? '💥 ' : ''}-{hit.damage} {hit.hitLocation ? `(${hit.hitLocation})` : ''}
+          </div>
+        </div>
+      ))}
 
       {/* Defeat overlay */}
       {showDefeat && (
