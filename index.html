@@ -83,16 +83,21 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #c0a062; 
       }
-      /* Theme the browser focus outline and Tailwind ring color */
+      /* Theme the browser focus outline and Tailwind ring color (with fallbacks) */
       :root {
-        --tw-ring-color: color-mix(in srgb, var(--skyrim-gold) 50%, transparent);
+        --tw-ring-color: color-mix(in srgb, var(--skyrim-gold, #c0a062) 50%, transparent);
       }
       :focus {
-        outline: 1px solid var(--skyrim-gold);
+        outline: 1px solid var(--skyrim-gold, #c0a062);
         outline-offset: 2px;
       }
       :focus:not(:focus-visible) {
         outline: none;
+      }
+      /* Strongly override Tailwind preflight pseudo-element border color which defaults to a light gray (#e5e7eb).
+         Use the theme variable with a fallback so undefined vars won't produce the bright color. */
+      *, *::before, *::after {
+        border-color: var(--skyrim-border, #4a4a4a) !important;
       }
     </style>
   <script type="importmap">
