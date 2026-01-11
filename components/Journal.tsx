@@ -39,6 +39,7 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries, onDeleteE
   const [newEntryContent, setNewEntryContent] = useState('');
   const [newEntryTitle, setNewEntryTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   // Sort options
   const sortOptions = [
     { id: 'desc', label: 'Newest First', icon: '↓' },
@@ -118,7 +119,7 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries, onDeleteE
 
   return (
     <div className="max-w-4xl mx-auto pb-24">
-      <div className="mb-8 p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center">
+      <div className="mb-8 p-6 bg-skyrim-paper border-y-4 border-skyrim-border text-center">
         <h1 className="text-4xl font-serif text-skyrim-gold mb-2">Adventurer's Journal</h1>
         <p className="text-gray-500 font-sans text-sm">Thoughts, observations, and discoveries.</p>
         

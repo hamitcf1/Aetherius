@@ -785,7 +785,7 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
 
   return (
     <div className="max-w-4xl mx-auto pb-24 px-2 sm:px-4">
-    <div className="mb-8 p-4 sm:p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center">
+    <div className="mb-8 p-4 sm:p-6 bg-skyrim-paper border-y-4 border-skyrim-border text-center">
         <h1 className="text-4xl font-serif text-skyrim-gold mb-2">The Chronicle</h1>
         <p className="text-gray-500 font-sans text-sm">The unfolding saga of your journey.</p>
         

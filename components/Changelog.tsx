@@ -170,14 +170,14 @@ export const Changelog: React.FC = () => {
           onClick={() => setIsOpen(false)}
         >
           <div 
-            className="relative w-full max-w-lg max-h-[80vh] bg-gradient-to-b from-gray-900 to-black border border-skyrim-gold/30 rounded-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            className="relative w-full max-w-lg max-h-[80vh] bg-gradient-to-b from-gray-900 to-black border border-skyrim-border rounded-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
             <div className="sticky top-0 z-10 bg-gradient-to-b from-gray-900 via-gray-900 to-transparent px-6 py-4 border-b border-skyrim-gold/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-skyrim-gold/10 rounded-lg border border-skyrim-gold/30">
+                  <div className="p-2 bg-skyrim-gold/10 rounded-lg border border-skyrim-border">
                     <ScrollText size={20} className="text-skyrim-gold" />
                   </div>
                   <div>
@@ -225,7 +225,7 @@ export const Changelog: React.FC = () => {
                             v{entry.version}
                           </span>
                           {idx === 0 && (
-                            <span className="px-2 py-0.5 text-[10px] bg-skyrim-gold/20 text-skyrim-gold rounded-full border border-skyrim-gold/30">
+                            <span className="px-2 py-0.5 text-[10px] bg-skyrim-gold/20 text-skyrim-gold rounded-full border border-skyrim-border">
                               LATEST
                             </span>
                           )}

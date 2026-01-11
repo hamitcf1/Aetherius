@@ -208,7 +208,7 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
   return (
     <div className="fixed inset-0 bg-black/95 flex flex-col z-50">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-skyrim-gold/30 bg-gradient-to-r from-black via-gray-900 to-black">
+      <div className="flex items-center justify-between p-4 border-b border-skyrim-border bg-gradient-to-r from-black via-gray-900 to-black">
         <div className="flex items-center gap-3">
           <Compass className="text-skyrim-gold" size={28} />
           <div>
@@ -525,7 +525,7 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
         )}
 
         {/* Legend */}
-        <div className="absolute top-4 right-4 bg-black/90 border border-skyrim-gold/30 rounded-lg p-3 text-xs z-30">
+        <div className="absolute top-4 right-4 bg-black/90 border border-skyrim-border rounded-lg p-3 text-xs z-30">
           <h4 className="text-skyrim-gold font-semibold mb-2 flex items-center gap-1">
             <Compass size={12} /> Legend
           </h4>

@@ -1514,7 +1514,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   return (
     <div className="h-full flex flex-col max-w-4xl mx-auto px-2 sm:px-4 overflow-hidden">
       {/* Header - compact */}
-      <div className="flex-shrink-0 py-3 sm:py-4 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center">
+      <div className="flex-shrink-0 py-3 sm:py-4 bg-skyrim-paper border-y-4 border-skyrim-border text-center">
         <h1 className="text-2xl sm:text-3xl font-serif text-skyrim-gold mb-1 flex items-center justify-center gap-2">
           <Swords size={24} />
           Adventure

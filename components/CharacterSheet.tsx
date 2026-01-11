@@ -595,7 +595,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
       <div className="max-w-4xl mx-auto pb-24">
             {/* ActionBar is now global; all main actions are in the ActionBar. */}
       <div id="character-sheet-content" className="p-4 bg-skyrim-dark"> 
-          <div className="mb-8 p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center relative overflow-hidden">
+          <div className="mb-8 p-6 bg-skyrim-paper border-y-4 border-skyrim-border text-center relative overflow-hidden">
             {character.profileImage && (
               <div className="mb-4 flex justify-center">
                 <img 

@@ -50,11 +50,11 @@ const injectStyles = (isBloodEffect: boolean) => {
   if (document.getElementById(styleId)) return;
 
   const particleColor = isBloodEffect 
-    ? 'rgba(139, 0, 0, 0.8)' // Dark red for blood
+    ? 'rgba(220, 20, 60, 0.9)' // Crimson red for blood - brighter and more visible
     : '#fff'; // White for snow
   
   const glowColor = isBloodEffect
-    ? 'rgba(139, 0, 0, 0.3)' // Dark red glow for blood
+    ? 'rgba(220, 20, 60, 0.4)' // Crimson red glow for blood - brighter
     : 'rgba(255,255,255,0.3)'; // White glow for snow
 
   const style = document.createElement('style');
@@ -78,7 +78,7 @@ const injectStyles = (isBloodEffect: boolean) => {
       position: fixed;
       top: 0;
       background: ${isBloodEffect 
-        ? 'radial-gradient(circle, rgba(139, 0, 0, 0.9) 0%, rgba(139, 0, 0, 0.6) 40%, transparent 70%)'
+        ? 'radial-gradient(circle, rgba(220, 20, 60, 0.9) 0%, rgba(220, 20, 60, 0.7) 40%, transparent 70%)'
         : 'radial-gradient(circle, #fff 0%, rgba(255,255,255,0.8) 40%, transparent 70%)'};
       border-radius: ${isBloodEffect ? '0%' : '50%'};
       pointer-events: none;
@@ -115,7 +115,7 @@ const ParticleElement: React.FC<{ particle: Particle; isBloodEffect: boolean }> 
       '--delay': `${-particle.delay}s`,
       '--drift': `${particle.drift}px`,
       '--base-opacity': particle.opacity,
-      boxShadow: `0 0 ${particle.size * 2}px ${particle.size / 2}px ${isBloodEffect ? 'rgba(139, 0, 0, 0.3)' : 'rgba(255,255,255,0.3)'}`,
+      boxShadow: `0 0 ${particle.size * 2}px ${particle.size / 2}px ${isBloodEffect ? 'rgba(220, 20, 60, 0.4)' : 'rgba(255,255,255,0.3)'}`
     } as React.CSSProperties}
   />
 ));
