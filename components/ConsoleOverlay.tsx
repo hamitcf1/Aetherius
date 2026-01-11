@@ -1,6 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Terminal, X, ChevronUp, ChevronDown } from 'lucide-react';
 
+// Known commands for simple tab-completion
+const COMMAND_SUGGESTIONS = [
+  'demo.help()',
+  'demo.simulateCombat()',
+  "demo.simulateCombat({ location: 'Bleak Falls Barrow' })",
+  'demo.testCombatItems()',
+  'demo.createTestCharacter()',
+  'demo.addExperience(100)',
+  'demo.levelUp()',
+  "demo.createTestItem('weapon')",
+  'demo.addRandomItems(5)',
+  'demo.addGold(100)',
+  'demo.createTestJournalEntry()',
+  'demo.addRandomJournalEntries(3)',
+  'demo.createTestQuest()',
+  'demo.addRandomQuests(2)',
+  'demo.getAppState()',
+  'demo.clearDemoData()',
+  "demo.clearDemoData({ items: false })",
+  'clear',
+  'history',
+  'exit'
+];
+
 interface ConsoleOverlayProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,6 +39,7 @@ export const ConsoleOverlay: React.FC<ConsoleOverlayProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [output, setOutput] = useState<string[]>([
     'Skyrim Aetherius Developer Console',
     'Type demo.help() for available commands',
@@ -37,8 +62,20 @@ export const ConsoleOverlay: React.FC<ConsoleOverlayProps> = ({
     }
   }, [output]);
 
+  const refreshSuggestions = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setSuggestions([]);
+      return;
+    }
+    const matches = COMMAND_SUGGESTIONS.filter(cmd => cmd.toLowerCase().startsWith(trimmed.toLowerCase())).slice(0, 6);
+    setSuggestions(matches);
+  };
+
   const executeCommand = (command: string) => {
     if (!command.trim()) return;
+
+    setSuggestions([]);
 
     // Add to history
     setCommandHistory(prev => [...prev, command]);
@@ -91,6 +128,7 @@ export const ConsoleOverlay: React.FC<ConsoleOverlayProps> = ({
         const newIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1);
         setHistoryIndex(newIndex);
         setInputValue(commandHistory[newIndex]);
+        refreshSuggestions(commandHistory[newIndex]);
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -99,10 +137,22 @@ export const ConsoleOverlay: React.FC<ConsoleOverlayProps> = ({
         if (newIndex >= commandHistory.length) {
           setHistoryIndex(-1);
           setInputValue('');
+          setSuggestions([]);
         } else {
           setHistoryIndex(newIndex);
           setInputValue(commandHistory[newIndex]);
+          refreshSuggestions(commandHistory[newIndex]);
         }
+      }
+    } else if (e.key === 'Tab') {
+      // Simple tab-complete: fill the first matching suggestion
+      const trimmed = inputValue.trim();
+      const matches = suggestions.length ? suggestions : COMMAND_SUGGESTIONS.filter(cmd => cmd.toLowerCase().startsWith(trimmed.toLowerCase()));
+      if (matches.length > 0) {
+        e.preventDefault();
+        const nextValue = matches[0];
+        setInputValue(nextValue);
+        setSuggestions(matches.slice(1));
       }
     }
   };
@@ -133,7 +183,7 @@ export const ConsoleOverlay: React.FC<ConsoleOverlayProps> = ({
           style={{ maxHeight: 'calc(100% - 120px)' }}
         >
           {output.map((line, index) => (
-            <div key={index} className="mb-1">
+            <div key={index} className="mb-1" style={{ whiteSpace: 'pre-wrap' }}>
               {line}
             </div>
           ))}
@@ -147,7 +197,10 @@ export const ConsoleOverlay: React.FC<ConsoleOverlayProps> = ({
               ref={inputRef}
               type="text"
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                refreshSuggestions(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               className="flex-1 bg-transparent border-none outline-none text-white font-mono text-sm placeholder-gray-500"
               placeholder="Enter command..."
@@ -160,8 +213,13 @@ export const ConsoleOverlay: React.FC<ConsoleOverlayProps> = ({
               <span>History</span>
             </div>
           </div>
+          {suggestions.length > 0 && (
+            <div className="mt-2 text-xs text-gray-400 font-mono">
+              Suggestions: {suggestions.slice(0, 4).join('   ')}{suggestions.length > 4 ? ' ...' : ''}
+            </div>
+          )}
           <div className="text-xs text-gray-500 mt-2">
-            Press Enter to execute, ESC to close, ↑/↓ for history
+            Press Enter to execute, Tab to autocomplete, ESC to close, ↑/↓ for history
           </div>
         </div>
       </div>

@@ -273,10 +273,146 @@ window.demo.addRandomQuests = function(count = 2) {
 /**
  * Simulate a combat encounter
  */
-window.demo.simulateCombat = function() {
-  const message = 'Combat simulation not implemented yet\nUse the adventure system to trigger combat encounters';
-  console.log(message);
-  return message;
+window.demo.simulateCombat = function(options = {}) {
+  const app = window.app;
+  if (!app || !app.handleGameUpdate) {
+    const error = 'App context not available. Open the game first.';
+    console.error(error);
+    return error;
+  }
+
+  const character = (app.characters || []).find(c => c.id === app.currentCharacterId);
+  if (!character) {
+    const error = 'No active character selected. Create/select a character first.';
+    console.error(error);
+    return error;
+  }
+
+  const level = Math.max(1, Math.floor(character.level || 1));
+  const choose = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  const buildEnemy = (seed) => {
+    const health = seed.baseHealth + Math.floor(level * seed.healthScale);
+    const stamina = 60 + Math.floor(level * 2);
+    const magicka = 40 + Math.floor(level * 1.5);
+    const damage = seed.baseDamage + Math.floor(level * seed.damageScale);
+
+    return {
+      id: uniqueId(),
+      name: seed.name,
+      type: seed.type,
+      level,
+      maxHealth: health,
+      currentHealth: health,
+      maxMagicka: magicka,
+      currentMagicka: magicka,
+      maxStamina: stamina,
+      currentStamina: stamina,
+      armor: seed.armor,
+      damage,
+      abilities: [
+        {
+          id: 'basic_strike',
+          name: 'Wild Strike',
+          type: 'melee',
+          damage: Math.floor(damage * 0.9),
+          cost: 0,
+          description: 'A quick melee strike.'
+        },
+        {
+          id: 'heavy_swing',
+          name: 'Heavy Swing',
+          type: 'melee',
+          damage: Math.floor(damage * 1.2),
+          cost: 10,
+          cooldown: 1,
+          description: 'A slower, harder-hitting attack.'
+        }
+      ],
+      weaknesses: seed.weaknesses,
+      resistances: seed.resistances,
+      loot: seed.loot,
+      xpReward: 50 + level * 8,
+      goldReward: 20 + level * 3,
+      isBoss: seed.isBoss || false,
+      description: seed.description,
+      behavior: seed.behavior
+    };
+  };
+
+  const defaultSeeds = [
+    {
+      name: 'Bandit Cutthroat',
+      type: 'humanoid',
+      baseHealth: 90,
+      baseDamage: 15,
+      healthScale: 6,
+      damageScale: 1.1,
+      armor: 25,
+      weaknesses: ['fire'],
+      resistances: ['poison'],
+      behavior: 'aggressive',
+      description: 'A ruthless highwayman looking for easy prey.',
+      loot: [{ name: 'Steel Sword', type: 'weapon', description: 'Worn but sharp.', quantity: 1, dropChance: 55 }]
+    },
+    {
+      name: 'Restless Draugr',
+      type: 'undead',
+      baseHealth: 110,
+      baseDamage: 13,
+      healthScale: 7,
+      damageScale: 1.05,
+      armor: 30,
+      weaknesses: ['fire'],
+      resistances: ['frost'],
+      behavior: 'defensive',
+      description: 'An ancient warrior awakened from its tomb.',
+      loot: [{ name: 'Ancient Nord Sword', type: 'weapon', description: 'Cold to the touch.', quantity: 1, dropChance: 40 }]
+    },
+    {
+      name: 'Frost Wolf',
+      type: 'beast',
+      baseHealth: 70,
+      baseDamage: 12,
+      healthScale: 5,
+      damageScale: 1.2,
+      armor: 15,
+      weaknesses: ['fire'],
+      resistances: ['frost'],
+      behavior: 'berserker',
+      description: 'A hungry wolf hardened by the cold.',
+      loot: [{ name: 'Wolf Pelt', type: 'misc', description: 'Can be sold or crafted.', quantity: 1, dropChance: 75 }]
+    }
+  ];
+
+  const enemySeeds = Array.isArray(options.enemies) && options.enemies.length
+    ? options.enemies
+    : [choose(defaultSeeds), choose(defaultSeeds)];
+
+  const enemies = enemySeeds.map(seed => buildEnemy(seed));
+  const ambush = typeof options.ambush === 'boolean' ? options.ambush : Math.random() < 0.2;
+  const location = options.location || 'Demo: Abandoned Watchtower';
+
+  app.handleGameUpdate({
+    combatStart: {
+      enemies,
+      location,
+      ambush,
+      fleeAllowed: options.fleeAllowed !== false,
+      surrenderAllowed: Boolean(options.surrenderAllowed)
+    },
+    ambientContext: { localeType: 'wilderness', inCombat: true, mood: 'tense' },
+    narrative: {
+      title: 'Combat Simulation',
+      content: `A staged encounter begins near ${location}.`
+    }
+  });
+
+  app.setActiveTab?.('adventure');
+
+  const summary = `Started combat sim with ${enemies.length} enemy(ies) at ${location}.`;
+  console.log(summary);
+  return summary;
 };
 
 /**
@@ -318,57 +454,115 @@ window.demo.getAppState = function() {
 /**
  * Clear all demo data
  */
-window.demo.clearDemoData = function() {
-  const message = 'Demo data clearing not implemented\nUse the app UI to manage data';
-  console.log(message);
-  return message;
+window.demo.clearDemoData = function(options = {}) {
+  const app = window.app;
+  if (!app) {
+    const error = 'App context not available. Open the game first.';
+    console.error(error);
+    return error;
+  }
+
+  const characterId = app.currentCharacterId;
+  if (!characterId) {
+    const error = 'No active character selected. Create/select a character first.';
+    console.error(error);
+    return error;
+  }
+
+  const opts = {
+    items: options.items !== false,
+    quests: options.quests !== false,
+    journal: options.journal !== false,
+    story: options.story !== false
+  };
+
+  let clearedItems = 0;
+  let clearedQuests = 0;
+  let clearedJournal = 0;
+  let clearedStory = 0;
+
+  if (opts.items && Array.isArray(app.items) && app.handleGameUpdate) {
+    const removedItems = app.items
+      .filter(item => item.characterId === characterId)
+      .map(item => ({ name: item.name, quantity: item.quantity || 1 }));
+
+    clearedItems = removedItems.length;
+    if (removedItems.length) {
+      app.handleGameUpdate({ removedItems });
+    }
+  }
+
+  if (opts.quests && Array.isArray(app.quests) && app.setQuests) {
+    clearedQuests = app.quests.filter(q => q.characterId === characterId).length;
+    app.setQuests(app.quests.filter(q => q.characterId !== characterId));
+  }
+
+  if (opts.journal && Array.isArray(app.journalEntries) && app.setJournalEntries) {
+    clearedJournal = app.journalEntries.filter(e => e.characterId === characterId).length;
+    app.setJournalEntries(app.journalEntries.filter(e => e.characterId !== characterId));
+  }
+
+  if (opts.story && Array.isArray(app.storyChapters) && app.setStoryChapters) {
+    clearedStory = app.storyChapters.filter(s => s.characterId === characterId).length;
+    app.setStoryChapters(app.storyChapters.filter(s => s.characterId !== characterId));
+  }
+
+  const summary = {
+    clearedItems,
+    clearedQuests,
+    clearedJournal,
+    clearedStory,
+    characterId
+  };
+
+  console.log('Cleared demo data:', summary);
+  console.log('Note: Items are removed with persistence; quests/journal/story are cleared for this session.');
+  return summary;
 };
 
 /**
  * Show help
  */
 window.demo.help = function() {
-  const helpText = `
-Skyrim Aetherius Console Demo Commands
-=====================================
-
-Character Management:
-  demo.createTestCharacter()     - Create a random test character
-  demo.addExperience(100)        - Add XP to current character
-  demo.levelUp()                 - Level up current character
-
-Inventory Management:
-  demo.createTestItem('weapon')  - Create a test item of specific type
-  demo.addRandomItems(5)         - Add random items to inventory
-  demo.addGold(100)              - Add gold to character
-
-Journal Management:
-  demo.createTestJournalEntry()  - Create a test journal entry
-  demo.addRandomJournalEntries(3) - Create multiple journal entries
-
-Quest Management:
-  demo.createTestQuest()         - Create a test quest
-  demo.addRandomQuests(2)        - Create multiple quests
-
-Combat Testing:
-  demo.simulateCombat()          - Simulate combat (not implemented)
-  demo.testCombatItems()         - Test combat item usage
-
-Utilities:
-  demo.getAppState()             - Show current app state
-  demo.clearDemoData()           - Clear demo data (not implemented)
-  demo.help()                    - Show this help
-
-Examples:
-  demo.addGold(500)
-  demo.addRandomItems(10)
-  demo.createTestCharacter()
-  demo.getAppState()
-
-Note: Most functions now provide instructions for manual execution
-instead of directly modifying app state. Copy the suggested commands
-to apply changes to the game.
-  `;
+  const helpText = [
+    'Skyrim Aetherius Console Demo Commands',
+    '=====================================',
+    '',
+    'Character Management:',
+    '  - demo.createTestCharacter()  Create a random test character',
+    '  - demo.addExperience(100)     Add XP to current character',
+    '  - demo.levelUp()              Level up current character',
+    '',
+    'Inventory Management:',
+    "  - demo.createTestItem('weapon')  Create a test item of a type",
+    '  - demo.addRandomItems(5)     Add random items to inventory',
+    '  - demo.addGold(100)          Add gold to character',
+    '',
+    'Journal Management:',
+    '  - demo.createTestJournalEntry()   Create a test journal entry',
+    '  - demo.addRandomJournalEntries(3) Create multiple journal entries',
+    '',
+    'Quest Management:',
+    '  - demo.createTestQuest()     Create a test quest',
+    '  - demo.addRandomQuests(2)    Create multiple quests',
+    '',
+    'Combat Testing:',
+    '  - demo.simulateCombat()      Start a combat simulation with demo enemies',
+    '  - demo.testCombatItems()     Test combat item usage',
+    '',
+    'Utilities:',
+    '  - demo.getAppState()         Show current app state',
+    '  - demo.clearDemoData()       Clear items/quests/journal/story for the active character',
+    '  - demo.help()                Show this help',
+    '',
+    'Examples:',
+    '  - demo.addGold(500)',
+    '  - demo.addRandomItems(10)',
+    '  - demo.createTestCharacter()',
+    '  - demo.getAppState()',
+    '',
+    'Note: Most functions show suggested commands instead of directly modifying app state.'
+  ].join('\n');
   console.log(helpText);
   return helpText;
 };

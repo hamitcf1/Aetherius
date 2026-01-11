@@ -89,9 +89,10 @@ demo.addRandomQuests()   // Create 2 quests and show add command (default)
 ### Combat Testing
 
 #### `demo.simulateCombat()`
-Placeholder for combat simulation (not yet implemented).
+Starts a quick combat encounter against demo enemies. Optional params let you tweak the setup.
 ```javascript
 demo.simulateCombat()
+demo.simulateCombat({ location: 'Bleak Falls Barrow', ambush: true })
 ```
 
 #### `demo.testCombatItems()`
@@ -110,9 +111,10 @@ demo.getAppState()
 ```
 
 #### `demo.clearDemoData()`
-Placeholder for clearing demo data (not yet implemented).
+Clears items, quests, journal entries, and story chapters for the active character. Pass flags to skip sections.
 ```javascript
-demo.clearDemoData()
+demo.clearDemoData() // clears everything for the active character
+demo.clearDemoData({ items: false }) // keep items, clear other data
 ```
 
 #### `demo.help()`
