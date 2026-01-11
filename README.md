@@ -91,9 +91,14 @@ Open **Actions** → **AI Model**.
 
 The app supports:
 
-- Gemini Flash (`gemini-2.0-flash`)
-- Gemma 3 27B (`gemma-3-27b-it`)
-- Gemma 3 4B (`gemma-3-4b-it`)
+- Gemini 2.5 Flash Lite (`gemini-2.5-flash-lite`) - Fastest
+- Gemini 2.5 Flash (`gemini-2.5-flash`) - Balanced
+- Gemini 3 Flash (`gemini-3-flash`) - Latest
+- Gemma 3 27B (`gemma-3-27b`) - Largest
+- Gemma 3 12B (`gemma-3-12b`) - Large
+- Gemma 3 4B (`gemma-3-4b`) - Medium
+- Gemma 3 2B (`gemma-3-2b`) - Small
+- Gemma 3 1B (`gemma-3-1b`) - Smallest
 
 ### Required environment variables (AI)
 

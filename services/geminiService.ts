@@ -5,14 +5,13 @@ import { GameStateUpdate, GeneratedCharacterData } from "../types";
 // ========== AVAILABLE MODELS ==========
 // Only these models are available and should be used:
 const AVAILABLE_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
-  'gemini-1.5-flash',
+  'gemini-2.5-flash',
+  'gemini-3-flash',
   'gemma-3-12b',
-  'gemma-3-2b',
   'gemma-3-1b',
   'gemma-3-27b',
+  'gemma-3-2b',
   'gemma-3-4b',
 ] as const;
 
@@ -20,33 +19,33 @@ type AvailableModel = typeof AVAILABLE_MODELS[number];
 
 // Fallback chains for different use cases
 const TEXT_MODEL_FALLBACK_CHAIN: AvailableModel[] = [
-  'gemini-2.0-flash',
-  'gemini-2.5-flash',
-  'gemini-1.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemma-3-27b',
-  'gemma-3-12b',
-  'gemma-3-4b',
-  'gemma-3-2b',
-  'gemma-3-1b',
+  'gemini-2.5-flash-lite',  // Fastest, lowest resource usage
+  'gemini-2.5-flash',       // Balanced performance
+  'gemini-3-flash',         // Latest Gemini 3
+  'gemma-3-27b',           // Largest Gemma model
+  'gemma-3-12b',           // Large Gemma model
+  'gemma-3-4b',            // Medium Gemma model
+  'gemma-3-2b',            // Small Gemma model
+  'gemma-3-1b',            // Smallest Gemma model
 ];
 
 const IMAGE_MODEL_FALLBACK_CHAIN: AvailableModel[] = [
-  'gemini-2.0-flash',
-  'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-3-flash',
 ];
 
 export type PreferredAIModel = AvailableModel;
 
 export const PREFERRED_AI_MODELS: Array<{ id: PreferredAIModel; label: string }> = [
-  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Latest)' },
-  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-  { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-  { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite' },
-  { id: 'gemma-3-27b', label: 'Gemma 3 27B' },
-  { id: 'gemma-3-12b', label: 'Gemma 3 12B' },
-  { id: 'gemma-3-4b', label: 'Gemma 3 4B' },
+  { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (Fastest)' },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Balanced)' },
+  { id: 'gemini-3-flash', label: 'Gemini 3 Flash (Latest)' },
+  { id: 'gemma-3-27b', label: 'Gemma 3 27B (Largest)' },
+  { id: 'gemma-3-12b', label: 'Gemma 3 12B (Large)' },
+  { id: 'gemma-3-4b', label: 'Gemma 3 4B (Medium)' },
+  { id: 'gemma-3-2b', label: 'Gemma 3 2B (Small)' },
+  { id: 'gemma-3-1b', label: 'Gemma 3 1B (Smallest)' },
 ];
 
 const viteEnv: any = (import.meta as any).env || {};
@@ -342,7 +341,21 @@ export const validateGameStateUpdate = (response: any): ValidationResult => {
 
 const markKeyExhausted = (key: string) => {
   exhaustedApiKeys.add(key);
-  setTimeout(() => exhaustedApiKeys.delete(key), keyExhaustionTimeout);
+  console.warn(`[Gemini Service] Key ...${key.slice(-4)} marked exhausted. Will recover in 60 seconds.`);
+  setTimeout(() => {
+    exhaustedApiKeys.delete(key);
+    console.log(`[Gemini Service] Key ...${key.slice(-4)} recovered from exhaustion.`);
+  }, keyExhaustionTimeout);
+};
+
+const getApiKeyStatus = (): { total: number; available: number; exhausted: number } => {
+  const allKeys = getAllApiKeys();
+  const exhausted = allKeys.filter(key => exhaustedApiKeys.has(key)).length;
+  return {
+    total: allKeys.length,
+    available: allKeys.length - exhausted,
+    exhausted
+  };
 };
 
 const getAvailableApiKey = (forGemma: boolean = false): string | null => {
@@ -485,7 +498,8 @@ const executeWithFallback = async <T>(
   for (const model of modelsToTry) {
     // Use all available keys for both Gemini and Gemma models
     const allKeys = getAllApiKeys();
-    console.log(`[Gemini Service] Available API keys: ${allKeys.length}`);
+    const keyStatus = getApiKeyStatus();
+    console.log(`[Gemini Service] Trying model: ${model} | Keys: ${keyStatus.available}/${keyStatus.total} available`);
     
     let modelNotFound = false;
     
@@ -535,7 +549,18 @@ const executeWithFallback = async <T>(
   
   // All models failed
   const lastError = errors[errors.length - 1]?.error;
-  throw lastError || new Error('All models failed. Please try again later.');
+  const errorMessage = lastError?.message || JSON.stringify(lastError) || 'Unknown error';
+
+  console.error(`[Gemini Service] All ${modelsToTry.length} models failed with ${errors.length} total errors. Last error:`, errorMessage);
+
+  // Provide more helpful error message
+  if (errorMessage.includes('quota') || errorMessage.includes('429')) {
+    throw new Error('All API keys have exceeded their quota limits. Please wait a few minutes before trying again, or add new API keys with available quota.');
+  } else if (errorMessage.includes('403') || errorMessage.includes('PERMISSION_DENIED')) {
+    throw new Error('API key access denied. Some keys may be invalid, leaked, or have insufficient permissions. Please check your API keys.');
+  } else {
+    throw new Error(`AI service temporarily unavailable: ${errorMessage}. Please try again in a moment.`);
+  }
 };
 
 export const generateGameMasterResponse = async (
@@ -543,7 +568,7 @@ export const generateGameMasterResponse = async (
   context: string,
   options?: { model?: string }
 ): Promise<GameStateUpdate> => {
-  const preferredModel = options?.model || 'gemini-2.0-flash';
+  const preferredModel = options?.model || 'gemini-2.5-flash-lite';
 
   const fullPrompt = `
     You are the Game Master (GM) and Scribe for a Skyrim roleplay campaign.
@@ -854,7 +879,7 @@ export const generateCharacterProfile = async (
             if (!text) throw new Error('No response text');
             const json = extractJsonObject(text) || text;
             return JSON.parse(json) as GeneratedCharacterData;
-        }, { preferredModel: 'gemini-2.0-flash', fallbackChain: TEXT_MODEL_FALLBACK_CHAIN });
+        }, { preferredModel: 'gemini-2.5-flash-lite', fallbackChain: TEXT_MODEL_FALLBACK_CHAIN });
     } catch (e) {
         console.error("Character Gen Error (all models failed)", e);
         return null;
@@ -863,7 +888,7 @@ export const generateCharacterProfile = async (
 
 export const chatWithScribe = async (history: {role: 'user' | 'model', parts: [{ text: string }]}[], message: string) => {
     // chatWithScribe uses fallback but keeps chat context, so we try models sequentially
-    const modelsToTry: AvailableModel[] = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+    const modelsToTry: AvailableModel[] = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-3-flash'];
     
     for (const model of modelsToTry) {
         try {
@@ -1080,7 +1105,7 @@ Return ONLY valid JSON.`;
       const text = response.text || "{}";
       const json = extractJsonObject(text) || "{}";
       return JSON.parse(json);
-    }, { preferredModel: 'gemini-2.0-flash', fallbackChain: TEXT_MODEL_FALLBACK_CHAIN });
+    }, { preferredModel: 'gemini-2.5-flash-lite', fallbackChain: TEXT_MODEL_FALLBACK_CHAIN });
   } catch (error) {
     console.error("Combat encounter generation error:", error);
     // Return a default bandit encounter
