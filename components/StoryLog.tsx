@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { StoryChapter, Character, CustomQuest, JournalEntry, InventoryItem, GameStateUpdate } from '../types';
 import { Scroll, Calendar, Image as ImageIcon, Loader2, Plus, Download, Send, BookOpen, X, ArrowUpDown, Clock } from 'lucide-react';
 import { generateLoreImage, generateGameMasterResponse } from '../services/geminiService';
+import { SortSelector } from './GameFeatures';
 
 interface AdventureMessage {
   id: string;
@@ -56,6 +57,12 @@ export const StoryLog: React.FC<StoryLogProps> = ({
     
     // Sort order state
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+
+  // Sort options
+  const sortOptions = [
+    { id: 'desc', label: 'Newest First', icon: '↓' },
+    { id: 'asc', label: 'Oldest First', icon: '↑' }
+  ];
 
   // Deduplicate and sort chapters
   const sortedChapters = useMemo(() => {
@@ -785,14 +792,7 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
         {/* Sort controls and chapter count */}
         <div className="mt-4 flex items-center justify-center gap-4 text-sm">
           <span className="text-gray-400">{sortedChapters.length} {sortedChapters.length === 1 ? 'entry' : 'entries'}</span>
-          <button
-            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-black/30 hover:bg-black/50 border border-skyrim-border rounded text-gray-300 hover:text-skyrim-gold transition-colors"
-            title={sortOrder === 'desc' ? 'Showing newest first' : 'Showing oldest first'}
-          >
-            <ArrowUpDown size={14} />
-            <span>{sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}</span>
-          </button>
+          <SortSelector currentSort={sortOrder} onSelect={setSortOrder} options={sortOptions} />
         </div>
       </div>
 

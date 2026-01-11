@@ -5,6 +5,7 @@ import { generateCharacterProfileImage } from '../services/geminiService';
 import { RestModal, EatModal, DrinkModal, type RestOptions } from './SurvivalModals';
 import { formatSkyrimDateShort } from '../utils/skyrimCalendar';
 import { getItemStats, shouldHaveStats } from '../services/itemStats';
+import { DropdownSelector } from './GameFeatures';
 
 interface CharacterSheetProps {
   character: Character;
@@ -900,14 +901,14 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
           <Section title="Identity & Psychology" icon={<User />} defaultOpen={true}>
              <div className="mb-4">
                  <label className="text-sm uppercase tracking-wider text-gray-400 font-bold mb-2 block">Gender</label>
-                 <select 
-                    value={character.gender} 
-                    onChange={(e) => updateCharacter('gender', e.target.value)}
-                    className="w-full bg-black/40 border border-skyrim-border/60 rounded p-3 text-gray-300 focus:border-skyrim-gold focus:ring-1 focus:ring-skyrim-gold/50 outline-none transition-all font-serif"
-                 >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                 </select>
+                 <DropdownSelector
+                   currentValue={character.gender}
+                   onSelect={(value) => updateCharacter('gender', value)}
+                   options={[
+                     { id: 'Male', label: 'Male', icon: '♂' },
+                     { id: 'Female', label: 'Female', icon: '♀' }
+                   ]}
+                 />
              </div>
              <TextAreaField 
                 label="Core Identity" 
@@ -1047,13 +1048,12 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                                </div>
                                <div className="col-span-4">
                                     <label className="text-[10px] uppercase text-gray-500 font-bold">Skill</label>
-                                    <select 
-                                        className="w-full bg-black/40 border border-skyrim-border p-2 rounded text-sm text-gray-400 focus:border-skyrim-gold focus:outline-none"
-                                        value={newPerkSkill}
-                                        onChange={(e) => setNewPerkSkill(e.target.value)}
-                                    >
-                                        {character.skills.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-                                    </select>
+                                    <DropdownSelector
+                                      currentValue={newPerkSkill}
+                                      onSelect={setNewPerkSkill}
+                                      options={character.skills.map(s => ({ id: s.name, label: s.name }))}
+                                      placeholder="Select Skill"
+                                    />
                                </div>
                            </div>
                            <div className="grid grid-cols-12 gap-2 mb-2">

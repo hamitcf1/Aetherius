@@ -6,6 +6,7 @@ import { ShopModal } from './ShopModal';
 import { useAppContext } from '../AppContext';
 import { getItemStats, shouldHaveStats } from '../services/itemStats';
 import { EncumbranceIndicator } from './StatusIndicators';
+import { DropdownSelector, SortSelector } from './GameFeatures';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -561,12 +562,14 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
              </div>
              <div className="w-full">
                  <label className="text-xs text-gray-500 uppercase">Quick Select</label>
-                 <select className="w-full bg-black/40 border border-skyrim-border p-2 rounded text-gray-200 text-sm" onChange={handleQuickSelect} defaultValue={-1}>
-                     <option value={-1}>-- Custom --</option>
-                     {COMMON_ITEMS.map((item, i) => (
-                         <option key={i} value={i}>{item.name}</option>
-                     ))}
-                 </select>
+                 <DropdownSelector
+                   currentValue={-1}
+                   onSelect={(value) => handleQuickSelect({ target: { value: parseInt(value) } } as any)}
+                   options={[
+                     { id: '-1', label: '-- Custom --' },
+                     ...COMMON_ITEMS.map((item, i) => ({ id: i.toString(), label: item.name }))
+                   ]}
+                 />
              </div>
              <div className="flex flex-col sm:flex-row gap-4">
                  <div className="flex-1 w-full">
@@ -575,14 +578,18 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
                  </div>
                  <div className="w-full md:w-32">
                      <label className="text-xs text-gray-500 uppercase">Type</label>
-                     <select className="w-full bg-black/40 border border-skyrim-border p-2 rounded text-gray-200" value={newType} onChange={e => setNewType(e.target.value as any)}>
-                         <option value="weapon">Weapon</option>
-                         <option value="apparel">Apparel</option>
-                         <option value="potion">Potion</option>
-                         <option value="ingredient">Ingredient</option>
-                         <option value="key">Key</option>
-                         <option value="misc">Misc</option>
-                     </select>
+                     <DropdownSelector
+                       currentValue={newType}
+                       onSelect={(value) => setNewType(value as any)}
+                       options={[
+                         { id: 'weapon', label: 'Weapon' },
+                         { id: 'apparel', label: 'Apparel' },
+                         { id: 'potion', label: 'Potion' },
+                         { id: 'ingredient', label: 'Ingredient' },
+                         { id: 'key', label: 'Key' },
+                         { id: 'misc', label: 'Misc' }
+                       ]}
+                     />
                  </div>
              </div>
              <div className="flex-1 w-full">
@@ -629,17 +636,16 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
           {activeTab !== 'all' && ` in ${CATEGORY_TABS.find(t => t.key === activeTab)?.label}`}
         </span>
         <div className="flex items-center gap-2">
-          <ArrowUpDown size={14} className="text-gray-500" />
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)}
-            className="bg-black/40 border border-skyrim-border rounded px-2 py-1 text-sm text-gray-300 focus:outline-none focus:border-skyrim-gold"
-          >
-            <option value="name">Name (A-Z)</option>
-            <option value="type">Type</option>
-            <option value="newest">Newest First</option>
-            <option value="quantity">Quantity</option>
-          </select>
+          <SortSelector
+            currentSort={sortOrder}
+            onSelect={(value) => setSortOrder(value as typeof sortOrder)}
+            options={[
+              { id: 'name', label: 'Name (A-Z)' },
+              { id: 'type', label: 'Type' },
+              { id: 'newest', label: 'Newest First' },
+              { id: 'quantity', label: 'Quantity' }
+            ]}
+          />
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CustomQuest, QuestStep } from '../types';
 import { Plus, Trash2, CheckSquare, Square, MapPin, Flag, ArrowUpDown, Archive, Activity, XCircle, CheckCircle, Clock, Edit2, Save, X } from 'lucide-react';
+import { SortSelector } from './GameFeatures';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -20,6 +21,14 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
   const [newDueDate, setNewDueDate] = useState('');
     const [newObjectivesText, setNewObjectivesText] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
+
+  // Sort options
+  const sortOptions = [
+    { id: 'newest', label: 'Date (Newest)', icon: '🕐' },
+    { id: 'oldest', label: 'Date (Oldest)', icon: '🕐' },
+    { id: 'title_az', label: 'Title (A-Z)', icon: '🔤' },
+    { id: 'title_za', label: 'Title (Z-A)', icon: '🔤' }
+  ];
   
   // Edit State
   const [editingQuestId, setEditingQuestId] = useState<string | null>(null);
@@ -201,19 +210,8 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
           )}
 
           {!isAdding && quests.length > 0 && (
-              <div className="flex items-center gap-2 bg-skyrim-paper border border-skyrim-border rounded px-3 py-2">
-                  <ArrowUpDown size={16} className="text-skyrim-gold" />
-                  <span className="text-xs text-gray-400 uppercase tracking-wide">Sort By:</span>
-                  <select 
-                      value={sortOption} 
-                      onChange={(e) => setSortOption(e.target.value as SortOption)}
-                      className="bg-transparent text-gray-200 text-sm focus:outline-none cursor-pointer"
-                  >
-                      <option value="newest" className="bg-skyrim-dark">Date (Newest)</option>
-                      <option value="oldest" className="bg-skyrim-dark">Date (Oldest)</option>
-                      <option value="title_az" className="bg-skyrim-dark">Title (A-Z)</option>
-                      <option value="title_za" className="bg-skyrim-dark">Title (Z-A)</option>
-                  </select>
+              <div className="flex items-center gap-2">
+                  <SortSelector currentSort={sortOption} onSelect={(sort) => setSortOption(sort as SortOption)} options={sortOptions} />
               </div>
           )}
       </div>

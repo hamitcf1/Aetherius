@@ -28,6 +28,7 @@ import {
   queueOfflineChange,
   processOfflineQueue
 } from './components/StatusIndicators';
+import { COLOR_THEMES } from './components/GameFeatures';
 import { 
   CharacterExportModal, 
   CharacterImportModal,
@@ -377,6 +378,43 @@ const App: React.FC = () => {
       // ignore
     }
   }, [aiModel, currentUser?.uid]);
+
+  // Theme Application
+  useEffect(() => {
+    const theme = COLOR_THEMES.find(t => t.id === colorTheme) || COLOR_THEMES[0];
+    const root = document.documentElement;
+    
+    // Apply theme colors to CSS variables
+    root.style.setProperty('--skyrim-dark', theme.colors.background);
+    root.style.setProperty('--skyrim-paper', theme.colors.paper);
+    root.style.setProperty('--skyrim-border', theme.colors.border);
+    root.style.setProperty('--skyrim-gold', theme.colors.gold);
+    root.style.setProperty('--skyrim-gold-hover', theme.colors.gold);
+    root.style.setProperty('--skyrim-text', theme.colors.text);
+    root.style.setProperty('--skyrim-accent', theme.colors.primary);
+  }, [colorTheme]);
+
+  // Theme Persistence
+  useEffect(() => {
+    const key = currentUser?.uid ? `aetherius:theme:${currentUser.uid}` : 'aetherius:theme';
+    try {
+      const savedTheme = localStorage.getItem(key);
+      if (savedTheme && COLOR_THEMES.find(t => t.id === savedTheme)) {
+        setColorTheme(savedTheme);
+      }
+    } catch {
+      // ignore
+    }
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
+    const key = currentUser?.uid ? `aetherius:theme:${currentUser.uid}` : 'aetherius:theme';
+    try {
+      localStorage.setItem(key, colorTheme);
+    } catch {
+      // ignore
+    }
+  }, [colorTheme, currentUser?.uid]);
 
   // Expose database utilities and app context for console access (for admin/debug purposes)
   // Note: We update this on every render to ensure window.app always has the latest references

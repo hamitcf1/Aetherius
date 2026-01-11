@@ -19,13 +19,13 @@
             },
             colors: {
               skyrim: {
-                dark: '#0f0f0f',
-                paper: '#1a1a1a',
-                border: '#4a4a4a',
-                gold: '#c0a062',
-                goldHover: '#d4b475',
-                text: '#d1d1d1',
-                accent: '#2a3b4c'
+                dark: 'var(--skyrim-dark)',
+                paper: 'var(--skyrim-paper)',
+                border: 'var(--skyrim-border)',
+                gold: 'var(--skyrim-gold)',
+                goldHover: 'var(--skyrim-gold-hover)',
+                text: 'var(--skyrim-text)',
+                accent: 'var(--skyrim-accent)'
               }
             }
           }
@@ -33,6 +33,16 @@
       }
     </script>
     <style>
+      :root {
+        --skyrim-dark: #0f0f0f;
+        --skyrim-paper: #1a1a1a;
+        --skyrim-border: #4a4a4a;
+        --skyrim-gold: #c0a062;
+        --skyrim-gold-hover: #d4b475;
+        --skyrim-text: #d1d1d1;
+        --skyrim-accent: #2a3b4c;
+      }
+      
       /* Skyrim-style custom cursors - PNG must be 32x32 max */
       *, *::before, *::after {
         cursor: url('/cursor-default.png') 0 0, auto;

@@ -14,11 +14,12 @@
 
 import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { Character, InventoryItem, CustomQuest, JournalEntry, StoryChapter, GameTime, SurvivalNeeds } from '../types';
+import { PREFERRED_AI_MODELS, PreferredAIModel } from '../services/geminiService';
 import { 
   Download, Upload, Sun, Moon, Cloud, CloudRain, CloudSnow, Wind,
   Undo2, Redo2, History, Users, Palette, Shield, Swords, Heart,
   Zap, Eye, Clock, Star, UserPlus, FileJson, Check, X, ChevronDown,
-  Thermometer, Droplets, Moon as MoonIcon, Sunrise, Sunset
+  Thermometer, Droplets, Moon as MoonIcon, Sunrise, Sunset, Cpu, ArrowUpDown
 } from 'lucide-react';
 
 // ============================================================================
@@ -893,6 +894,151 @@ export const ThemeSelector: React.FC<{
               />
               {theme.name}
               {theme.id === currentTheme && <Check size={14} className="ml-auto" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================================
+// AI MODEL SELECTOR
+// ============================================================================
+
+export const AIModelSelector: React.FC<{
+  currentModel: string;
+  onSelect: (modelId: string) => void;
+}> = ({ currentModel, onSelect }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const current = PREFERRED_AI_MODELS.find(m => m.id === currentModel) || PREFERRED_AI_MODELS[0];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3 py-2 bg-black/30 border border-skyrim-border rounded hover:border-skyrim-gold transition-colors"
+      >
+        <Cpu size={16} className="text-skyrim-gold" />
+        <span className="text-sm text-gray-300">{current.label}</span>
+        <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 w-64 bg-skyrim-paper border border-skyrim-border rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+          {PREFERRED_AI_MODELS.map(model => (
+            <button
+              key={model.id}
+              onClick={() => {
+                onSelect(model.id);
+                setIsOpen(false);
+              }}
+              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-black/30 transition-colors ${
+                model.id === currentModel ? 'text-skyrim-gold' : 'text-gray-300'
+              }`}
+            >
+              <div className="w-4 h-4 rounded-full border border-white/20 bg-gradient-to-r from-blue-500 to-purple-500" />
+              {model.label}
+              {model.id === currentModel && <Check size={14} className="ml-auto" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================================
+// SORT SELECTOR
+// ============================================================================
+
+export const SortSelector: React.FC<{
+  currentSort: string;
+  onSelect: (sort: string) => void;
+  options: Array<{ id: string; label: string; icon?: string }>;
+  label?: string;
+}> = ({ currentSort, onSelect, options, label = 'Sort' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const current = options.find(o => o.id === currentSort) || options[0];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3 py-2 bg-black/30 border border-skyrim-border rounded hover:border-skyrim-gold transition-colors"
+      >
+        <ArrowUpDown size={16} className="text-skyrim-gold" />
+        <span className="text-sm text-gray-300">{current.label}</span>
+        <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 w-48 bg-skyrim-paper border border-skyrim-border rounded-lg shadow-xl z-50">
+          {options.map(option => (
+            <button
+              key={option.id}
+              onClick={() => {
+                onSelect(option.id);
+                setIsOpen(false);
+              }}
+              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-black/30 transition-colors ${
+                option.id === currentSort ? 'text-skyrim-gold' : 'text-gray-300'
+              }`}
+            >
+              {option.icon && <span className="text-xs">{option.icon}</span>}
+              {option.label}
+              {option.id === currentSort && <Check size={14} className="ml-auto" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================================
+// GENERIC DROPDOWN SELECTOR
+// ============================================================================
+
+export const DropdownSelector: React.FC<{
+  currentValue: string;
+  onSelect: (value: string) => void;
+  options: Array<{ id: string; label: string; icon?: string }>;
+  placeholder?: string;
+  icon?: React.ReactNode;
+}> = ({ currentValue, onSelect, options, placeholder = "Select...", icon }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const current = options.find(o => o.id === currentValue);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center gap-2 px-3 py-2 bg-black/40 border border-skyrim-border rounded text-gray-200 focus:outline-none focus:border-skyrim-gold transition-colors"
+      >
+        {icon && <span className="text-skyrim-gold">{icon}</span>}
+        <span className="flex-1 text-left">{current?.label || placeholder}</span>
+        <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 w-full bg-skyrim-paper border border-skyrim-border rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+          {options.map(option => (
+            <button
+              key={option.id}
+              onClick={() => {
+                onSelect(option.id);
+                setIsOpen(false);
+              }}
+              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-black/30 transition-colors ${
+                option.id === currentValue ? 'text-skyrim-gold' : 'text-gray-300'
+              }`}
+            >
+              {option.icon && <span className="text-xs">{option.icon}</span>}
+              {option.label}
+              {option.id === currentValue && <Check size={14} className="ml-auto" />}
             </button>
           ))}
         </div>

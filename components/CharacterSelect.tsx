@@ -3,6 +3,7 @@ import { Character, SKYRIM_RACES } from '../types';
 import { Play, Plus, Dice5, MessageSquare, Loader2, Sparkles, Send, FileText, ArrowLeft, Trash2, Skull, RotateCcw } from 'lucide-react';
 import { generateCharacterProfile, chatWithScribe } from '../services/geminiService';
 import { isFeatureEnabled } from '../featureFlags';
+import { DropdownSelector } from './GameFeatures';
 
 interface CharacterSelectProps {
   profileId: string | null;
@@ -20,6 +21,16 @@ const ARCHETYPES = [
     "Battlemage", "Ranger", "Barbarian", "Bard", "Necromancer", "Merchant",
     "Paladin", "Witchhunter", "Sorcerer", "Scout", "Rogue", "Healer", "Knight"
 ];
+
+// Dropdown options
+const GENDER_OPTIONS = [
+  { id: 'Male', label: 'Male', icon: '♂️' },
+  { id: 'Female', label: 'Female', icon: '♀️' }
+];
+
+const RACE_OPTIONS = SKYRIM_RACES.map(race => ({ id: race, label: race }));
+
+const ARCHETYPE_OPTIONS = ARCHETYPES.map(archetype => ({ id: archetype, label: archetype }));
 
 export const CharacterSelect: React.FC<CharacterSelectProps> = ({ 
   profileId, characters, onSelectCharacter, onCreateCharacter, onLogout,
@@ -447,28 +458,24 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                       autoCapitalize="none"
                                       autoCorrect="off"
                                     />
-                                     <select 
-                                        value={newGender}
-                                        onChange={(e) => setNewGender(e.target.value)}
-                          className="col-span-1 sm:col-span-1 w-full bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold text-sm"
-                                    >
-                                        <option value="Male">Male</option>
-                                        <option value="Female">Female</option>
-                                    </select>
-                                    <select 
-                                        value={newRace}
-                                        onChange={(e) => setNewRace(e.target.value)}
-                          className="col-span-1 sm:col-span-1 w-full bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold text-sm"
-                                    >
-                                        {SKYRIM_RACES.map(r => <option key={r} value={r}>{r}</option>)}
-                                    </select>
-                                    <select 
-                                        value={newArchetype} 
-                                        onChange={(e) => setNewArchetype(e.target.value)}
-                          className="col-span-2 sm:col-span-1 w-full bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold text-sm"
-                                    >
-                                        {ARCHETYPES.map(a => <option key={a} value={a}>{a}</option>)}
-                                    </select>
+                                     <DropdownSelector 
+                                        currentValue={newGender}
+                                        onSelect={setNewGender}
+                                        options={GENDER_OPTIONS}
+                                        placeholder="Gender"
+                                      />
+                                    <DropdownSelector 
+                                        currentValue={newRace}
+                                        onSelect={setNewRace}
+                                        options={RACE_OPTIONS}
+                                        placeholder="Race"
+                                      />
+                                    <DropdownSelector 
+                                        currentValue={newArchetype} 
+                                        onSelect={setNewArchetype}
+                                        options={ARCHETYPE_OPTIONS}
+                                        placeholder="Archetype"
+                                      />
                                 </div>
                                 
                       <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-nowrap">

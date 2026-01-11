@@ -4,8 +4,8 @@ import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Upload, Lo
 import SnowEffect, { SnowSettings } from './SnowEffect';
 import { useAppContext } from '../AppContext';
 import { isFeatureEnabled, isFeatureWIP, getFeatureLabel } from '../featureFlags';
-import { PREFERRED_AI_MODELS } from '../services/geminiService';
 import { audioService } from '../services/audioService';
+import { ThemeSelector, AIModelSelector } from './GameFeatures';
 
 type SnowIntensity = SnowSettings['intensity'];
 
@@ -33,6 +33,8 @@ const ActionBar: React.FC = () => {
     isAnonymous,
     handleExportJSON,
     handleImportJSON,
+    colorTheme,
+    setColorTheme,
   } = useAppContext();
   const [open, setOpen] = useState(false);
   const [snow, setSnow] = useState(false);
@@ -154,17 +156,14 @@ const ActionBar: React.FC = () => {
           {typeof setAiModel === 'function' && (
             <div className="flex flex-col gap-1">
               <div className="text-xs text-gray-500 font-bold">AI Model</div>
-              <select
-                value={aiModel || 'gemma-3-27b-it'}
-                onChange={(e) => setAiModel(e.target.value)}
-                className="w-full bg-black/20 border border-skyrim-border text-gray-200 px-2 py-2 rounded focus:border-skyrim-gold focus:outline-none"
-              >
-                {PREFERRED_AI_MODELS.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+              <AIModelSelector currentModel={aiModel || 'gemma-3-27b-it'} onSelect={setAiModel} />
+            </div>
+          )}
+          {/* Theme Selector */}
+          {colorTheme !== undefined && setColorTheme && (
+            <div className="flex flex-col gap-1">
+              <div className="text-xs text-gray-500 font-bold">Theme</div>
+              <ThemeSelector currentTheme={colorTheme} onSelect={setColorTheme} />
             </div>
           )}
           <button onClick={handleManualSave} disabled={isSaving} className="w-full flex items-center gap-2 px-3 py-2 bg-skyrim-gold text-skyrim-dark rounded font-bold disabled:opacity-50">
