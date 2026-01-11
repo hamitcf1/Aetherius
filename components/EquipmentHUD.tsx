@@ -17,6 +17,7 @@ interface SlotConfig {
   allowedTypes: InventoryItem['type'][];
 }
 
+// Updated SLOT_CONFIGS to include jewelry slots
 const SLOT_CONFIGS: SlotConfig[] = [
   { slot: 'head', label: 'Head', icon: <Crown size={20} />, position: 'top-0 left-1/2 -translate-x-1/2', allowedTypes: ['apparel'] },
   { slot: 'necklace', label: 'Necklace', icon: <CircleDot size={18} />, position: 'top-16 left-1/2 -translate-x-1/2', allowedTypes: ['apparel'] },

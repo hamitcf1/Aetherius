@@ -21,9 +21,10 @@ import {
   applyTurnRegen,
   checkCombatEnd
 } from '../services/combatService';
-import { LootModal } from './LootModal';
-import { finalizeLoot } from '../services/lootService';
+import { LootModal, LootItem } from './LootModal';
+import { populatePendingLoot, finalizeLoot } from '../services/lootService';
 import { getEasterEggName } from './GameFeatures';
+import resolvePotionEffect from '../services/potionResolver';
 
 interface CombatModalProps {
   character: Character;
@@ -33,7 +34,7 @@ interface CombatModalProps {
     xp: number;
     gold: number;
     items: Array<{ name: string; type: string; description: string; quantity: number }>;
-  }, finalVitals?: { health: number; magicka: number; stamina: number }) => void;
+  }, finalVitals?: { health: number; magicka: number; stamina: number }, timeAdvanceMinutes?: number) => void;
   onNarrativeUpdate?: (narrative: string) => void;
   onInventoryUpdate?: (removedItems: Array<{ name: string; quantity: number }>) => void;
   showToast?: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
@@ -236,6 +237,9 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   const [isHealing, setIsHealing] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
+  const [selectedPotion, setSelectedPotion] = useState<InventoryItem | null>(null);
+  const [lootPhase, setLootPhase] = useState(false);
+  const [lootItems, setLootItems] = useState<Array<{ name: string; quantity: number }>>([]);
 
   // Auto-select first alive enemy
   useEffect(() => {
@@ -292,6 +296,21 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     }
   }, [combatState.result]);
 
+  // Trigger onCombatEnd for victory or defeat
+  useEffect(() => {
+    if (showVictory || showDefeat) {
+      onCombatEnd(
+        showVictory ? 'victory' : 'defeat',
+        combatState.rewards,
+        {
+          health: playerStats.currentHealth,
+          magicka: playerStats.currentMagicka,
+          stamina: playerStats.currentStamina
+        }
+      );
+    }
+  }, [showVictory, showDefeat]);
+
   // Live combat timer display (reads combatStartTime from combatState)
   useEffect(() => {
     let t: number | undefined;
@@ -308,6 +327,30 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     return () => { if (t) window.clearInterval(t); };
   }, [combatState.combatStartTime]);
 
+  // Trigger loot phase after combat ends
+  useEffect(() => {
+    if (combatState.result === 'victory') {
+      const populatedState = populatePendingLoot(combatState);
+      setCombatState(populatedState);
+      setLootPhase(true);
+    }
+  }, [combatState.result]);
+
+  const handleFinalizeLoot = (selectedItems: Array<{ name: string; quantity: number }> | null) => {
+    const { newState, updatedInventory, grantedXp, grantedGold, grantedItems } = finalizeLoot(
+      combatState,
+      selectedItems,
+      inventory
+    );
+
+    setCombatState(newState);
+    onInventoryUpdate?.(grantedItems);
+    showToast?.(`Loot collected: ${grantedItems.map(item => item.name).join(', ')}`, 'success');
+    setLootPhase(false);
+    const minutes = Math.max(1, Math.ceil((combatState.combatElapsedSec || 0) / 60));
+    onCombatEnd('victory', { xp: grantedXp, gold: grantedGold, items: grantedItems }, undefined, minutes);
+  };
+
   // When entering loot phase, keep combat UI open and show LootModal
   const handleLootConfirm = (selected: Array<{ name: string; quantity: number }>) => {
     const res = finalizeLoot(combatState, selected.length ? selected : null, inventory);
@@ -320,11 +363,12 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     // After finalizing loot, trigger onCombatEnd with rewards
     if (res.newState.result === 'victory') {
       setTimeout(() => {
+        const minutes = Math.max(1, Math.ceil((res.newState.combatElapsedSec || combatState.combatElapsedSec || 0) / 60));
         onCombatEnd('victory', res.newState.rewards, {
           health: playerStats.currentHealth,
           magicka: playerStats.currentMagicka,
           stamina: playerStats.currentStamina
-        });
+        }, minutes);
       }, 300);
     }
   };
@@ -546,20 +590,22 @@ export const CombatModal: React.FC<CombatModalProps> = ({
 
   // Close victory screen and end combat
   const handleVictoryClose = () => {
+    const minutes = Math.max(1, Math.ceil((combatState.combatElapsedSec || 0) / 60));
     onCombatEnd('victory', combatState.rewards, {
       health: playerStats.currentHealth,
       magicka: playerStats.currentMagicka,
       stamina: playerStats.currentStamina
-    });
+    }, minutes);
   };
 
   // Close defeat screen
   const handleDefeatClose = () => {
+    const minutes = Math.max(1, Math.ceil((combatState.combatElapsedSec || 0) / 60));
     onCombatEnd('defeat', undefined, {
       health: 0,
       magicka: playerStats.currentMagicka,
       stamina: playerStats.currentStamina
-    });
+    }, minutes);
   };
 
   const isPlayerTurn = combatState.currentTurnActor === 'player' && combatState.active;
@@ -900,6 +946,44 @@ export const CombatModal: React.FC<CombatModalProps> = ({
               className="px-6 py-3 bg-red-700 hover:bg-red-600 text-white font-bold rounded-lg transition-colors"
             >
               Accept Fate
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Loot phase UI - shown when lootPhase state is true */}
+      {lootPhase && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-60 p-4">
+          <div className="bg-gradient-to-b from-amber-900/90 to-stone-900/95 rounded-xl p-6 max-w-lg w-full text-center border-2 border-amber-500 shadow-2xl">
+            <h2 className="text-2xl font-bold text-amber-100 mb-4">Loot Phase</h2>
+            <p className="text-stone-300 mb-4">Select items to collect from the fallen enemies:</p>
+            
+            <div className="space-y-3 max-h-[400px] overflow-y-auto mb-4">
+              {combatState.pendingLoot?.map(loot => (
+                <div key={loot.enemyId} className="bg-stone-900/60 rounded-lg p-4 border border-stone-700">
+                  <h3 className="text-sm font-bold text-stone-400 mb-2">{loot.enemyName}</h3>
+                  <div className="space-y-1">
+                    {loot.loot.map(item => (
+                      <div key={item.name} className="flex justify-between items-center text-left">
+                        <span className="text-amber-200">{item.name} x{item.quantity}</span>
+                        <button
+                          onClick={() => setLootItems(prev => [...prev, { name: item.name, quantity: item.quantity }])}
+                          className="px-3 py-1 text-xs rounded bg-green-900/40 border border-green-700/50 text-green-200 hover:bg-green-900/60"
+                        >
+                          Collect
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <button
+              onClick={() => handleFinalizeLoot(lootItems)}
+              className="w-full px-4 py-2 text-lg rounded bg-amber-600 hover:bg-amber-500 text-white font-bold transition-colors"
+            >
+              Finalize Loot
             </button>
           </div>
         </div>

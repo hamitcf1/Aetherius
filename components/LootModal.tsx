@@ -33,11 +33,18 @@ export const LootModal: React.FC<LootModalProps> = ({ combatState, onCancel, onC
     onConfirm(arr);
   };
 
+  const xp = combatState.pendingRewards?.xp || 0;
+  const gold = combatState.pendingRewards?.gold || 0;
+
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80">
       <div className="bg-stone-900 rounded-lg p-4 w-full max-w-xl border border-skyrim-border">
         <h3 className="text-lg font-bold text-amber-100 mb-2">Loot Phase</h3>
-        <p className="text-sm text-stone-400 mb-3">Select items to loot from defeated enemies, or skip looting entirely.</p>
+        <p className="text-sm text-stone-400 mb-1">Select items to loot from defeated enemies, or skip looting entirely.</p>
+        <div className="flex gap-3 items-center text-sm text-amber-200 mb-3">
+          <div>Experience: <span className="font-bold text-amber-100">{xp}</span></div>
+          <div>Gold: <span className="font-bold text-amber-100">{gold}</span></div>
+        </div>
 
         <div className="space-y-3 max-h-64 overflow-y-auto mb-3">
           {pending.length === 0 && (

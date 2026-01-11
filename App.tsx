@@ -53,7 +53,6 @@ import {
   auth,
   onAuthChange, 
   registerUser, 
-  loginUser, 
   loginAnonymously,
   logoutUser,
   sendPasswordReset
@@ -94,9 +93,14 @@ import { resolvePotionEffect } from './services/potionResolver';
 import { getItemStats, shouldHaveStats } from './services/itemStats';
 import { updateMusicForContext, AmbientContext, audioService, playMusic } from './services/audioService';
 import { getSkyrimCalendarDate, formatSkyrimDate, formatSkyrimDateShort } from './utils/skyrimCalendar';
-import { getRateLimitStats } from './services/geminiService';
+import { getRateLimitStats, generateAdventureResponse } from './services/geminiService';
+import type { ShopItem } from './components/ShopModal';
+import { getDefaultSlotForItem } from './components/EquipmentHUD';
 import type { PreferredAIModel } from './services/geminiService';
 import type { UserSettings } from './services/firestore';
+import LevelUpModal from './components/LevelUpModal';
+import PerkTreeModal from './components/PerkTreeModal';
+import PERK_DEFINITIONS from './data/perkDefinitions';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
 
@@ -231,6 +235,9 @@ const App: React.FC = () => {
   const [colorTheme, setColorTheme] = useState('default');
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [restOpen, setRestOpen] = useState(false);
+  // Perk modal state (moved here so all hooks run before early returns)
+  const [perkModalOpen, setPerkModalOpen] = useState(false);
 
   // Console Overlay State
   const [showConsole, setShowConsole] = useState(false);
@@ -272,6 +279,16 @@ const App: React.FC = () => {
       default: return 1;
     }
   };
+
+  // Pending level-up state (shows interactive modal for player to choose stat bonus)
+  const [pendingLevelUp, setPendingLevelUp] = useState<null | {
+    charId: string;
+    charName: string;
+    newLevel: number;
+    remainingXP: number;
+    archetype?: string;
+    previousXP: number;
+  }>(null);
 
   // Toast notification helper
   const showToast = useCallback((message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
@@ -1396,7 +1413,7 @@ const App: React.FC = () => {
   };
 
   // Shop purchase handler
-  const handleShopPurchase = (shopItem: { name: string; type: string; description: string; price: number }, quantity: number) => {
+  const handleShopPurchase = (shopItem: ShopItem, quantity: number) => {
     if (!currentCharacterId || !activeCharacter) return;
     const totalCost = shopItem.price * quantity;
     if ((activeCharacter.gold || 0) < totalCost) {
@@ -1406,7 +1423,9 @@ const App: React.FC = () => {
     
     // Get stats for weapons and armor
     const stats = shouldHaveStats(shopItem.type) ? getItemStats(shopItem.name, shopItem.type) : {};
-    
+    // Determine equipment slot for items like jewelry
+    const slot = getDefaultSlotForItem({ name: shopItem.name, type: shopItem.type } as any) || undefined;
+
     handleGameUpdate({
       goldChange: -totalCost,
       newItems: [{
@@ -1415,6 +1434,7 @@ const App: React.FC = () => {
         description: shopItem.description,
         quantity,
         value: shopItem.price,
+        slot,
         ...stats  // Include armor/damage if applicable
       }]
     });
@@ -1538,7 +1558,6 @@ const App: React.FC = () => {
   };
 
   // Legacy handlers (keep for backwards compatibility but they won't be used directly)
-  const handleRest = () => handleRestWithOptions({ type: 'outside', hours: 8 });
   const handleEat = () => {
     const food = pickConsumable('food');
     if (food) handleEatItem(food);
@@ -1940,57 +1959,46 @@ const App: React.FC = () => {
 
       // 6b. XP with Level-Up Check
       const XP_PER_LEVEL = 100;
-      let levelUpInfo: { newLevel: number; charName: string; statBonus: { health: number; magicka: number; stamina: number } } | null = null;
-      
+
       if (typeof updates.xpChange === 'number' && updates.xpChange !== 0) {
-        setCharacters(prev => prev.map(c => {
-          if (c.id !== currentCharacterId) return c;
-          setDirtyEntities(prev => new Set([...prev, c.id]));
-          
-          const newXP = (c.experience || 0) + (updates.xpChange || 0);
-          const currentLevel = c.level || 1;
-          const xpForNextLevel = currentLevel * XP_PER_LEVEL;
-          
-          // Check if we leveled up
-          if (newXP >= xpForNextLevel) {
-            const newLevel = currentLevel + 1;
-            const remainingXP = newXP - xpForNextLevel;
-            
-            // Bonus stats on level up: +10 to health, magicka, or stamina based on archetype
-            const statBonus = { health: 0, magicka: 0, stamina: 0 };
-            const archetype = c.archetype?.toLowerCase() || '';
-            if (archetype.includes('mage') || archetype.includes('wizard') || archetype.includes('sorcerer')) {
-              statBonus.magicka = 10;
-              statBonus.health = 5;
-            } else if (archetype.includes('thief') || archetype.includes('rogue') || archetype.includes('assassin')) {
-              statBonus.stamina = 10;
-              statBonus.health = 5;
-            } else {
-              statBonus.health = 10;
-              statBonus.stamina = 5;
+        // If a level-up is already pending, don't queue another until resolved
+        if (!pendingLevelUp) {
+          setCharacters(prev => prev.map(c => {
+            if (c.id !== currentCharacterId) return c;
+            setDirtyEntities(prev => new Set([...prev, c.id]));
+
+            const newXP = (c.experience || 0) + (updates.xpChange || 0);
+            const currentLevel = c.level || 1;
+            const xpForNextLevel = currentLevel * XP_PER_LEVEL;
+
+            // Check if we leveled up
+            if (newXP >= xpForNextLevel) {
+              const newLevel = currentLevel + 1;
+              const remainingXP = newXP - xpForNextLevel;
+
+              // Save pending level up to prompt user for choice
+              setPendingLevelUp({
+                charId: c.id,
+                charName: c.name,
+                newLevel,
+                remainingXP,
+                archetype: c.archetype,
+                previousXP: c.experience || 0,
+              });
+
+              // Informally record XP gain but do not auto-apply level or stat bonuses
+              setSaveMessage(`🎉 ${c.name} earned enough experience to level up — confirm to apply.`);
+              setTimeout(() => setSaveMessage(null), 3500);
+
+              return { ...c, experience: newXP };
             }
-            
-            // Store level-up info for journal entry
-            levelUpInfo = { newLevel, charName: c.name, statBonus };
-            
-            // Show level-up message briefly
-            setSaveMessage(`🎉 LEVEL UP! ${c.name} is now level ${newLevel}!`);
-            setTimeout(() => setSaveMessage(null), 4000);
-            
-            return {
-              ...c,
-              level: newLevel,
-              experience: remainingXP,
-              stats: {
-                health: (c.stats?.health || 100) + statBonus.health,
-                magicka: (c.stats?.magicka || 100) + statBonus.magicka,
-                stamina: (c.stats?.stamina || 100) + statBonus.stamina
-              }
-            };
-          }
-          
-          return { ...c, experience: newXP };
-        }));
+
+            return { ...c, experience: newXP };
+          }));
+        } else {
+          // If already pending, simply add XP to character so progress is not lost
+          setCharacters(prev => prev.map(c => c.id === currentCharacterId ? { ...c, experience: (c.experience || 0) + (updates.xpChange || 0) } : c));
+        }
       }
 
       // 7. Auto-Journal
@@ -2039,19 +2047,9 @@ const App: React.FC = () => {
         if (updates.goldChange > 0) changes.push(`I gained ${updates.goldChange} gold.`);
         else changes.push(`I spent ${Math.abs(updates.goldChange)} gold.`);
       }
-      if (typeof updates.xpChange === 'number' && updates.xpChange !== 0) {
+        if (typeof updates.xpChange === 'number' && updates.xpChange !== 0) {
         if (updates.xpChange > 0) changes.push(`I gained ${updates.xpChange} experience.`);
         else changes.push(`I lost ${Math.abs(updates.xpChange)} experience.`);
-        
-        // Add level-up entry if it occurred
-        if (levelUpInfo) {
-          changes.push(`🎉 I LEVELED UP! I am now level ${levelUpInfo.newLevel}!`);
-          const bonusParts: string[] = [];
-          if (levelUpInfo.statBonus.health > 0) bonusParts.push(`+${levelUpInfo.statBonus.health} Health`);
-          if (levelUpInfo.statBonus.magicka > 0) bonusParts.push(`+${levelUpInfo.statBonus.magicka} Magicka`);
-          if (levelUpInfo.statBonus.stamina > 0) bonusParts.push(`+${levelUpInfo.statBonus.stamina} Stamina`);
-          if (bonusParts.length) changes.push(`My training has paid off: ${bonusParts.join(', ')}.`);
-        }
       }
 
       if (updates.needsChange && Object.keys(updates.needsChange).length) {
@@ -2183,6 +2181,160 @@ const App: React.FC = () => {
     });
   };
 
+  // Level-up confirm/cancel handlers
+  const confirmLevelUp = (choice: 'health' | 'magicka' | 'stamina') => {
+    if (!pendingLevelUp || !currentCharacterId) return;
+    const p = pendingLevelUp;
+    setCharacters(prev => prev.map(c => {
+      if (c.id !== p.charId) return c;
+      const addedStats = { health: 0, magicka: 0, stamina: 0 };
+      addedStats[choice] = 10;
+      const updated = {
+        ...c,
+        level: p.newLevel,
+        experience: p.remainingXP,
+        stats: {
+          health: (c.stats?.health || 100) + addedStats.health,
+          magicka: (c.stats?.magicka || 100) + addedStats.magicka,
+          stamina: (c.stats?.stamina || 100) + addedStats.stamina,
+        },
+        perkPoints: (c.perkPoints || 0) + 1,
+      } as Character;
+      setDirtyEntities(d => new Set([...d, c.id]));
+
+      // Add a journal entry announcing the level up
+      const entry: JournalEntry = {
+        id: uniqueId(),
+        characterId: c.id,
+        date: "4E 201",
+        title: `Leveled up to ${p.newLevel}`,
+        content: `${c.name} reached level ${p.newLevel} and chose to increase ${choice} by +10. Received 1 perk point.`
+      };
+      setJournalEntries(prev => [...prev, entry]);
+      setDirtyEntities(d => new Set([...d, entry.id]));
+
+      return updated;
+    }));
+
+    setPendingLevelUp(null);
+    setSaveMessage(`Level ${p.newLevel} applied.`);
+    setTimeout(() => setSaveMessage(null), 2500);
+  };
+
+  const cancelLevelUp = () => {
+    // Simply clear the pending prompt; XP remains as-is so player can choose later
+    setPendingLevelUp(null);
+    setSaveMessage('Level up postponed.');
+    setTimeout(() => setSaveMessage(null), 2000);
+  };
+
+
+
+  const canUnlockPerk = (char: Character, perkId: string) => {
+    const def = PERK_DEFINITIONS.find(d => d.id === perkId);
+    if (!def) return false;
+    if (!def.requires || def.requires.length === 0) return true;
+    return def.requires.every(r => (char.perks || []).some(p => p.id === r));
+  };
+
+  const applyPerk = (perkId: string) => {
+    if (!currentCharacterId) return;
+    const def = PERK_DEFINITIONS.find(d => d.id === perkId);
+    if (!def) return;
+
+    setCharacters(prev => prev.map(c => {
+      if (c.id !== currentCharacterId) return c;
+      const pts = c.perkPoints || 0;
+      if (pts <= 0) return c;
+      if ((c.perks || []).some(p => p.id === perkId)) return c;
+
+      let updatedStats = { ...c.stats };
+      if (def.effect && def.effect.type === 'stat') {
+        const key = def.effect.key as keyof typeof updatedStats;
+        updatedStats = { ...updatedStats, [key]: (updatedStats as any)[key] + def.effect.amount };
+      }
+
+      const newPerk: Perk = { id: def.id, name: def.name, skill: def.skill || '', rank: 1, description: def.description };
+      setDirtyEntities(d => new Set([...d, c.id]));
+      return { ...c, stats: updatedStats, perks: [...(c.perks || []), newPerk], perkPoints: Math.max(0, pts - 1) } as Character;
+    }));
+  };
+
+  const applyPerks = (perkIds: string[]) => {
+    if (!currentCharacterId || perkIds.length === 0) return;
+    const defs = PERK_DEFINITIONS.filter(d => perkIds.includes(d.id));
+    setCharacters(prev => prev.map(c => {
+      if (c.id !== currentCharacterId) return c;
+      let updatedStats = { ...c.stats };
+      const existing = new Set((c.perks || []).map(p => p.id));
+      let added: Perk[] = [];
+      let pts = c.perkPoints || 0;
+      for (const def of defs) {
+        if (pts <= 0) break;
+        if (existing.has(def.id)) continue;
+        if (def.effect && def.effect.type === 'stat') {
+          const key = def.effect.key as keyof typeof updatedStats;
+          updatedStats = { ...updatedStats, [key]: (updatedStats as any)[key] + def.effect.amount };
+        }
+        added.push({ id: def.id, name: def.name, skill: def.skill || '', rank: 1, description: def.description });
+        pts = Math.max(0, pts - 1);
+      }
+      setDirtyEntities(d => new Set([...d, c.id]));
+      return { ...c, stats: updatedStats, perks: [...(c.perks || []), ...added], perkPoints: pts } as Character;
+    }));
+  };
+
+  // Allow UI to request a manual level-up (e.g., '+' on hero page)
+  const requestLevelUp = (char?: Character | null) => {
+    if (!char) return;
+    if (pendingLevelUp) {
+      setSaveMessage('A level up is already awaiting confirmation.');
+      setTimeout(() => setSaveMessage(null), 2000);
+      return;
+    }
+
+    setPendingLevelUp({
+      charId: char.id,
+      charName: char.name,
+      newLevel: (char.level || 0) + 1,
+      remainingXP: char.experience || 0,
+      archetype: char.archetype,
+      previousXP: char.experience || 0,
+    });
+
+    setSaveMessage(`${char.name} is ready to level up — confirm to apply.`);
+    setTimeout(() => setSaveMessage(null), 3000);
+  };
+
+  // Rest handlers: restore vitals and advance time
+  const handleRest = (minutes: number, recoverPercent: number) => {
+    if (!currentCharacterId || !activeCharacter) return;
+
+    // Compute amounts to restore based on max stats and recoverPercent
+    const max = activeCharacter.stats;
+    const currentVitals = activeCharacter.currentVitals || {
+      currentHealth: activeCharacter.stats.health,
+      currentMagicka: activeCharacter.stats.magicka,
+      currentStamina: activeCharacter.stats.stamina
+    };
+
+    const healthRestore = Math.floor((max.health - (currentVitals.currentHealth || max.health)) * recoverPercent);
+    const magickaRestore = Math.floor((max.magicka - (currentVitals.currentMagicka || max.magicka)) * recoverPercent);
+    const staminaRestore = Math.floor((max.stamina - (currentVitals.currentStamina || max.stamina)) * recoverPercent);
+
+    const vitalsChange: any = {};
+    if (healthRestore > 0) vitalsChange.currentHealth = healthRestore;
+    if (magickaRestore > 0) vitalsChange.currentMagicka = magickaRestore;
+    if (staminaRestore > 0) vitalsChange.currentStamina = staminaRestore;
+
+    handleGameUpdate({
+      vitalsChange,
+      timeAdvanceMinutes: minutes
+    });
+
+    showToast(`Rested for ${Math.floor(minutes/60)}h and recovered vitals.`, 'success');
+  };
+
   // Render Logic
   if (!currentCharacterId) {
       return (
@@ -2263,6 +2415,20 @@ const App: React.FC = () => {
       colorTheme,
       setColorTheme,
     }}>
+      <LevelUpModal
+        open={Boolean(pendingLevelUp)}
+        onClose={cancelLevelUp}
+        onConfirm={confirmLevelUp}
+        characterName={pendingLevelUp?.charName || ''}
+        newLevel={pendingLevelUp?.newLevel || 1}
+        archetype={pendingLevelUp?.archetype}
+      />
+      <PerkTreeModal
+        open={perkModalOpen}
+        onClose={() => setPerkModalOpen(false)}
+        character={activeCharacter as any}
+        onConfirm={(perkIds: string[]) => { applyPerks(perkIds); setPerkModalOpen(false); }}
+      />
       <div className="min-h-screen bg-skyrim-dark text-skyrim-text font-sans selection:bg-skyrim-gold selection:text-skyrim-dark">
         {/* Status Indicators */}
         <OfflineIndicator />
@@ -2334,6 +2500,8 @@ const App: React.FC = () => {
                 onDrink={handleDrinkItem}
                 hasCampingGear={hasCampingGear}
                 hasBedroll={hasBedroll}
+                onRequestLevelUp={() => requestLevelUp(activeCharacter)}
+                onOpenPerkTree={() => setPerkModalOpen(true)}
               />
             )}
             {activeTab === TABS.INVENTORY && activeCharacter && (
@@ -2405,11 +2573,11 @@ const App: React.FC = () => {
 
         {/* Combat Modal - Full screen overlay when combat is active */}
         {combatState && activeCharacter && (
-          <CombatModal
+            <CombatModal
             character={activeCharacter}
             inventory={getCharacterItems()}
             initialCombatState={combatState}
-            onCombatEnd={(result, rewards, finalVitals) => {
+            onCombatEnd={(result, rewards, finalVitals, timeAdvanceMinutes) => {
               setCombatState(null);
               updateMusicForContext({ inCombat: false, mood: result === 'victory' ? 'triumphant' : 'peaceful' });
               if (result === 'victory' && rewards) {
@@ -2425,7 +2593,8 @@ const App: React.FC = () => {
                     currentHealth: finalVitals.health - (activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health),
                     currentMagicka: finalVitals.magicka - (activeCharacter.currentVitals?.currentMagicka ?? activeCharacter.stats.magicka),
                     currentStamina: finalVitals.stamina - (activeCharacter.currentVitals?.currentStamina ?? activeCharacter.stats.stamina)
-                  } : undefined
+                  } : undefined,
+                  timeAdvanceMinutes: timeAdvanceMinutes ?? undefined
                 });
               } else if (result === 'defeat') {
                 handleGameUpdate({
@@ -2436,6 +2605,8 @@ const App: React.FC = () => {
                   vitalsChange: {
                     currentHealth: -(activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health) + 1
                   }
+                  ,
+                  timeAdvanceMinutes: timeAdvanceMinutes ?? undefined
                 });
               } else if (result === 'fled') {
                 handleGameUpdate({
@@ -2447,7 +2618,8 @@ const App: React.FC = () => {
                     currentHealth: finalVitals.health - (activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health),
                     currentMagicka: finalVitals.magicka - (activeCharacter.currentVitals?.currentMagicka ?? activeCharacter.stats.magicka),
                     currentStamina: finalVitals.stamina - (activeCharacter.currentVitals?.currentStamina ?? activeCharacter.stats.stamina)
-                  } : undefined
+                  } : undefined,
+                  timeAdvanceMinutes: timeAdvanceMinutes ?? undefined
                 });
               } else if (result === 'surrendered') {
                 handleGameUpdate({
@@ -2459,9 +2631,24 @@ const App: React.FC = () => {
                     currentHealth: finalVitals.health - (activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health),
                     currentMagicka: finalVitals.magicka - (activeCharacter.currentVitals?.currentMagicka ?? activeCharacter.stats.magicka),
                     currentStamina: finalVitals.stamina - (activeCharacter.currentVitals?.currentStamina ?? activeCharacter.stats.stamina)
-                  } : undefined
+                  } : undefined,
+                  timeAdvanceMinutes: timeAdvanceMinutes ?? undefined
                 });
               }
+
+              // Automatically resume the adventure by asking the Game Master to continue
+              (async () => {
+                try {
+                  const outcomeText = result === 'victory' ? 'You were victorious.' : result === 'defeat' ? 'You were defeated.' : result === 'fled' ? 'You fled the battle.' : result === 'surrendered' ? 'You surrendered.' : 'Combat ended.';
+                  const playerInput = `Combat concluded. Outcome: ${outcomeText} Resume the adventure from here, branching the story appropriately for the outcome and present the next narrative and choices.`;
+                  const aiContext = getAIContext();
+                  const resp = await generateAdventureResponse(playerInput, aiContext, `Continue the adventure and branch according to combat outcome.`);
+                  // Apply generated updates to game state so the adventure continues
+                  if (resp) handleGameUpdate(resp);
+                } catch (e) {
+                  console.error('Failed to auto-resume adventure after combat:', e);
+                }
+              })();
             }}
             onNarrativeUpdate={(narrative) => {
               console.log('[Combat Narrative]', narrative);

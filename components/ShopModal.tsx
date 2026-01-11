@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { X, ShoppingBag, Coins, Search, Package, Sword, Shield, FlaskConical, Tent, Apple, Droplets, ArrowDownToLine, ArrowUpFromLine, Check } from 'lucide-react';
+import { X, ShoppingBag, Coins, Search, Package, Sword, Shield, FlaskConical, Tent, Apple, Droplets, ArrowDownToLine, ArrowUpFromLine, Check, Gem } from 'lucide-react';
 import type { InventoryItem } from '../types';
 import { playSoundEffect } from '../services/audioService';
 import { getItemStats, shouldHaveStats } from '../services/itemStats';
@@ -288,9 +288,16 @@ const SHOP_INVENTORY: ShopItem[] = [
   { id: 'nightshade', name: 'Nightshade', type: 'ingredient', description: 'Deadly purple flowers.', price: 10, category: 'Ingredients' },
   { id: 'giants_toe', name: 'Giant\'s Toe', type: 'ingredient', description: 'Rare and valuable. Powerful alchemy.', price: 50, category: 'Ingredients' },
   { id: 'moon_sugar', name: 'Moon Sugar', type: 'ingredient', description: 'Illegal sweetener. Skooma base.', price: 30, category: 'Ingredients' },
+  
+  // === JEWELRY ===
+  { id: 'gold_ring', name: 'Gold Ring', type: 'apparel', description: 'A simple gold ring. Elegant and valuable.', price: 75, category: 'Jewelry' },
+  { id: 'silver_ring', name: 'Silver Ring', type: 'apparel', description: 'A silver ring with a subtle shine.', price: 40, category: 'Jewelry' },
+  { id: 'gold_necklace', name: 'Gold Necklace', type: 'apparel', description: 'A necklace made of pure gold.', price: 120, category: 'Jewelry' },
+  { id: 'silver_necklace', name: 'Silver Necklace', type: 'apparel', description: 'A necklace crafted from fine silver.', price: 60, category: 'Jewelry' },
+  { id: 'gold_circlet', name: 'Gold Circlet', type: 'apparel', description: 'A circlet of gold, fit for nobility.', price: 150, category: 'Jewelry' },
 ];
 
-const CATEGORIES = ['All', 'Food', 'Drinks', 'Potions', 'Camping', 'Weapons', 'Armor', 'Misc', 'Ingredients'];
+const CATEGORIES = ['All', 'Food', 'Drinks', 'Potions', 'Camping', 'Weapons', 'Armor', 'Misc', 'Ingredients', 'Jewelry'];
 
 const categoryIcons: Record<string, React.ReactNode> = {
   All: <Package size={14} />,
@@ -302,6 +309,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
   Armor: <Shield size={14} />,
   Misc: <Package size={14} />,
   Ingredients: <FlaskConical size={14} />,
+  Jewelry: <Gem size={14} />,
 };
 
 // Calculate sell price (50% of base value, minimum 1 gold)

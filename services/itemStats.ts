@@ -226,14 +226,7 @@ const ARMOR_STATS: Record<string, ItemStats> = {
   'silver ring': { armor: 0, value: 40 },
   'gold necklace': { armor: 0, value: 120 },
   'silver necklace': { armor: 0, value: 60 },
-  'gold amulet': { armor: 0, value: 120 },
-  'silver amulet': { armor: 0, value: 60 },
-  'amulet of talos': { armor: 0, value: 200 },
-  'amulet of mara': { armor: 0, value: 200 },
-  'amulet of arkay': { armor: 0, value: 200 },
-  'ring of minor health': { armor: 0, value: 150 },
-  'ring of minor magicka': { armor: 0, value: 150 },
-  'ring of minor stamina': { armor: 0, value: 150 },
+  'gold circlet': { armor: 0, value: 150 },
 };
 
 /**

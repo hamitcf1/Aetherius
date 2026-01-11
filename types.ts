@@ -67,6 +67,8 @@ export interface Character {
   experience: number; // Current level progress or total XP
   gold: number;
   perks: Perk[];
+  // Unspent perk points (granted on level up)
+  perkPoints?: number;
 
   // Stats (max values)
   stats: Stats;
@@ -210,6 +212,7 @@ export const INITIAL_CHARACTER_TEMPLATE: Omit<Character, 'id' | 'profileId' | 'n
   experience: 0,
   gold: 0,
   perks: [],
+  perkPoints: 0,
   stats: DEFAULT_STATS,
   skills: SKYRIM_SKILLS,
 

@@ -20,6 +20,8 @@ interface CharacterSheetProps {
   onDrink?: (item: InventoryItem) => void;
   hasCampingGear?: boolean;
   hasBedroll?: boolean;
+  onRequestLevelUp?: () => void;
+  onOpenPerkTree?: () => void;
 }
 
 const Section: React.FC<{ 
@@ -174,7 +176,9 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   onEat,
   onDrink,
   hasCampingGear = false,
-  hasBedroll = false
+  hasBedroll = false,
+  onRequestLevelUp,
+  onOpenPerkTree
 }) => {
   const [newMilestone, setNewMilestone] = useState('');
   const [newMilestoneLevel, setNewMilestoneLevel] = useState(1);
@@ -612,29 +616,29 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
           </div>
 
           {/* Level and Experience */}
-          <div className="mb-6 bg-black/40 border border-skyrim-border p-4 rounded flex items-center justify-between gap-4">
+            <div className="mb-6 bg-black/40 border border-skyrim-border p-4 rounded flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full border-2 border-skyrim-gold flex items-center justify-center bg-skyrim-paper relative shadow-[0_0_15px_rgba(192,160,98,0.2)]">
-                      <span className="text-2xl font-serif text-skyrim-gold">{character.level}</span>
-                      <div className="absolute -bottom-2 text-[10px] uppercase bg-black px-1 border border-skyrim-border rounded">Level</div>
-                  </div>
-                  <div className="flex flex-col">
-                       <div className="text-xs text-gray-400 uppercase tracking-widest mb-1">Experience</div>
-                       <input 
-                            type="range" 
-                            min="0" 
-                            max="100" 
-                            value={character.experience || 0}
-                            onChange={(e) => updateCharacter('experience', parseInt(e.target.value))}
-                            className="w-48 h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer" 
-                       />
-                  </div>
+                <div className="w-16 h-16 rounded-full border-2 border-skyrim-gold flex items-center justify-center bg-skyrim-paper relative shadow-[0_0_15px_rgba(192,160,98,0.2)]">
+                  <span className="text-2xl font-serif text-skyrim-gold">{character.level}</span>
+                  <div className="absolute -bottom-2 text-[10px] uppercase bg-black px-1 border border-skyrim-border rounded">Level</div>
+                </div>
+                <div className="flex flex-col">
+                   <div className="text-xs text-gray-400 uppercase tracking-widest mb-1">Experience</div>
+                   <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    value={character.experience || 0}
+                    onChange={(e) => updateCharacter('experience', parseInt(e.target.value))}
+                    className="w-48 h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer" 
+                   />
+                </div>
               </div>
               <div className="flex items-center gap-2">
-                  <button onClick={() => updateCharacter('level', Math.max(1, character.level - 1))} className="w-8 h-8 rounded border border-skyrim-border hover:border-skyrim-gold flex items-center justify-center">-</button>
-                  <button onClick={() => updateCharacter('level', character.level + 1)} className="w-8 h-8 rounded border border-skyrim-border hover:border-skyrim-gold flex items-center justify-center">+</button>
+                <button onClick={() => updateCharacter('level', Math.max(1, character.level - 1))} className="w-8 h-8 rounded border border-skyrim-border hover:border-skyrim-gold flex items-center justify-center">-</button>
+                <button onClick={() => onRequestLevelUp ? onRequestLevelUp() : updateCharacter('level', character.level + 1)} className="w-8 h-8 rounded border border-skyrim-border hover:border-skyrim-gold flex items-center justify-center">+</button>
               </div>
-          </div>
+            </div>
 
           {/* Max Stats Section (Toggleable - Character Creation) */}
           <div className="mb-6">
@@ -677,6 +681,17 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                 />
               </div>
             )}
+          </div>
+
+          {/* Perk Points Summary */}
+          <div className="mb-4 p-3 bg-black/30 border border-skyrim-border rounded flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-gray-400 uppercase">Perk Points</div>
+              <div className="px-2 py-1 bg-black/30 border border-skyrim-border rounded text-skyrim-gold font-bold">{character.perkPoints || 0}</div>
+            </div>
+            <div>
+              <button onClick={() => onOpenPerkTree ? onOpenPerkTree() : null} className="px-3 py-1 rounded border border-skyrim-border hover:border-skyrim-gold text-sm">Open Perk Tree</button>
+            </div>
           </div>
 
           {/* Current Vitals (for Adventure) */}

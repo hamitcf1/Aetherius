@@ -142,11 +142,24 @@ const computeDamageFromNat = (
 // PLAYER COMBAT STATS CALCULATION
 // ============================================================================
 
+const validateShieldEquipping = (equipment: InventoryItem[]): InventoryItem[] => {
+  return equipment.map(item => {
+    const nameLower = (item.name || '').toLowerCase();
+    const looksLikeShield = item.type === 'shield' || nameLower.includes('shield');
+    if (looksLikeShield && item.slot !== 'offhand') {
+      console.warn(`Invalid shield slot detected for ${item.name}. Forcing to off-hand.`);
+      return { ...item, slot: 'offhand' };
+    }
+    return item;
+  });
+};
+
 export const calculatePlayerCombatStats = (
   character: Character,
   equipment: InventoryItem[]
 ): PlayerCombatStats => {
-  const equippedItems = equipment.filter(item => item.equipped);
+  const validatedEquipment = validateShieldEquipping(equipment);
+  const equippedItems = validatedEquipment.filter(item => item.equipped);
   
   // Base stats from character
   let armor = 0;
@@ -376,7 +389,11 @@ export const initializeCombat = (
     currentStamina: enemy.maxStamina,
     activeEffects: [],
     // Default regen: 0.25 per second (== 1 per 4s), override via enemy.regenHealthPerSec
-    regenHealthPerSec: enemy.regenHealthPerSec ?? 0.25
+    regenHealthPerSec: enemy.regenHealthPerSec ?? 0.25,
+    // Ensure rewards and loot exist to avoid empty loot phases
+    xpReward: typeof enemy.xpReward === 'number' ? enemy.xpReward : computeEnemyXP(enemy as CombatEnemy),
+    goldReward: typeof enemy.goldReward === 'number' ? enemy.goldReward : randomRange(Math.max(1, (enemy.level || 1) * 5), Math.max(5, (enemy.level || 1) * 12)),
+    loot: Array.isArray(enemy.loot) && enemy.loot.length ? enemy.loot : (BASE_ENEMY_TEMPLATES[(enemy.type || '').toLowerCase()]?.possibleLoot || enemy.loot || [])
   }));
 
   // Calculate turn order (player first unless ambushed)
@@ -673,116 +690,70 @@ export const executePlayerAction = (
 
     case 'item': {
       // Item usage in combat - healing potions and food
-      console.log('Item action:', { itemId, inventory });
       if (!itemId || !inventory) {
         narrative = 'No item selected or inventory not available!';
         break;
       }
 
-      // Find the item in inventory
-      const itemIndex = inventory.findIndex(item => item.id === itemId);
-      console.log('Item index:', itemIndex, 'item:', inventory[itemIndex]);
+      const itemIndex = inventory.findIndex(it => it.id === itemId);
       if (itemIndex === -1) {
         narrative = 'Item not found in inventory!';
         break;
       }
 
       const item = inventory[itemIndex];
-      if (item.quantity <= 0) {
-        narrative = 'You don\'t have any of that item!';
+      if (!item || item.quantity <= 0) {
+        narrative = `You don't have any of that item!`;
         break;
       }
 
-      let healAmount = 0;
       let usedItem: InventoryItem | undefined;
 
-      // Handle different item types
       if (item.type === 'potion') {
-        // Resolve potion effect centrally (no default to health)
+        // Resolve potion effect centrally
         const resolved = resolvePotionEffect(item);
-        if (!resolved.stat) {
-          // Ambiguous or no confident inference — fail safely
-          console.error('[combat] Cannot resolve potion stat:', item.name, 'reason=', resolved.reason);
-
         const amount = resolved.amount ?? item.damage ?? 0;
-        if (!amount || amount <= 0) {
-          narrative = `The ${item.name} seems to be empty.`;
-        // Use strict modifier to update player combat stats
+        if (!resolved.stat || !amount || amount <= 0) {
+          narrative = `The ${item.name} has no clear effect.`;
+          newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
+          break;
+        }
+
         const mod = modifyPlayerCombatStat(newPlayerStats, resolved.stat, amount);
         if (mod.actual > 0) {
           newPlayerStats = mod.newPlayerStats;
-          const updatedItem = { ...item, quantity: item.quantity - 1 };
-          inventory[itemIndex] = updatedItem;
-          narrative = `You drink ${item.name} and recover ${mod.actual} ${resolved.stat}!`;
-          newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
-          return { newState, newPlayerStats, narrative, usedItem: updatedItem };
+          usedItem = { ...item, quantity: item.quantity - 1 };
+          narrative = `You use ${item.name} and recover ${mod.actual} ${resolved.stat}.`;
+          newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, damage: 0, narrative, isCrit: false, timestamp: Date.now() });
+          return { newState, newPlayerStats, narrative, usedItem };
         }
 
         narrative = `The ${item.name} had no effect.`;
         newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
         break;
       }
-          newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
-          return { newState, newPlayerStats, narrative, usedItem: updatedItem };
-        }
-        console.log('Potion handling - no effect:', { subtype, potency });
-      } else if (item.type === 'food' || item.type === 'drink') {
+
+      if (item.type === 'food' || item.type === 'drink') {
         // Food/drink item - use nutrition data for healing or fallback
         const nutrition = getFoodNutrition(item.name);
-        if (nutrition) {
-          // Food provides healing based on nutrition value
-          healAmount = Math.floor(nutrition.hungerReduction / 2) + 10; // 10-25 health from food
-        } else {
-          // Fallback healing for food without nutrition data
-          healAmount = 15;
-        }
-        usedItem = item;
-        console.log('Food healing:', healAmount, 'nutrition:', nutrition);
-      }
-
-      console.log('Heal amount:', healAmount, 'usedItem:', usedItem);
-      if (healAmount > 0 && usedItem) {
+        const healAmount = nutrition ? Math.floor((nutrition.hungerReduction || 0) / 2) + 10 : 15;
         const actualHeal = Math.min(healAmount, newPlayerStats.maxHealth - newPlayerStats.currentHealth);
-        newPlayerStats.currentHealth += actualHeal;
-        console.log('Actual heal:', actualHeal, 'new health:', newPlayerStats.currentHealth);
-
-        // Remove one from inventory
-        const updatedItem = { ...item, quantity: item.quantity - 1 };
-        inventory[itemIndex] = updatedItem;
-
-        narrative = `You consume ${item.name} and recover ${actualHeal} health!`;
-
-        if (actualHeal < healAmount) {
-          narrative += ` (You were already near full health)`;
+        if (actualHeal > 0) {
+          newPlayerStats.currentHealth = newPlayerStats.currentHealth + actualHeal;
+          usedItem = { ...item, quantity: item.quantity - 1 };
+          narrative = `You consume ${item.name} and recover ${actualHeal} health.`;
+          newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, damage: 0, narrative, isCrit: false, timestamp: Date.now() });
+          return { newState, newPlayerStats, narrative, usedItem };
         }
-
-        newState.combatLog.push({
-          turn: newState.turn,
-          actor: 'player',
-          action: 'item',
-          target: item.name,
-          narrative,
-          isCrit: false,
-          timestamp: Date.now()
-        });
-
-        return { newState, newPlayerStats, narrative, usedItem: updatedItem };
-      } else {
-        narrative = `You cannot use ${item.name} in combat.`;
+        narrative = `You cannot use ${item.name} right now.`;
+        newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
+        break;
       }
 
+      narrative = `You cannot use ${item.name} in combat.`;
       newState.playerActionCounts = newState.playerActionCounts || {};
       newState.playerActionCounts['use_item'] = (newState.playerActionCounts['use_item'] || 0) + 1;
-
-      newState.combatLog.push({
-        turn: newState.turn,
-        actor: 'player',
-        action: 'item',
-        target: item.name,
-        narrative,
-        isCrit: false,
-        timestamp: Date.now()
-      });
+      newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, narrative, isCrit: false, timestamp: Date.now() });
       break;
     }
   }

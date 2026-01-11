@@ -6,6 +6,34 @@ export const computeEnemyXP = (enemy: CombatEnemy) => {
   return enemy.isBoss ? base * 2 : base;
 };
 
+// Generate loot for an enemy based on its loot table
+export const generateEnemyLoot = (enemy: CombatEnemy): Array<{ name: string; type: string; description?: string; quantity: number }> => {
+  if (!enemy.loot || enemy.loot.length === 0) return [];
+
+  return enemy.loot
+    .filter(item => Math.random() * 100 < item.dropChance) // Filter by drop chance
+    .map(item => ({
+      name: item.name,
+      type: item.type,
+      description: item.description,
+      quantity: item.quantity,
+    }));
+};
+
+// Populate pending loot for all defeated enemies
+export const populatePendingLoot = (state: CombatState): CombatState => {
+  const newState = { ...state };
+  newState.pendingLoot = newState.enemies
+    .filter(enemy => enemy.currentHealth <= 0) // Only defeated enemies
+    .map(enemy => ({
+      enemyId: enemy.id,
+      enemyName: enemy.name,
+      loot: generateEnemyLoot(enemy),
+    }));
+
+  return newState;
+};
+
 // Finalize loot: apply selected items to player's inventory atomically and mark rewards
 // selectedItems: Array of { name, quantity }
 export const finalizeLoot = (

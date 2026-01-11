@@ -234,13 +234,14 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
     { key: 'all', label: 'All', icon: <Package size={14} /> },
     { key: 'weapon', label: 'Weapons', icon: <Sword size={14} /> },
     { key: 'apparel', label: 'Apparel', icon: <Shield size={14} /> },
+    // Jewelry is treated as apparel; separate Jewelry tab removed to avoid mismatch with item.type
     { key: 'potion', label: 'Potions', icon: <FlaskConical size={14} /> },
     { key: 'food', label: 'Food', icon: <Apple size={14} /> },
     { key: 'drink', label: 'Drink', icon: <Droplets size={14} /> },
     { key: 'camping', label: 'Camping', icon: <Tent size={14} /> },
     { key: 'ingredient', label: 'Ingredients', icon: <FlaskConical size={14} /> },
     { key: 'key', label: 'Keys', icon: <Key size={14} /> },
-    { key: 'misc', label: 'Misc', icon: <Gem size={14} /> },
+    { key: 'misc', label: 'Misc', icon: <Package size={14} /> },
   ];
 
   // Deduplicate and sort items
