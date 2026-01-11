@@ -68,9 +68,13 @@ window.demo.createTestCharacter = function() {
 window.demo.addExperience = function(amount = 100) {
   if (window.app && window.app.handleGameUpdate) {
     window.app.handleGameUpdate({ xpChange: amount });
-    console.log(`Added ${amount} XP to character`);
+    const message = `Added ${amount} XP to character`;
+    console.log(message);
+    return message;
   } else {
-    console.error('App context not available');
+    const error = 'App context not available';
+    console.error(error);
+    return error;
   }
 };
 
@@ -80,9 +84,13 @@ window.demo.addExperience = function(amount = 100) {
 window.demo.levelUp = function() {
   if (window.app && window.app.handleGameUpdate) {
     window.app.handleGameUpdate({ xpChange: 1000 });
-    console.log('Leveled up character');
+    const message = 'Leveled up character';
+    console.log(message);
+    return message;
   } else {
-    console.error('App context not available');
+    const error = 'App context not available';
+    console.error(error);
+    return error;
   }
 };
 
@@ -145,7 +153,9 @@ window.demo.addRandomItems = function(count = 5) {
  * Add gold to character
  */
 window.demo.addGold = function(amount = 100) {
-  console.log(`To add ${amount} gold: app.handleGameUpdate({ goldChange: ${amount} })`);
+  const message = `To add ${amount} gold: app.handleGameUpdate({ goldChange: ${amount} })`;
+  console.log(message);
+  return message;
 };
 
 // ============================================================================
@@ -264,18 +274,18 @@ window.demo.addRandomQuests = function(count = 2) {
  * Simulate a combat encounter
  */
 window.demo.simulateCombat = function() {
-  console.log('Combat simulation not implemented yet');
-  console.log('Use the adventure system to trigger combat encounters');
+  const message = 'Combat simulation not implemented yet\nUse the adventure system to trigger combat encounters';
+  console.log(message);
+  return message;
 };
 
 /**
  * Test item consumption in combat
  */
 window.demo.testCombatItems = function() {
-  console.log('Testing combat item usage...');
-  console.log('1. Add health potions: demo.addRandomItems(1) with potion type');
-  console.log('2. Enter combat through adventure');
-  console.log('3. Use items during combat');
+  const message = 'Testing combat item usage...\n1. Add health potions: demo.addRandomItems(1) with potion type\n2. Enter combat through adventure\n3. Use items during combat';
+  console.log(message);
+  return message;
 };
 
 // ============================================================================
@@ -287,7 +297,7 @@ window.demo.testCombatItems = function() {
  */
 window.demo.getAppState = function() {
   if (window.app) {
-    console.log('Current app state:', {
+    const state = {
       currentCharacterId: window.app.currentCharacterId,
       currentProfileId: window.app.currentProfileId,
       activeTab: window.app.activeTab,
@@ -295,9 +305,13 @@ window.demo.getAppState = function() {
       items: window.app.items?.length || 0,
       quests: window.app.quests?.length || 0,
       journalEntries: window.app.journalEntries?.length || 0
-    });
+    };
+    console.log('Current app state:', state);
+    return state;
   } else {
-    console.error('App context not available');
+    const error = 'App context not available';
+    console.error(error);
+    return error;
   }
 };
 
@@ -305,15 +319,16 @@ window.demo.getAppState = function() {
  * Clear all demo data
  */
 window.demo.clearDemoData = function() {
-  console.log('Demo data clearing not implemented');
-  console.log('Use the app UI to manage data');
+  const message = 'Demo data clearing not implemented\nUse the app UI to manage data';
+  console.log(message);
+  return message;
 };
 
 /**
  * Show help
  */
 window.demo.help = function() {
-  console.log(`
+  const helpText = `
 Skyrim Aetherius Console Demo Commands
 =====================================
 
@@ -353,7 +368,9 @@ Examples:
 Note: Most functions now provide instructions for manual execution
 instead of directly modifying app state. Copy the suggested commands
 to apply changes to the game.
-  `);
+  `;
+  console.log(helpText);
+  return helpText;
 };
 
 // Initialize help on load
