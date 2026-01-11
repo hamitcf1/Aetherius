@@ -3,7 +3,7 @@
  * Accessed via a small icon, reveals version history
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScrollText, X, Sparkles, Swords, Clock, Bug, Zap } from 'lucide-react';
 
 interface ChangelogEntry {
@@ -127,21 +127,41 @@ export const Changelog: React.FC = () => {
   const [isDismissed, setIsDismissed] = useState(false);
   const latestVersion = CHANGELOG[0]?.version || '0.0.0';
 
+  // Persistent dismissal using localStorage
+  useEffect(() => {
+    const dismissed = localStorage.getItem('changelogDismissed');
+    if (dismissed === 'true') setIsDismissed(true);
+  }, []);
+  useEffect(() => {
+    if (isDismissed) localStorage.setItem('changelogDismissed', 'true');
+  }, [isDismissed]);
+
   if (isDismissed) return null;
 
   return (
     <>
       {/* Subtle trigger button - bottom left corner */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 left-4 z-40 group flex items-center gap-2 px-3 py-1.5 bg-black/60 hover:bg-black/80 border border-skyrim-border/50 hover:border-skyrim-gold/50 rounded-full transition-all duration-300 backdrop-blur-sm"
-        title="View Changelog"
-      >
-        <ScrollText size={14} className="text-gray-500 group-hover:text-skyrim-gold transition-colors" />
-        <span className="text-[10px] text-gray-500 group-hover:text-gray-300 font-mono transition-colors">
-          v{latestVersion}
-        </span>
-      </button>
+      <div className="fixed bottom-4 left-4 z-40 group flex items-center gap-2">
+        <button
+          onClick={() => setIsOpen(true)}
+          className="group flex items-center gap-2 px-3 py-1.5 bg-black/60 hover:bg-black/80 border border-skyrim-border/50 hover:border-skyrim-gold/50 rounded-full transition-all duration-300 backdrop-blur-sm"
+          title="View Changelog"
+        >
+          <ScrollText size={14} className="text-gray-500 group-hover:text-skyrim-gold transition-colors" />
+          <span className="text-[10px] text-gray-500 group-hover:text-gray-300 font-mono transition-colors">
+            v{latestVersion}
+          </span>
+        </button>
+        {/* Persistent X button, only visible on hover */}
+        <button
+          onClick={() => setIsDismissed(true)}
+          className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded-full hover:bg-red-500/20"
+          title="Dismiss changelog (don't show again)"
+          style={{ pointerEvents: 'auto' }}
+        >
+          <X size={14} className="text-gray-400 hover:text-red-400" />
+        </button>
+      </div>
 
       {/* Changelog Modal */}
       {isOpen && (

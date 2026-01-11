@@ -982,6 +982,70 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     return t.slice(0, maxLen).trimEnd() + '…';
   };
 
+  // Process rest logic for adventure chat to ensure proper fatigue reduction
+  const processRestLogicForAdventure = (result: any, content: string, inventory: InventoryItem[]) => {
+    // Check if this is a rest action by looking at content and updates
+    const contentLower = content.toLowerCase();
+    const isRestAction = (
+      contentLower.includes('rest') || 
+      contentLower.includes('sleep') || 
+      contentLower.includes('camp') ||
+      contentLower.includes('bed down') ||
+      contentLower.includes('lie down') ||
+      (result.needsChange?.fatigue && result.needsChange.fatigue < 0) // fatigue reduction
+    );
+
+    if (!isRestAction || !result.timeAdvanceMinutes) {
+      return result; // Not a rest action, return unchanged
+    }
+
+    // Determine rest type from content
+    let restType: 'outside' | 'camp' | 'inn' = 'outside';
+    if (contentLower.includes('inn') || contentLower.includes('tavern') || contentLower.includes('bed')) {
+      restType = 'inn';
+    } else if (contentLower.includes('camp') || contentLower.includes('tent') || contentLower.includes('camping')) {
+      restType = 'camp';
+    }
+
+    // Check for camping gear
+    const hasCampingGear = inventory.some(i => 
+      (i.quantity || 0) > 0 &&
+      ((i.name || '').toLowerCase().includes('camping kit') || 
+       (i.name || '').toLowerCase().includes('tent'))
+    );
+    
+    const hasBedroll = inventory.some(i => 
+      (i.quantity || 0) > 0 &&
+      (i.name || '').toLowerCase().includes('bedroll')
+    );
+
+    // Calculate proper fatigue reduction based on rest type and equipment
+    const hours = Math.max(1, Math.round(result.timeAdvanceMinutes / 60));
+    let fatigueReduction = 15; // outside (poor rest)
+    
+    if (restType === 'camp') {
+      if (hasCampingGear) fatigueReduction = 40;
+      else if (hasBedroll) fatigueReduction = 30;
+      else fatigueReduction = 15;
+    } else if (restType === 'inn') {
+      fatigueReduction = 50;
+    }
+    
+    // Scale by hours (base is 8 hours)
+    const scaledReduction = Math.round(fatigueReduction * (hours / 8));
+    
+    // Apply proper fatigue reduction
+    const processedResult = { ...result };
+    if (!processedResult.needsChange) {
+      processedResult.needsChange = {};
+    }
+    processedResult.needsChange.fatigue = -Math.abs(scaledReduction); // Ensure negative for reduction
+    
+    console.log(`[Adventure Rest] Applied ${restType} rest logic: ${scaledReduction} fatigue reduction over ${hours} hours`);
+    
+    return processedResult;
+  };
+
   const buildContextualIntro = (): string => {
     if (!character) return '';
 
@@ -1098,27 +1162,30 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       // Auto-apply game state changes if enabled
       // Filter out duplicate/preview transactions to prevent double-charging
       if (autoApply && result) {
+        // Detect and apply proper rest logic for adventure chat
+        const processedResult = processRestLogicForAdventure(result, gmMessage.content, inventory);
+        
         // Only treat as preview if:
         // 1. Explicitly marked as preview by AI, OR
         // 2. Has choices AND has previewCost in choices (showing options, not executing)
         // If player just executed a choice (has goldChange but choices are for NEXT action), apply it
-        const hasPreviewCosts = Array.isArray(result.choices) && 
-          result.choices.some((c: any) => c?.previewCost?.gold);
-        const isPreviewResponse = result.isPreview || hasPreviewCosts;
+        const hasPreviewCosts = Array.isArray(processedResult.choices) && 
+          processedResult.choices.some((c: any) => c?.previewCost?.gold);
+        const isPreviewResponse = processedResult.isPreview || hasPreviewCosts;
         
         const { filteredUpdate, wasFiltered, reason } = filterDuplicateTransactions({
-          ...result,
+          ...processedResult,
           isPreview: isPreviewResponse
         });
         
         if (wasFiltered) {
-          console.log(`[Transaction] Gold change filtered: ${reason} (would have been ${result.goldChange})`);
+          console.log(`[Transaction] Gold change filtered: ${reason} (would have been ${processedResult.goldChange})`);
         }
         
         // If transaction was applied, record it
-        if (!wasFiltered && result.goldChange && result.transactionId) {
-          getTransactionLedger().recordTransaction(result.transactionId, {
-            goldAmount: result.goldChange
+        if (!wasFiltered && processedResult.goldChange && processedResult.transactionId) {
+          getTransactionLedger().recordTransaction(processedResult.transactionId, {
+            goldAmount: processedResult.goldChange
           });
         }
         

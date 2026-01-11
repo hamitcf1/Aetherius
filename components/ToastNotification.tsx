@@ -13,10 +13,37 @@ const toastColors: Record<string, string> = {
   error: '#ff3b30',
 };
 
+import React, { useEffect, useRef } from 'react';
+
 export const ToastNotification: React.FC<{
   messages: ToastMessage[];
   onClose?: (id: string) => void;
 }> = ({ messages, onClose }) => {
+  // Track timeouts for each toast
+  const timeouts = useRef<{ [id: string]: NodeJS.Timeout }>({});
+
+  useEffect(() => {
+    // Set up 5s timeout for each toast
+    messages.forEach(({ id }) => {
+      if (!timeouts.current[id]) {
+        timeouts.current[id] = setTimeout(() => {
+          if (onClose) onClose(id);
+        }, 5000);
+      }
+    });
+    // Clean up timeouts for removed toasts
+    Object.keys(timeouts.current).forEach(id => {
+      if (!messages.find(m => m.id === id)) {
+        clearTimeout(timeouts.current[id]);
+        delete timeouts.current[id];
+      }
+    });
+    return () => {
+      Object.values(timeouts.current).forEach(clearTimeout);
+      timeouts.current = {};
+    };
+  }, [messages, onClose]);
+
   return (
     <div style={{
       position: 'fixed',
@@ -47,6 +74,14 @@ export const ToastNotification: React.FC<{
             justifyContent: 'space-between',
             opacity: 0.95,
             transition: 'opacity 0.2s',
+            cursor: onClose ? 'pointer' : undefined,
+          }}
+          tabIndex={0}
+          role="alert"
+          aria-live="polite"
+          onClick={() => onClose && onClose(id)}
+          onKeyDown={e => {
+            if ((e.key === 'Enter' || e.key === ' ') && onClose) onClose(id);
           }}
         >
           <span>{message}</span>
@@ -61,7 +96,10 @@ export const ToastNotification: React.FC<{
                 cursor: 'pointer',
                 pointerEvents: 'auto',
               }}
-              onClick={() => onClose(id)}
+              onClick={e => {
+                e.stopPropagation();
+                onClose(id);
+              }}
               aria-label="Close notification"
             >
               ×

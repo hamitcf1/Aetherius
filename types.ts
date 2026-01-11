@@ -117,6 +117,7 @@ export interface InventoryItem {
   characterId: string;
   name: string;
   type: 'weapon' | 'apparel' | 'potion' | 'ingredient' | 'misc' | 'key' | 'food' | 'drink' | 'camping';
+  subtype?: 'health' | 'magicka' | 'stamina'; // For potions
   description: string;
   quantity: number;
   equipped: boolean;

@@ -1728,7 +1728,7 @@ const App: React.FC = () => {
            setItems(prev => {
              const next = [...prev];
              for (const i of updates.newItems || []) {
-               const rawItem = sanitizeInventoryItem(i);
+               const rawItem = sanitizeInventoryItem(i as Partial<InventoryItem>);
                const name = (rawItem.name || '').trim();
                if (!name) continue;
 
