@@ -108,6 +108,230 @@ const getAllApiKeys = (): string[] => {
 const exhaustedApiKeys = new Set<string>();
 const keyExhaustionTimeout = 60000; // Reset after 1 minute
 
+// ============================================================================
+// RATE LIMITING
+// ============================================================================
+
+interface RateLimitState {
+  callsThisMinute: number[];
+  callsThisHour: number[];
+}
+
+const rateLimitState: RateLimitState = {
+  callsThisMinute: [],
+  callsThisHour: []
+};
+
+const MAX_CALLS_PER_MINUTE = 15;
+const MAX_CALLS_PER_HOUR = 100;
+
+const recordApiCall = () => {
+  const now = Date.now();
+  rateLimitState.callsThisMinute.push(now);
+  rateLimitState.callsThisHour.push(now);
+  
+  // Clean up old entries
+  const oneMinuteAgo = now - 60000;
+  const oneHourAgo = now - 3600000;
+  
+  rateLimitState.callsThisMinute = rateLimitState.callsThisMinute.filter(t => t > oneMinuteAgo);
+  rateLimitState.callsThisHour = rateLimitState.callsThisHour.filter(t => t > oneHourAgo);
+};
+
+export const getRateLimitStats = () => {
+  const now = Date.now();
+  const oneMinuteAgo = now - 60000;
+  const oneHourAgo = now - 3600000;
+  
+  // Clean up old entries
+  rateLimitState.callsThisMinute = rateLimitState.callsThisMinute.filter(t => t > oneMinuteAgo);
+  rateLimitState.callsThisHour = rateLimitState.callsThisHour.filter(t => t > oneHourAgo);
+  
+  return {
+    callsThisMinute: rateLimitState.callsThisMinute.length,
+    callsThisHour: rateLimitState.callsThisHour.length,
+    maxPerMinute: MAX_CALLS_PER_MINUTE,
+    maxPerHour: MAX_CALLS_PER_HOUR,
+    lastCallTime: rateLimitState.callsThisMinute[rateLimitState.callsThisMinute.length - 1]
+  };
+};
+
+export const isRateLimited = (): boolean => {
+  const stats = getRateLimitStats();
+  return stats.callsThisMinute >= stats.maxPerMinute || stats.callsThisHour >= stats.maxPerHour;
+};
+
+// ============================================================================
+// RESPONSE VALIDATION
+// ============================================================================
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  sanitized: any;
+}
+
+export const validateGameStateUpdate = (response: any): ValidationResult => {
+  const errors: string[] = [];
+  const sanitized: any = {};
+
+  // Validate narrative
+  if (response.narrative) {
+    if (typeof response.narrative === 'string') {
+      sanitized.narrative = { title: 'Adventure', content: response.narrative };
+    } else if (typeof response.narrative === 'object') {
+      sanitized.narrative = {
+        title: typeof response.narrative.title === 'string' ? response.narrative.title : 'Adventure',
+        content: typeof response.narrative.content === 'string' ? response.narrative.content : ''
+      };
+    } else {
+      errors.push('Invalid narrative format');
+    }
+  }
+
+  // Validate newQuests
+  if (response.newQuests) {
+    if (!Array.isArray(response.newQuests)) {
+      errors.push('newQuests must be an array');
+    } else {
+      sanitized.newQuests = response.newQuests.filter((q: any) => {
+        if (!q.title || typeof q.title !== 'string') return false;
+        if (!q.description || typeof q.description !== 'string') return false;
+        return true;
+      }).map((q: any) => ({
+        title: q.title,
+        description: q.description,
+        location: typeof q.location === 'string' ? q.location : undefined,
+        dueDate: typeof q.dueDate === 'string' ? q.dueDate : undefined,
+        objectives: Array.isArray(q.objectives) ? q.objectives.filter((o: any) => 
+          o && typeof o.description === 'string'
+        ) : []
+      }));
+    }
+  }
+
+  // Validate updateQuests
+  if (response.updateQuests) {
+    if (!Array.isArray(response.updateQuests)) {
+      errors.push('updateQuests must be an array');
+    } else {
+      sanitized.updateQuests = response.updateQuests.filter((q: any) => 
+        q.title && typeof q.title === 'string' &&
+        ['completed', 'failed', 'active'].includes(q.status)
+      );
+    }
+  }
+
+  // Validate newItems
+  if (response.newItems) {
+    if (!Array.isArray(response.newItems)) {
+      errors.push('newItems must be an array');
+    } else {
+      sanitized.newItems = response.newItems.filter((i: any) => 
+        i.name && typeof i.name === 'string'
+      ).map((i: any) => ({
+        name: i.name,
+        type: typeof i.type === 'string' ? i.type : 'misc',
+        description: typeof i.description === 'string' ? i.description : '',
+        quantity: typeof i.quantity === 'number' ? Math.max(1, Math.floor(i.quantity)) : 1,
+        weight: typeof i.weight === 'number' ? i.weight : undefined,
+        value: typeof i.value === 'number' ? i.value : undefined
+      }));
+    }
+  }
+
+  // Validate removedItems
+  if (response.removedItems) {
+    if (!Array.isArray(response.removedItems)) {
+      errors.push('removedItems must be an array');
+    } else {
+      sanitized.removedItems = response.removedItems.filter((i: any) => 
+        i.name && typeof i.name === 'string'
+      ).map((i: any) => ({
+        name: i.name,
+        quantity: typeof i.quantity === 'number' ? Math.max(1, Math.floor(i.quantity)) : 1
+      }));
+    }
+  }
+
+  // Validate statUpdates
+  if (response.statUpdates) {
+    if (typeof response.statUpdates !== 'object') {
+      errors.push('statUpdates must be an object');
+    } else {
+      sanitized.statUpdates = {};
+      for (const key of ['health', 'magicka', 'stamina']) {
+        if (typeof response.statUpdates[key] === 'number') {
+          sanitized.statUpdates[key] = Math.max(0, Math.floor(response.statUpdates[key]));
+        }
+      }
+    }
+  }
+
+  // Validate vitalsChange
+  if (response.vitalsChange) {
+    if (typeof response.vitalsChange !== 'object') {
+      errors.push('vitalsChange must be an object');
+    } else {
+      sanitized.vitalsChange = {};
+      for (const key of ['currentHealth', 'currentMagicka', 'currentStamina']) {
+        if (typeof response.vitalsChange[key] === 'number') {
+          sanitized.vitalsChange[key] = Math.floor(response.vitalsChange[key]);
+        }
+      }
+    }
+  }
+
+  // Validate numeric fields
+  if (response.goldChange !== undefined) {
+    sanitized.goldChange = typeof response.goldChange === 'number' ? Math.floor(response.goldChange) : 0;
+  }
+  
+  if (response.xpChange !== undefined) {
+    sanitized.xpChange = typeof response.xpChange === 'number' ? Math.max(0, Math.floor(response.xpChange)) : 0;
+  }
+
+  if (response.timeAdvanceMinutes !== undefined) {
+    sanitized.timeAdvanceMinutes = typeof response.timeAdvanceMinutes === 'number' 
+      ? Math.max(0, Math.floor(response.timeAdvanceMinutes)) : 0;
+  }
+
+  // Pass through other safe fields
+  if (response.needsChange && typeof response.needsChange === 'object') {
+    sanitized.needsChange = {};
+    for (const key of ['hunger', 'thirst', 'fatigue']) {
+      if (typeof response.needsChange[key] === 'number') {
+        sanitized.needsChange[key] = Math.max(0, Math.min(100, response.needsChange[key]));
+      }
+    }
+  }
+
+  if (response.ambientContext && typeof response.ambientContext === 'object') {
+    sanitized.ambientContext = response.ambientContext;
+  }
+
+  if (response.combatStart && typeof response.combatStart === 'object') {
+    sanitized.combatStart = response.combatStart;
+  }
+
+  if (response.choices && Array.isArray(response.choices)) {
+    sanitized.choices = response.choices.filter((c: any) => c.label && typeof c.label === 'string');
+  }
+
+  if (response.characterUpdates && typeof response.characterUpdates === 'object') {
+    sanitized.characterUpdates = response.characterUpdates;
+  }
+
+  if (response.transactionId) sanitized.transactionId = response.transactionId;
+  if (response.isPreview) sanitized.isPreview = response.isPreview;
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    sanitized
+  };
+};
+
 const markKeyExhausted = (key: string) => {
   exhaustedApiKeys.add(key);
   setTimeout(() => exhaustedApiKeys.delete(key), keyExhaustionTimeout);
@@ -265,6 +489,7 @@ const executeWithFallback = async <T>(
       
       try {
         console.log(`[Gemini Service] Trying model: ${model} with key ending ...${apiKey.slice(-4)}`);
+        recordApiCall(); // Track for rate limiting
         const result = await operation(model, apiKey);
         return result;
       } catch (error: any) {
@@ -387,7 +612,15 @@ export const generateGameMasterResponse = async (
 
       const text = response.text || "{}";
       const json = extractJsonObject(text) || "{}";
-      return JSON.parse(json);
+      const parsed = JSON.parse(json);
+      
+      // Validate and sanitize the response
+      const validation = validateGameStateUpdate(parsed);
+      if (validation.errors.length > 0) {
+        console.warn('[Gemini Service] GM Response validation warnings:', validation.errors);
+      }
+      
+      return validation.sanitized;
     }, { preferredModel, fallbackChain: TEXT_MODEL_FALLBACK_CHAIN });
   } catch (error) {
     console.error("Gemini API Error (all models failed):", error);
@@ -445,13 +678,19 @@ export const generateAdventureResponse = async (
       const json = extractJsonObject(text) || "{}";
       const parsed = JSON.parse(json);
       
-      if (!parsed?.narrative) {
+      // Validate and sanitize the response
+      const validation = validateGameStateUpdate(parsed);
+      if (validation.errors.length > 0) {
+        console.warn('[Gemini Service] Response validation warnings:', validation.errors);
+      }
+      
+      // Use sanitized response
+      const result = validation.sanitized;
+      
+      if (!result?.narrative) {
         return { narrative: { title: 'Adventure', content: 'The winds carry no response...' } };
       }
-      if (typeof parsed.narrative === 'string') {
-        return { ...parsed, narrative: { title: 'Adventure', content: parsed.narrative } };
-      }
-      return parsed;
+      return result;
     }, { preferredModel, fallbackChain: TEXT_MODEL_FALLBACK_CHAIN });
   } catch (error) {
     console.error("Adventure API Error (all models failed):", error);

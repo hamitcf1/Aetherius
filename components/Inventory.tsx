@@ -1,18 +1,36 @@
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, EquipmentSlot } from '../types';
-import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent, ArrowUpDown, User, Backpack, Check, ShoppingBag } from 'lucide-react';
+import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent, ArrowUpDown, User, Backpack, Check, ShoppingBag, Weight } from 'lucide-react';
 import { EquipmentHUD, getDefaultSlotForItem, SLOT_CONFIGS_EXPORT } from './EquipmentHUD';
 import { ShopModal } from './ShopModal';
 import { useAppContext } from '../AppContext';
 import { getItemStats, shouldHaveStats } from '../services/itemStats';
+import { EncumbranceIndicator } from './StatusIndicators';
 
 const uniqueId = () => Math.random().toString(36).substr(2, 9);
+
+// Default weights by item type
+const getDefaultItemWeight = (type: string): number => {
+  switch (type) {
+    case 'weapon': return 8;
+    case 'apparel': return 5;
+    case 'potion': return 0.5;
+    case 'ingredient': return 0.1;
+    case 'food': return 0.5;
+    case 'drink': return 0.5;
+    case 'key': return 0;
+    case 'misc': return 1;
+    case 'camping': return 10;
+    default: return 1;
+  }
+};
 
 interface InventoryProps {
   items: InventoryItem[];
   setItems: (items: InventoryItem[]) => void;
   gold: number;
   setGold: (amount: number) => void;
+  maxCarryWeight?: number;
 }
 
 const COMMON_ITEMS = [
@@ -182,7 +200,7 @@ const InventoryItemCard: React.FC<{
     );
 };
 
-export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, setGold }) => {
+export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, setGold, maxCarryWeight = 300 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<InventoryItem['type']>('misc');
@@ -196,6 +214,16 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
 
   // Get shop handlers from context
   const { handleShopPurchase, handleShopSell, characterLevel, handleEatItem, handleDrinkItem } = useAppContext();
+
+  // Calculate total carry weight
+  const totalWeight = useMemo(() => {
+    return items.reduce((total, item) => {
+      const weight = item.weight ?? getDefaultItemWeight(item.type);
+      return total + (weight * (item.quantity || 1));
+    }, 0);
+  }, [items]);
+
+  const isOverEncumbered = totalWeight > maxCarryWeight;
 
   // Category tabs configuration
   const CATEGORY_TABS: { key: 'all' | InventoryItem['type']; label: string; icon: React.ReactNode }[] = [
@@ -382,6 +410,25 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
     <div className="mb-8 p-4 sm:p-6 bg-skyrim-paper border-y-4 border-skyrim-gold/30 text-center">
         <h1 className="text-4xl font-serif text-skyrim-gold mb-2">Inventory</h1>
         <p className="text-gray-500 font-sans text-sm">Your burdens and your treasures.</p>
+        
+        {/* Encumbrance & Gold Display */}
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
+          <EncumbranceIndicator 
+            currentWeight={totalWeight} 
+            maxWeight={maxCarryWeight} 
+          />
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-black/30 rounded border border-skyrim-border">
+            <Coins size={16} className="text-yellow-500" />
+            <span className="text-yellow-400 font-medium">{gold}</span>
+            <span className="text-gray-500 text-xs">gold</span>
+          </div>
+        </div>
+        
+        {isOverEncumbered && (
+          <div className="mt-3 text-red-400 text-sm animate-pulse">
+            ⚠️ You are over-encumbered and cannot run!
+          </div>
+        )}
       </div>
 
     {/* View Toggle: Inventory / Equipment */}

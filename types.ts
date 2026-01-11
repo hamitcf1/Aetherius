@@ -504,3 +504,65 @@ export interface PlayerCombatStats {
   magicResist: number;
   abilities: CombatAbility[];
 }
+
+// ============================================================================
+// GAME FEATURES - Weather, Difficulty, Status Effects, Companions
+// ============================================================================
+
+export type WeatherType = 'clear' | 'cloudy' | 'rain' | 'snow' | 'fog' | 'storm';
+
+export interface WeatherState {
+  type: WeatherType;
+  intensity: number; // 0-100
+  temperature: number; // Celsius-ish for Skyrim feel
+}
+
+export type DifficultyLevel = 'novice' | 'apprentice' | 'adept' | 'expert' | 'master' | 'legendary';
+
+export interface DifficultySettings {
+  level: DifficultyLevel;
+  playerDamageMultiplier: number;
+  enemyDamageMultiplier: number;
+  xpMultiplier: number;
+  survivalDrain: number;
+}
+
+export interface StatusEffect {
+  id: string;
+  name: string;
+  type: 'buff' | 'debuff' | 'neutral';
+  icon: string;
+  duration?: number;
+  description: string;
+  effects: {
+    stat: string;
+    modifier: number;
+  }[];
+}
+
+export interface Companion {
+  id: string;
+  name: string;
+  race: string;
+  class: string;
+  level: number;
+  health: number;
+  maxHealth: number;
+  damage: number;
+  armor: number;
+  personality: string;
+  recruitedAt: number;
+  loyalty: number;
+  mood: 'happy' | 'neutral' | 'unhappy' | 'angry';
+}
+
+export interface SessionRecord {
+  id: string;
+  characterId: string;
+  startTime: number;
+  endTime?: number;
+  duration: number;
+  messageCount: number;
+  summary: string;
+  highlights: string[];
+}

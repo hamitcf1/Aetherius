@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
-    INITIAL_CHARACTER_TEMPLATE, Character, CustomQuest, JournalEntry, UserProfile, InventoryItem, StoryChapter, GameStateUpdate, GeneratedCharacterData, CombatState, CombatEnemy 
+    INITIAL_CHARACTER_TEMPLATE, Character, CustomQuest, JournalEntry, UserProfile, InventoryItem, StoryChapter, GameStateUpdate, GeneratedCharacterData, CombatState, CombatEnemy,
+    DifficultyLevel, WeatherState, StatusEffect, Companion
 } from './types';
 import { CharacterSheet } from './components/CharacterSheet';
 import ActionBar, { ActionBarToggle } from './components/ActionBar';
@@ -16,6 +17,28 @@ import { OnboardingModal } from './components/OnboardingModal';
 import { CombatModal } from './components/CombatModal';
 import { Changelog } from './components/Changelog';
 import UpdateNotification from './components/UpdateNotification';
+import { 
+  OfflineIndicator, 
+  AutoSaveIndicator, 
+  RateLimitIndicator,
+  EncumbranceIndicator,
+  SaveStatus,
+  queueOfflineChange,
+  processOfflineQueue
+} from './components/StatusIndicators';
+import { 
+  CharacterExportModal, 
+  CharacterImportModal,
+  downloadCharacterExport,
+  TimeIcon,
+  getTimeOfDay,
+  getTimeThemeClasses,
+  WeatherDisplay,
+  StatusEffectsPanel,
+  CompanionCard,
+  DifficultySelector,
+  ThemeSelector,
+} from './components/GameFeatures';
 import { User, Scroll, BookOpen, Skull, Package, Feather, LogOut, Users, Loader, Save, Swords } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { setCurrentUser as setFeatureFlagUser } from './featureFlags';
@@ -53,6 +76,8 @@ import {
   batchSaveGameState,
   saveUserMetadata,
   removeDuplicateItems,
+  deleteJournalEntry,
+  deleteStoryChapter,
 } from './services/firestore';
 import {
   setUserOnline,
@@ -64,6 +89,7 @@ import { getFoodNutrition, getDrinkNutrition } from './services/nutritionData';
 import { getItemStats, shouldHaveStats } from './services/itemStats';
 import { updateMusicForContext, AmbientContext, audioService, playMusic } from './services/audioService';
 import { getSkyrimCalendarDate, formatSkyrimDate, formatSkyrimDateShort } from './utils/skyrimCalendar';
+import { getRateLimitStats } from './services/geminiService';
 import type { PreferredAIModel } from './services/geminiService';
 import type { UserSettings } from './services/firestore';
 
@@ -169,6 +195,52 @@ const App: React.FC = () => {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Status Indicators
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [rateLimitStats, setRateLimitStats] = useState(getRateLimitStats());
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // New Game Features State
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('adept');
+  const [weather, setWeather] = useState<WeatherState>({ type: 'clear', intensity: 0, temperature: 10 });
+  const [statusEffects, setStatusEffects] = useState<StatusEffect[]>([]);
+  const [companions, setCompanions] = useState<Companion[]>([]);
+  const [colorTheme, setColorTheme] = useState('default');
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+
+  // Encumbrance calculation
+  const calculateCarryWeight = useCallback((characterItems: InventoryItem[]) => {
+    return characterItems.reduce((total, item) => {
+      const weight = item.weight ?? getDefaultItemWeight(item.type);
+      return total + (weight * (item.quantity || 1));
+    }, 0);
+  }, []);
+
+  const getMaxCarryWeight = useCallback((character: Character | null) => {
+    if (!character) return 300;
+    // Base carry weight + stamina bonus (like in Skyrim)
+    const staminaBonus = Math.floor((character.stats.stamina - 100) / 10) * 5;
+    return 300 + staminaBonus;
+  }, []);
+
+  // Default weights by item type
+  const getDefaultItemWeight = (type: string): number => {
+    switch (type) {
+      case 'weapon': return 8;
+      case 'apparel': return 5;
+      case 'potion': return 0.5;
+      case 'ingredient': return 0.1;
+      case 'food': return 0.5;
+      case 'drink': return 0.5;
+      case 'key': return 0;
+      case 'misc': return 1;
+      case 'camping': return 10;
+      default: return 1;
+    }
+  };
+
   // Persist currentCharacterId to localStorage
   useEffect(() => {
     if (currentUser?.uid && currentCharacterId) {
@@ -186,6 +258,40 @@ const App: React.FC = () => {
       } catch { /* ignore */ }
     }
   }, [currentUser?.uid, currentCharacterId, activeTab]);
+
+  // Online/Offline status tracking
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      // Process any queued offline changes
+      if (currentUser?.uid) {
+        processOfflineQueue({
+          onSaveCharacter: async (data) => await saveCharacter(currentUser.uid, data),
+          onSaveItem: async (data) => await saveInventoryItem(currentUser.uid, data),
+          onSaveQuest: async (data) => await saveQuest(currentUser.uid, data),
+          onSaveJournal: async (data) => await saveJournalEntry(currentUser.uid, data),
+          onSaveStory: async (data) => await saveStoryChapter(currentUser.uid, data),
+        });
+      }
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [currentUser?.uid]);
+
+  // Rate limit stats refresh
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRateLimitStats(getRateLimitStats());
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // AI Model Selection (global)
   const [aiModel, setAiModel] = useState<PreferredAIModel>('gemma-3-27b-it');
@@ -565,7 +671,20 @@ const App: React.FC = () => {
   const handleManualSave = async () => {
     if (!currentUser) return;
     
+    // Check if offline - queue changes instead
+    if (!navigator.onLine) {
+      setSaveStatus('offline');
+      // Queue all dirty entities for sync when back online
+      characters.forEach(char => {
+        queueOfflineChange({ type: 'character', action: 'save', data: char });
+      });
+      setSaveMessage('⚡ Saved locally (offline)');
+      setTimeout(() => setSaveMessage(null), 3000);
+      return;
+    }
+    
     setIsSaving(true);
+    setSaveStatus('saving');
     try {
       // Batch save all data to Firestore
       await batchSaveGameState(
@@ -578,11 +697,14 @@ const App: React.FC = () => {
         profiles
       );
       
+      setSaveStatus('saved');
+      setLastSaved(new Date());
       setSaveMessage('✓ All data saved successfully!');
       setTimeout(() => setSaveMessage(null), 3000);
       setDirtyEntities(new Set());
     } catch (error) {
       console.error('Save error:', error);
+      setSaveStatus('error');
       setSaveMessage('✗ Error saving data');
       setTimeout(() => setSaveMessage(null), 3000);
     } finally {
@@ -987,6 +1109,30 @@ const App: React.FC = () => {
       setDirtyEntities(prev => new Set([...prev, updatedChapter.id]));
   };
 
+  // Delete a story chapter from Firestore
+  const handleDeleteStoryChapter = async (chapterId: string) => {
+    if (!currentUser?.uid) return;
+    try {
+      await deleteStoryChapter(currentUser.uid, chapterId);
+      setStoryChapters(prev => prev.filter(c => c.id !== chapterId));
+      console.log(`Story chapter ${chapterId} deleted from Firestore`);
+    } catch (error) {
+      console.error('Failed to delete story chapter:', error);
+    }
+  };
+
+  // Delete a journal entry from Firestore
+  const handleDeleteJournalEntry = async (entryId: string) => {
+    if (!currentUser?.uid) return;
+    try {
+      await deleteJournalEntry(currentUser.uid, entryId);
+      // Local state is already updated by Journal component
+      console.log(`Journal entry ${entryId} deleted from Firestore`);
+    } catch (error) {
+      console.error('Failed to delete journal entry:', error);
+    }
+  };
+
   // === SURVIVAL & SHOP HANDLERS ===
 
   // Check for camping gear in inventory
@@ -1115,6 +1261,90 @@ const App: React.FC = () => {
     handleGameUpdate({
       goldChange: totalGold
     });
+  };
+
+  // ============================================================================
+  // CHARACTER EXPORT / IMPORT HANDLERS
+  // ============================================================================
+  
+  const handleExportJSON = () => {
+    if (!activeCharacter) return;
+    setShowExportModal(true);
+  };
+
+  const handleImportJSON = () => {
+    setShowImportModal(true);
+  };
+
+  const handleImportComplete = async (data: {
+    character: Character;
+    inventory: InventoryItem[];
+    quests: CustomQuest[];
+    journal: JournalEntry[];
+    story: StoryChapter[];
+  }) => {
+    if (!currentUser) return;
+    
+    // Generate new IDs to avoid conflicts
+    const newCharacterId = uuidv4();
+    const importedCharacter: Character = {
+      ...data.character,
+      id: newCharacterId,
+      profileId: currentProfileId || profiles[0]?.id || '',
+      lastPlayed: Date.now(),
+    };
+
+    // Import character
+    await saveCharacter(currentUser.uid, importedCharacter);
+    setCharacters(prev => [...prev, importedCharacter]);
+
+    // Import inventory with new IDs
+    for (const item of data.inventory) {
+      const newItem: InventoryItem = {
+        ...item,
+        id: uuidv4(),
+        characterId: newCharacterId,
+      };
+      await saveInventoryItem(currentUser.uid, newItem);
+      setItems(prev => [...prev, newItem]);
+    }
+
+    // Import quests with new IDs
+    for (const quest of data.quests) {
+      const newQuest: CustomQuest = {
+        ...quest,
+        id: uuidv4(),
+        characterId: newCharacterId,
+      };
+      await saveQuest(currentUser.uid, newQuest);
+      setQuests(prev => [...prev, newQuest]);
+    }
+
+    // Import journal entries with new IDs
+    for (const entry of data.journal) {
+      const newEntry: JournalEntry = {
+        ...entry,
+        id: uuidv4(),
+        characterId: newCharacterId,
+      };
+      await saveJournalEntry(currentUser.uid, newEntry);
+      setJournalEntries(prev => [...prev, newEntry]);
+    }
+
+    // Import story chapters with new IDs
+    for (const chapter of data.story) {
+      const newChapter: StoryChapter = {
+        ...chapter,
+        id: uuidv4(),
+        characterId: newCharacterId,
+      };
+      await saveStoryChapter(currentUser.uid, newChapter);
+      setStoryChapters(prev => [...prev, newChapter]);
+    }
+
+    // Switch to the imported character
+    setCurrentCharacterId(newCharacterId);
+    setShowImportModal(false);
   };
 
   // Legacy handlers (keep for backwards compatibility but they won't be used directly)
@@ -1808,8 +2038,22 @@ const App: React.FC = () => {
       hasCampingGear,
       hasBedroll,
       characterLevel: activeCharacter?.level || 1,
+      // New Game Features
+      handleExportJSON,
+      handleImportJSON,
+      difficulty,
+      setDifficulty,
+      weather,
+      statusEffects,
+      companions,
+      colorTheme,
+      setColorTheme,
     }}>
       <div className="min-h-screen bg-skyrim-dark text-skyrim-text font-sans selection:bg-skyrim-gold selection:text-skyrim-dark">
+        {/* Status Indicators */}
+        <OfflineIndicator />
+        <AutoSaveIndicator status={saveStatus} lastSaved={lastSaved} />
+        
         <OnboardingModal open={onboardingOpen} onComplete={completeOnboarding} />
         {/* Navigation Header */}
         <nav className="fixed top-0 left-0 right-0 bg-skyrim-paper/95 backdrop-blur-md border-b border-skyrim-gold/30 z-40 shadow-2xl">
@@ -1884,6 +2128,7 @@ const App: React.FC = () => {
                   setItems={setCharacterItems} 
                   gold={activeCharacter.gold || 0} 
                   setGold={(amt) => updateCharacter('gold', amt)}
+                  maxCarryWeight={getMaxCarryWeight(activeCharacter)}
               />
             )}
             {activeTab === TABS.QUESTS && (
@@ -1893,6 +2138,7 @@ const App: React.FC = () => {
               <StoryLog 
                 chapters={getCharacterStory()} 
                 onUpdateChapter={updateStoryChapter}
+                onDeleteChapter={handleDeleteStoryChapter}
                 onAddChapter={(chapter) => setStoryChapters(prev => [...prev, chapter])}
                 onGameUpdate={handleGameUpdate}
                 character={activeCharacter}
@@ -1903,7 +2149,7 @@ const App: React.FC = () => {
               />
             )}
             {activeTab === TABS.JOURNAL && (
-              <Journal entries={getCharacterJournal()} setEntries={setCharacterJournal} />
+              <Journal entries={getCharacterJournal()} setEntries={setCharacterJournal} onDeleteEntry={handleDeleteJournalEntry} />
             )}
             {activeTab === TABS.ADVENTURE && (
               <AdventureChat
@@ -1922,6 +2168,25 @@ const App: React.FC = () => {
 
         {/* AI Game Master */}
         <AIScribe contextData={getAIContext()} onUpdateState={handleGameUpdate} model={aiModel} />
+
+        {/* Character Export/Import Modals */}
+        {activeCharacter && (
+          <CharacterExportModal
+            isOpen={showExportModal}
+            onClose={() => setShowExportModal(false)}
+            character={activeCharacter}
+            inventory={getCharacterItems()}
+            quests={quests.filter(q => q.characterId === currentCharacterId)}
+            journal={journalEntries.filter(j => j.characterId === currentCharacterId)}
+            story={storyChapters.filter(s => s.characterId === currentCharacterId)}
+          />
+        )}
+        
+        <CharacterImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImport={handleImportComplete}
+        />
 
         {/* Combat Modal - Full screen overlay when combat is active */}
         {combatState && activeCharacter && (

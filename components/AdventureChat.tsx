@@ -5,8 +5,10 @@ import { EquipmentHUD, getDefaultSlotForItem, SLOT_CONFIGS_EXPORT } from './Equi
 import { LockpickingMinigame, LockDifficulty } from './LockpickingMinigame';
 import { SkyrimMap, findLocationByName } from './SkyrimMap';
 import { ThinkingBubble } from './ThinkingBubble';
+import { RateLimitIndicator } from './StatusIndicators';
 import type { EquipmentSlot } from '../types';
 import { saveInventoryItem } from '../services/firestore';
+import { getRateLimitStats, isRateLimited } from '../services/geminiService';
 import type { PreferredAIModel } from '../services/geminiService';
 import { getSimulationManager, processAISimulationUpdate, SimulationStateManager, NPC, PlayerFact } from '../services/stateManager';
 import { getTransactionLedger, filterDuplicateTransactions } from '../services/transactionLedger';
@@ -382,6 +384,13 @@ Return ONLY a JSON object:
   "needsChange": { "hunger": 0, "thirst": 0, "fatigue": 0 },
   "vitalsChange": { "currentHealth": 0, "currentMagicka": 0, "currentStamina": 0 },
   "ambientContext": { "localeType": "wilderness|tavern|city|dungeon|interior|road", "inCombat": false, "mood": "peaceful|tense|mysterious|triumphant" },
+  "combatStart": {
+    "enemies": [{ "name": "Bandit", "type": "humanoid", "level": 5, "maxHealth": 60, "currentHealth": 60, "armor": 15, "damage": 12, "behavior": "aggressive", "abilities": [{ "id": "slash", "name": "Slash", "type": "melee", "damage": 12, "cost": 10, "description": "A quick slash" }], "xpReward": 25, "goldReward": 10, "isBoss": false }],
+    "location": "Forest Clearing",
+    "ambush": false,
+    "fleeAllowed": true,
+    "surrenderAllowed": false
+  },
   "discoveredLocations": [{ "name": "Hidden Cave", "type": "cave|dungeon|camp|fort|ruin|landmark", "x": 45, "y": 60, "description": "A secret cave behind the waterfall", "dangerLevel": "dangerous", "rumors": ["Bandits use this as a hideout"] }],
   "choices": [
     { "label": "Short option shown as button", "playerText": "Exact text to send", "topic": "optional_topic", "previewCost": { "gold": 10 } }
@@ -397,6 +406,60 @@ Return ONLY a JSON object:
     "factsEstablished": [{ "category": "identity", "key": "profession", "value": "alchemist", "disclosedToNPCs": ["Guard Captain Hrolf"] }],
     "newConsequences": [{ "type": "entry_denied", "description": "Guards will not allow entry", "triggerCondition": { "tensionThreshold": 80 } }]
   }
+}
+
+=== TURN-BASED COMBAT SYSTEM (POKEMON STYLE) ===
+
+When HOSTILE combat begins, use "combatStart" to trigger the turn-based combat minigame:
+
+WHEN TO USE combatStart:
+- Player attacks an enemy or is attacked
+- Hostile NPCs initiate combat
+- Ambush encounters
+- Boss fights
+- Any situation where tactical turn-based combat makes sense
+
+DO NOT use combatStart for:
+- Simple scuffles that end quickly (use narrative + vitalsChange instead)
+- Negotiations or intimidation
+- Situations player can easily avoid
+
+ENEMY STAT GUIDELINES (scale to player level):
+- Level: Within 2 of player level (min 1)
+- Health: 30-50 (weak), 50-80 (standard), 80-150 (strong), 150+ (boss)
+- Armor: 5-15 (light), 15-35 (medium), 35-60 (heavy)
+- Damage: 8-15 (low), 15-25 (medium), 25-40 (high)
+- XP: 15-30 (weak), 30-60 (medium), 60-150 (strong), 150+ (boss)
+
+ENEMY TYPES:
+- humanoid: Bandits, soldiers, mages, vampires
+- beast: Wolves, bears, sabre cats, spiders
+- undead: Draugr, skeletons, ghosts
+- daedra: Dremora, atronachs
+- dragon: Dragons (boss only)
+- automaton: Dwemer constructs
+
+BEHAVIOR TYPES:
+- aggressive: Attacks frequently, low defense
+- defensive: High block chance, counterattacks
+- tactical: Uses abilities strategically
+- support: Heals/buffs allies
+- berserker: High damage, ignores defense
+
+Example combat encounter:
+{
+  "narrative": { "title": "Ambush!", "content": "Three bandits emerge from behind the rocks, weapons drawn! 'Your gold or your life!'" },
+  "combatStart": {
+    "enemies": [
+      { "name": "Bandit Marauder", "type": "humanoid", "level": 6, "maxHealth": 70, "currentHealth": 70, "armor": 20, "damage": 15, "behavior": "aggressive", "abilities": [{ "id": "slash", "name": "Slash", "type": "melee", "damage": 15, "cost": 10, "description": "A vicious slash" }, { "id": "power_attack", "name": "Power Attack", "type": "melee", "damage": 25, "cost": 25, "description": "A devastating overhead strike" }], "xpReward": 35, "goldReward": 20, "isBoss": false },
+      { "name": "Bandit Archer", "type": "humanoid", "level": 5, "maxHealth": 50, "currentHealth": 50, "armor": 10, "damage": 18, "behavior": "tactical", "abilities": [{ "id": "arrow", "name": "Arrow Shot", "type": "ranged", "damage": 18, "cost": 0, "description": "A precise arrow shot" }], "xpReward": 25, "goldReward": 15, "isBoss": false }
+    ],
+    "location": "Forest Road",
+    "ambush": true,
+    "fleeAllowed": true,
+    "surrenderAllowed": true
+  },
+  "ambientContext": { "localeType": "wilderness", "inCombat": true, "mood": "tense" }
 }
 
 === DISCOVERED LOCATIONS (MAP UPDATES) ===
@@ -477,6 +540,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   const [selectedSlot, setSelectedSlot] = useState<EquipmentSlot | null>(null);
   const [localInventory, setLocalInventory] = useState<InventoryItem[]>(inventory || []);
   const [simulationWarnings, setSimulationWarnings] = useState<string[]>([]);
+  const [rateLimitStats, setRateLimitStats] = useState(getRateLimitStats());
   
   // Lockpicking state
   const [showLockpicking, setShowLockpicking] = useState(false);
@@ -515,6 +579,14 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         Boolean((character.identity || '').trim())
       )
   );
+
+  // Rate limit stats refresh
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRateLimitStats(getRateLimitStats());
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Initialize simulation state manager and transaction ledger
   useEffect(() => {
@@ -957,6 +1029,15 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     const trimmed = (text || '').trim();
     if (!trimmed || loading || !character) return;
 
+    // Check rate limiting
+    if (isRateLimited()) {
+      const stats = getRateLimitStats();
+      setSimulationWarnings([
+        `Rate limited! Please wait. (${stats.callsThisMinute}/${stats.maxPerMinute} calls this minute)`
+      ]);
+      return;
+    }
+
     const playerMessage: ChatMessage = {
       id: Math.random().toString(36).substr(2, 9),
       role: 'player',
@@ -1328,6 +1409,13 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         </h1>
         {/* Time Display */}
         <TimeDisplay />
+        
+        {/* Rate Limit Indicator */}
+        {(rateLimitStats.callsThisMinute > 0 || rateLimitStats.callsThisHour > 0) && (
+          <div className="mt-2 flex justify-center">
+            <RateLimitIndicator stats={rateLimitStats} />
+          </div>
+        )}
       </div>
 
       {/* AI Model Tip */}

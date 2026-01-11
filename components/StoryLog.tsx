@@ -14,7 +14,8 @@ interface StoryLogProps {
   chapters: StoryChapter[];
   onUpdateChapter: (chapter: StoryChapter) => void;
   onAddChapter?: (chapter: StoryChapter) => void;
-    onGameUpdate?: (updates: GameStateUpdate) => void;
+  onDeleteChapter?: (chapterId: string) => void;
+  onGameUpdate?: (updates: GameStateUpdate) => void;
   character?: Character;
   quests?: CustomQuest[];
   journal?: JournalEntry[];
@@ -26,6 +27,7 @@ export const StoryLog: React.FC<StoryLogProps> = ({
     chapters, 
     onUpdateChapter,
     onAddChapter,
+    onDeleteChapter,
     onGameUpdate,
     character,
     quests = [],
@@ -916,15 +918,12 @@ Write the complete book now, ensuring you cover ALL the provided chapters and ad
                      <div className="flex items-center gap-2">
                        <Scroll className="text-skyrim-gold/20" size={40} />
                        <button onClick={() => {
-                         if (window.confirm('Delete this entry?')) {
-                           const updated = sortedChapters.filter(c => c.id !== chapter.id);
-                           onUpdateChapter && onUpdateChapter({ ...chapter, deleted: true });
-                           // Remove from parent state if possible
-                           if (typeof window !== 'undefined') {
-                             // Forcibly update parent if possible
-                             if (typeof window.setStoryChapters === 'function') {
-                               window.setStoryChapters(updated);
-                             }
+                         if (window.confirm('Delete this entry? This cannot be undone.')) {
+                           if (onDeleteChapter) {
+                             onDeleteChapter(chapter.id);
+                           } else {
+                             // Fallback to soft delete
+                             onUpdateChapter && onUpdateChapter({ ...chapter, deleted: true });
                            }
                          }
                        }} className="ml-2 text-red-500 hover:text-white text-xs border border-red-500 rounded px-2 py-1">Delete</button>

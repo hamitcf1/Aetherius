@@ -7,6 +7,7 @@ const uniqueId = () => Math.random().toString(36).substr(2, 9);
 interface JournalProps {
   entries: JournalEntry[];
   setEntries: (entries: JournalEntry[]) => void;
+  onDeleteEntry?: (entryId: string) => void;
 }
 
 const getSkyrimDate = () => {
@@ -33,7 +34,7 @@ const getSkyrimDate = () => {
   return `4E 201, ${monthName}, ${day}${getSuffix(day)}`;
 };
 
-export const Journal: React.FC<JournalProps> = ({ entries, setEntries }) => {
+export const Journal: React.FC<JournalProps> = ({ entries, setEntries, onDeleteEntry }) => {
   const [newEntryContent, setNewEntryContent] = useState('');
   const [newEntryTitle, setNewEntryTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -98,6 +99,10 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries }) => {
 
   const deleteEntry = (id: string) => {
       setEntries(entries.filter(e => e.id !== id));
+      // Call Firestore delete if handler provided
+      if (onDeleteEntry) {
+        onDeleteEntry(id);
+      }
   };
 
   const filteredEntries = sortedEntries.filter(entry => 

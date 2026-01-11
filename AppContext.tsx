@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import type { InventoryItem } from './types';
+import type { InventoryItem, DifficultyLevel, WeatherState, StatusEffect, Companion } from './types';
 import type { RestOptions } from './components/SurvivalModals';
 import type { ShopItem } from './components/ShopModal';
 
@@ -30,6 +30,16 @@ export interface AppContextType {
   hasCampingGear: boolean;
   hasBedroll: boolean;
   characterLevel: number;
+  // New Game Features
+  handleExportJSON: () => void;
+  handleImportJSON: () => void;
+  difficulty: DifficultyLevel;
+  setDifficulty: (level: DifficultyLevel) => void;
+  weather: WeatherState;
+  statusEffects: StatusEffect[];
+  companions: Companion[];
+  colorTheme: string;
+  setColorTheme: (theme: string) => void;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);

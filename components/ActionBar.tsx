@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Loader2, Plus, Snowflake, ChevronDown, Volume2, VolumeX, Music, Music2 } from 'lucide-react';
+import { Save, Users, LogOut, Sparkles, Image as ImageIcon, Download, Upload, Loader2, Plus, Snowflake, ChevronDown, Volume2, VolumeX, Music, Music2, FileJson } from 'lucide-react';
 import SnowEffect, { SnowSettings } from './SnowEffect';
 import { useAppContext } from '../AppContext';
 import { isFeatureEnabled, isFeatureWIP, getFeatureLabel } from '../featureFlags';
@@ -30,7 +30,9 @@ const ActionBar: React.FC = () => {
     handleUploadPhoto,
     aiModel,
     setAiModel,
-    isAnonymous
+    isAnonymous,
+    handleExportJSON,
+    handleImportJSON,
   } = useAppContext();
   const [open, setOpen] = useState(false);
   const [snow, setSnow] = useState(false);
@@ -226,6 +228,24 @@ const ActionBar: React.FC = () => {
                 {getFeatureLabel('exportPDF') || 'Work in Progress'}
               </div>
             )}
+          </div>
+
+          {/* Export/Import JSON - Character backup/restore */}
+          <div className="flex gap-2">
+            <button 
+              onClick={handleExportJSON}
+              className="flex-1 flex items-center gap-2 px-3 py-2 rounded font-bold bg-green-700 text-white hover:bg-green-600"
+              title="Export character as JSON backup"
+            >
+              <FileJson size={16} /> Export JSON
+            </button>
+            <button 
+              onClick={handleImportJSON}
+              className="flex-1 flex items-center gap-2 px-3 py-2 rounded font-bold bg-blue-700 text-white hover:bg-blue-600"
+              title="Import character from JSON backup"
+            >
+              <Upload size={16} /> Import
+            </button>
           </div>
 
           {/* Shop Button - Now in Inventory section */}
