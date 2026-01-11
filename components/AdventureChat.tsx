@@ -1466,6 +1466,27 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     );
   }
 
+  // --- Show/hide rate limit bar state ---
+  const [showRateLimit, setShowRateLimit] = useState(() => {
+    const stored = localStorage.getItem('showRateLimitBar');
+    return stored === null ? true : stored === 'true';
+  });
+  useEffect(() => {
+    localStorage.setItem('showRateLimitBar', showRateLimit ? 'true' : 'false');
+  }, [showRateLimit]);
+
+  // --- Rate Limit Toggle Button ---
+  const RateLimitToggle = () => (
+    <button
+      className="ml-2 px-2 py-1 text-xs rounded bg-gray-800/60 hover:bg-gray-700/80 border border-gray-700 text-gray-300 hover:text-skyrim-gold transition-colors"
+      style={{ marginTop: 4 }}
+      onClick={() => setShowRateLimit(v => !v)}
+      title={showRateLimit ? 'Hide rate limit bar' : 'Show rate limit bar'}
+    >
+      {showRateLimit ? 'Hide Rate Limit Bar' : 'Show Rate Limit Bar'}
+    </button>
+  );
+
   return (
     <div className="h-full flex flex-col max-w-4xl mx-auto px-2 sm:px-4 overflow-hidden">
       {/* Header - compact */}
@@ -1476,9 +1497,9 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         </h1>
         {/* Time Display */}
         <TimeDisplay />
-        
+        <RateLimitToggle />
         {/* Rate Limit Indicator */}
-        {(rateLimitStats.callsThisMinute > 0 || rateLimitStats.callsThisHour > 0) && (
+        {showRateLimit && (rateLimitStats.callsThisMinute > 0 || rateLimitStats.callsThisHour > 0) && (
           <div className="mt-2 flex justify-center">
             <RateLimitIndicator stats={rateLimitStats} />
           </div>
