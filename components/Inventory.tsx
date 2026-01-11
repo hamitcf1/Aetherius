@@ -31,6 +31,7 @@ interface InventoryProps {
   gold: number;
   setGold: (amount: number) => void;
   maxCarryWeight?: number;
+  onUseItem?: (item: InventoryItem) => void;
 }
 
 const COMMON_ITEMS = [
@@ -200,7 +201,7 @@ const InventoryItemCard: React.FC<{
     );
 };
 
-export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, setGold, maxCarryWeight = 300 }) => {
+export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, setGold, maxCarryWeight = 300, onUseItem }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<InventoryItem['type']>('misc');
@@ -651,18 +652,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
           onRemove={() => removeItem(item.id)}
           onEquip={(item) => equipItem(item)}
           onUnequip={unequipItem}
-          onUse={(item) => {
-            // Use the appropriate handler based on item type
-            if (item.type === 'food' || item.type === 'ingredient') {
-              handleEatItem(item);
-            } else if (item.type === 'drink') {
-              handleDrinkItem(item);
-            } else if (item.type === 'potion') {
-              // Potions can be either for hunger/thirst (drink) or healing (eat counts as consume)
-              // For now, treat potions as drinks (thirst reduction)
-              handleDrinkItem(item);
-            }
-          }}
+          onUse={onUseItem}
         />
       ))}
         {sortedItems.length === 0 && (

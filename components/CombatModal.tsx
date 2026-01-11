@@ -32,6 +32,7 @@ interface CombatModalProps {
   }, finalVitals?: { health: number; magicka: number; stamina: number }) => void;
   onNarrativeUpdate?: (narrative: string) => void;
   onInventoryUpdate?: (removedItems: Array<{ name: string; quantity: number }>) => void;
+  showToast?: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
 }
 
 // Health bar component
@@ -208,7 +209,8 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   initialCombatState,
   onCombatEnd,
   onNarrativeUpdate,
-  onInventoryUpdate
+  onInventoryUpdate,
+  showToast
 }) => {
   const [combatState, setCombatState] = useState<CombatState>(initialCombatState);
   const [playerStats, setPlayerStats] = useState<PlayerCombatStats>(() => 
@@ -331,15 +333,23 @@ export const CombatModal: React.FC<CombatModalProps> = ({
       onNarrativeUpdate(narrative);
     }
     
-    // Trigger healing animation if health was restored
+    // Trigger healing animation and toast if health was restored
     if (action === 'item' && newPlayerStats.currentHealth > playerStats.currentHealth) {
       setIsHealing(true);
       setTimeout(() => setIsHealing(false), 1000);
+      if (showToast) {
+        showToast(`Restored ${newPlayerStats.currentHealth - playerStats.currentHealth} health!`, 'success');
+      }
     }
     
     // Update inventory if item was used
-    if (usedItem && onInventoryUpdate) {
-      onInventoryUpdate([{ name: usedItem.name, quantity: 1 }]);
+    if (usedItem) {
+      if (onInventoryUpdate) {
+        onInventoryUpdate([{ name: usedItem.name, quantity: 1 }]);
+      }
+      if (showToast) {
+        showToast(`Used ${usedItem.name}`, 'info');
+      }
     }
     
     // Check combat end
@@ -379,7 +389,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   const getUsableItems = () => {
     return inventory.filter(item => 
       item.quantity > 0 && (
-        (item.type === 'potion' && item.subtype === 'health') ||
+        item.type === 'potion' ||
         item.type === 'food' ||
         item.type === 'drink'
       )

@@ -108,7 +108,7 @@ window.demo.createTestItem = function(type = null) {
   const names = {
     weapon: ['Iron Sword', 'Steel Dagger', 'Wooden Bow', 'Iron Mace'],
     apparel: ['Leather Armor', 'Iron Helmet', 'Cloth Robes', 'Fur Boots'],
-    potion: ['Health Potion', 'Magicka Potion', 'Stamina Potion', 'Poison'],
+    potion: ['Health Potion', 'Magicka Potion', 'Stamina Potion', 'Restore Health', 'Restore Magicka', 'Restore Stamina'],
     food: ['Apple', 'Bread', 'Cheese', 'Salted Meat'],
     misc: ['Torch', 'Lockpick', 'Gem', 'Coin Purse']
   };
@@ -130,6 +130,17 @@ window.demo.createTestItem = function(type = null) {
     item.damage = Math.floor(Math.random() * 20) + 5;
   } else if (itemType === 'apparel') {
     item.armor = Math.floor(Math.random() * 15) + 5;
+  } else if (itemType === 'potion') {
+    const name = item.name.toLowerCase();
+    if (name.includes('health')) {
+      item.subtype = 'health';
+    } else if (name.includes('magicka')) {
+      item.subtype = 'magicka';
+    } else if (name.includes('stamina')) {
+      item.subtype = 'stamina';
+    } else {
+      item.subtype = 'health'; // Default
+    }
   }
 
   console.log('Created test item:', item);
@@ -304,24 +315,29 @@ window.demo.simulateCombat = function(options = {}) {
   const level = Math.max(1, Math.floor(character.level || 1));
   const choose = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+  // Soft-cap enemy stats based on player for smoother difficulty
+  const playerHealth = Math.max(80, Number(character?.stats?.health || 120));
+  const playerStamina = Math.max(60, Number(character?.stats?.stamina || 80));
+  const playerWeaponGuess = Math.max(10, Number(character?.stats?.strength || 12));
+
   const buildEnemy = (seed) => {
-    const health = seed.baseHealth + Math.floor(level * seed.healthScale);
-    const stamina = 60 + Math.floor(level * 2);
-    const magicka = 40 + Math.floor(level * 1.5);
-    const damage = seed.baseDamage + Math.floor(level * seed.damageScale);
+    const health = Math.floor(playerHealth * seed.healthMultiplier);
+    const stamina = Math.floor(playerStamina * 0.9);
+    const magicka = Math.floor(playerStamina * 0.6);
+    const damage = Math.max(6, Math.floor(playerWeaponGuess * seed.damageMultiplier));
 
     return {
       id: uniqueId(),
       name: seed.name,
       type: seed.type,
       level,
-      maxHealth: health,
-      currentHealth: health,
+      maxHealth: Math.max(40, health),
+      currentHealth: Math.max(40, health),
       maxMagicka: magicka,
       currentMagicka: magicka,
       maxStamina: stamina,
       currentStamina: stamina,
-      armor: seed.armor,
+      armor: Math.max(5, Math.floor(seed.armor * 0.8)),
       damage,
       abilities: [
         {
@@ -359,9 +375,9 @@ window.demo.simulateCombat = function(options = {}) {
       type: 'humanoid',
       baseHealth: 90,
       baseDamage: 15,
-      healthScale: 6,
-      damageScale: 1.1,
-      armor: 25,
+      healthMultiplier: 0.85,
+      damageMultiplier: 0.65,
+      armor: 18,
       weaknesses: ['fire'],
       resistances: ['poison'],
       behavior: 'aggressive',
@@ -373,9 +389,9 @@ window.demo.simulateCombat = function(options = {}) {
       type: 'undead',
       baseHealth: 110,
       baseDamage: 13,
-      healthScale: 7,
-      damageScale: 1.05,
-      armor: 30,
+      healthMultiplier: 0.95,
+      damageMultiplier: 0.7,
+      armor: 20,
       weaknesses: ['fire'],
       resistances: ['frost'],
       behavior: 'defensive',
@@ -387,9 +403,9 @@ window.demo.simulateCombat = function(options = {}) {
       type: 'beast',
       baseHealth: 70,
       baseDamage: 12,
-      healthScale: 5,
-      damageScale: 1.2,
-      armor: 15,
+      healthMultiplier: 0.75,
+      damageMultiplier: 0.6,
+      armor: 12,
       weaknesses: ['fire'],
       resistances: ['frost'],
       behavior: 'berserker',
@@ -400,7 +416,7 @@ window.demo.simulateCombat = function(options = {}) {
 
   const enemySeeds = Array.isArray(options.enemies) && options.enemies.length
     ? options.enemies
-    : [choose(defaultSeeds), choose(defaultSeeds)];
+    : [choose(defaultSeeds)];
 
   const enemies = enemySeeds.map(seed => buildEnemy(seed));
   const ambush = typeof options.ambush === 'boolean' ? options.ambush : Math.random() < 0.2;

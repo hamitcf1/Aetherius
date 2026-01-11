@@ -535,6 +535,7 @@ export const executePlayerAction = (
 
     case 'item': {
       // Item usage in combat - healing potions and food
+      console.log('Item action:', { itemId, inventory });
       if (!itemId || !inventory) {
         narrative = 'No item selected or inventory not available!';
         break;
@@ -542,6 +543,7 @@ export const executePlayerAction = (
 
       // Find the item in inventory
       const itemIndex = inventory.findIndex(item => item.id === itemId);
+      console.log('Item index:', itemIndex, 'item:', inventory[itemIndex]);
       if (itemIndex === -1) {
         narrative = 'Item not found in inventory!';
         break;
@@ -557,23 +559,30 @@ export const executePlayerAction = (
       let usedItem: InventoryItem | undefined;
 
       // Handle different item types
-      if (item.type === 'potion' && item.name.toLowerCase().includes('health')) {
-        // Health potion - use the item's damage value as healing amount
+      if (item.type === 'potion') {
+        // All potions provide healing - use damage value or default to 35
         healAmount = item.damage || 35;
         usedItem = item;
+        console.log('Potion healing:', healAmount);
       } else if (item.type === 'food' || item.type === 'drink') {
-        // Food/drink item - use nutrition data for healing
+        // Food/drink item - use nutrition data for healing or fallback
         const nutrition = getFoodNutrition(item.name);
         if (nutrition) {
-          // Food provides minor healing based on nutrition value
-          healAmount = Math.floor(nutrition.hungerReduction / 2) + 5; // 5-15 health from food
-          usedItem = item;
+          // Food provides healing based on nutrition value
+          healAmount = Math.floor(nutrition.hungerReduction / 2) + 10; // 10-25 health from food
+        } else {
+          // Fallback healing for food without nutrition data
+          healAmount = 15;
         }
+        usedItem = item;
+        console.log('Food healing:', healAmount, 'nutrition:', nutrition);
       }
 
+      console.log('Heal amount:', healAmount, 'usedItem:', usedItem);
       if (healAmount > 0 && usedItem) {
         const actualHeal = Math.min(healAmount, newPlayerStats.maxHealth - newPlayerStats.currentHealth);
         newPlayerStats.currentHealth += actualHeal;
+        console.log('Actual heal:', actualHeal, 'new health:', newPlayerStats.currentHealth);
 
         // Remove one from inventory
         const updatedItem = { ...item, quantity: item.quantity - 1 };

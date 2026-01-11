@@ -124,7 +124,10 @@ const getChangeColor = (type: string) => {
 
 export const Changelog: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
   const latestVersion = CHANGELOG[0]?.version || '0.0.0';
+
+  if (isDismissed) return null;
 
   return (
     <>
@@ -162,12 +165,24 @@ export const Changelog: React.FC = () => {
                     <p className="text-xs text-gray-500">What's new in Aetherius</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-2 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                >
-                  <X size={18} />
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      setIsDismissed(true);
+                    }}
+                    className="px-3 py-1 text-xs text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
+                    title="Hide changelog permanently"
+                  >
+                    Dismiss
+                  </button>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-2 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
             </div>
 

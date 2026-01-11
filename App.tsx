@@ -18,6 +18,7 @@ import { CombatModal } from './components/CombatModal';
 import { ConsoleOverlay } from './components/ConsoleOverlay';
 import { Changelog } from './components/Changelog';
 import UpdateNotification from './components/UpdateNotification';
+import { ToastNotification } from './components/ToastNotification';
 import { 
   OfflineIndicator, 
   AutoSaveIndicator, 
@@ -135,6 +136,24 @@ const addMinutesToTime = (time: { day: number; hour: number; minute: number }, m
   };
 };
 
+// Normalize inventory items before persisting to Firestore or using in combat
+const sanitizeInventoryItem = (item: Partial<InventoryItem>): Partial<InventoryItem> => {
+  const clean: any = { ...item };
+  if (!Number.isFinite(clean.quantity)) clean.quantity = 1;
+  if (clean.quantity <= 0) clean.quantity = 1;
+
+  // Drop undefined or invalid numeric fields to avoid Firestore errors
+  if (clean.armor === undefined || !Number.isFinite(clean.armor)) delete clean.armor;
+  if (clean.damage === undefined || !Number.isFinite(clean.damage)) delete clean.damage;
+  if (clean.weight === undefined || !Number.isFinite(clean.weight)) delete clean.weight;
+  if (clean.value === undefined || !Number.isFinite(clean.value)) delete clean.value;
+
+  // Ensure potions are tagged for combat filtering
+  if (clean.type === 'potion' && !clean.subtype) clean.subtype = 'health';
+
+  return clean;
+};
+
 const formatTime = (time: { day: number; hour: number; minute: number }) => {
   const d = Math.max(1, Number(time?.day || 1));
   const h = clamp(Number(time?.hour || 0), 0, 23);
@@ -215,6 +234,12 @@ const App: React.FC = () => {
   const [showConsole, setShowConsole] = useState(false);
   const [consoleKeyBuffer, setConsoleKeyBuffer] = useState('');
 
+  // Toast Notifications
+  const [toastMessages, setToastMessages] = useState<Array<{ id: string; message: string; type: 'info' | 'success' | 'warning' | 'error' }>>([]);
+  const handleToastClose = useCallback((id: string) => {
+    setToastMessages(prev => prev.filter(t => t.id !== id));
+  }, []);
+
   // Encumbrance calculation
   const calculateCarryWeight = useCallback((characterItems: InventoryItem[]) => {
     return characterItems.reduce((total, item) => {
@@ -245,6 +270,16 @@ const App: React.FC = () => {
       default: return 1;
     }
   };
+
+  // Toast notification helper
+  const showToast = useCallback((message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    console.log('showToast called:', message, type);
+    const id = uniqueId();
+    setToastMessages(prev => [...prev.slice(-4), { id, message, type }]);
+    setTimeout(() => {
+      setToastMessages(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  }, []);
 
   // Persist currentCharacterId to localStorage
   useEffect(() => {
@@ -1248,6 +1283,54 @@ const App: React.FC = () => {
     });
   };
 
+  // Use a consumable item (potion, food, drink) - restores vitals and shows toast
+  const handleUseItem = (item: InventoryItem) => {
+    if (!currentCharacterId || !activeCharacter) return;
+
+    if (item.type === 'potion') {
+      // Determine potion type from name or subtype
+      const name = item.name.toLowerCase();
+      let vitalsChange: any = {};
+      let message = '';
+      let healAmount = item.damage || 35; // Default heal amount
+
+      if (name.includes('health') || item.subtype === 'health') {
+        vitalsChange.currentHealth = Math.min(healAmount, (activeCharacter.stats.health || 100) - (activeCharacter.currentVitals?.currentHealth || 100));
+        message = `Restored ${vitalsChange.currentHealth} health!`;
+      } else if (name.includes('magicka') || item.subtype === 'magicka') {
+        vitalsChange.currentMagicka = Math.min(healAmount, (activeCharacter.stats.magicka || 100) - (activeCharacter.currentVitals?.currentMagicka || 100));
+        message = `Restored ${vitalsChange.currentMagicka} magicka!`;
+      } else if (name.includes('stamina') || item.subtype === 'stamina') {
+        vitalsChange.currentStamina = Math.min(healAmount, (activeCharacter.stats.stamina || 100) - (activeCharacter.currentVitals?.currentStamina || 100));
+        message = `Restored ${vitalsChange.currentStamina} stamina!`;
+      } else {
+        // Default to health potion
+        vitalsChange.currentHealth = Math.min(healAmount, (activeCharacter.stats.health || 100) - (activeCharacter.currentVitals?.currentHealth || 100));
+        message = `Restored ${vitalsChange.currentHealth} health!`;
+      }
+
+      handleGameUpdate({
+        vitalsChange,
+        removedItems: [{ name: item.name, quantity: 1 }]
+      });
+
+      showToast(message, 'success');
+
+    } else if (item.type === 'food') {
+      handleEatItem(item);
+      showToast(`Ate ${item.name}`, 'info');
+    } else if (item.type === 'drink') {
+      handleDrinkItem(item);
+      showToast(`Drank ${item.name}`, 'info');
+    } else if (item.type === 'ingredient') {
+      // Ingredients might be used for crafting, but for now just consume
+      handleGameUpdate({
+        removedItems: [{ name: item.name, quantity: 1 }]
+      });
+      showToast(`Used ${item.name}`, 'info');
+    }
+  };
+
   // Shop purchase handler
   const handleShopPurchase = (shopItem: { name: string; type: string; description: string; price: number }, quantity: number) => {
     if (!currentCharacterId || !activeCharacter) return;
@@ -1645,7 +1728,8 @@ const App: React.FC = () => {
            setItems(prev => {
              const next = [...prev];
              for (const i of updates.newItems || []) {
-               const name = (i.name || '').trim();
+               const rawItem = sanitizeInventoryItem(i);
+               const name = (rawItem.name || '').trim();
                if (!name) continue;
 
                const idx = next.findIndex(it =>
@@ -1653,38 +1737,38 @@ const App: React.FC = () => {
                  (it.name || '').trim().toLowerCase() === name.toLowerCase()
                );
 
-               const addQty = Math.max(1, Number(i.quantity || 1));
+               const addQty = Math.max(1, Number(rawItem.quantity || 1));
 
                if (idx >= 0) {
                  const existing = next[idx];
-                 const updated = {
+                 const updated = sanitizeInventoryItem({
                    ...existing,
                    quantity: (existing.quantity || 0) + addQty,
-                   description: existing.description || i.description || '',
-                   type: (existing.type || (i.type as any)) as any,
-                   // Update stats if provided (in case item didn't have them before)
-                   armor: existing.armor || (i as any).armor || undefined,
-                   damage: existing.damage || (i as any).damage || undefined,
-                   value: existing.value || (i as any).value || undefined,
-                   slot: existing.slot || (i as any).slot || undefined,
-                 };
+                   description: existing.description || rawItem.description || '',
+                   type: existing.type || rawItem.type || 'misc',
+                   subtype: existing.subtype || rawItem.subtype,
+                   armor: existing.armor ?? rawItem.armor,
+                   damage: existing.damage ?? rawItem.damage,
+                   value: existing.value ?? rawItem.value,
+                   slot: existing.slot ?? rawItem.slot,
+                 }) as InventoryItem;
                  next[idx] = updated;
                  setDirtyEntities(d => new Set([...d, updated.id]));
                } else {
-                 const added: InventoryItem = {
+                 const added = sanitizeInventoryItem({
                    id: uniqueId(),
                    characterId: currentCharacterId,
                    name,
-                   type: i.type as any,
-                   description: i.description || '',
+                   type: rawItem.type || 'misc',
+                   subtype: rawItem.subtype,
+                   description: rawItem.description || '',
                    quantity: addQty,
                    equipped: false,
-                   // Include stats from incoming item
-                   armor: (i as any).armor,
-                   damage: (i as any).damage,
-                   value: (i as any).value,
-                   slot: (i as any).slot,
-                 };
+                   armor: rawItem.armor,
+                   damage: rawItem.damage,
+                   value: rawItem.value,
+                   slot: rawItem.slot,
+                 }) as InventoryItem;
                  next.push(added);
                  setDirtyEntities(d => new Set([...d, added.id]));
                }
@@ -2195,6 +2279,7 @@ const App: React.FC = () => {
                   gold={activeCharacter.gold || 0} 
                   setGold={(amt) => updateCharacter('gold', amt)}
                   maxCarryWeight={getMaxCarryWeight(activeCharacter)}
+                  onUseItem={handleUseItem}
               />
             )}
             {activeTab === TABS.QUESTS && (
@@ -2261,15 +2346,9 @@ const App: React.FC = () => {
             inventory={getCharacterItems()}
             initialCombatState={combatState}
             onCombatEnd={(result, rewards, finalVitals) => {
-              // Close combat modal
               setCombatState(null);
-              
-              // Return to peaceful music
               updateMusicForContext({ inCombat: false, mood: result === 'victory' ? 'triumphant' : 'peaceful' });
-              
-              // Apply combat results
               if (result === 'victory' && rewards) {
-                // Apply rewards
                 handleGameUpdate({
                   narrative: {
                     title: 'Victory!',
@@ -2285,14 +2364,13 @@ const App: React.FC = () => {
                   } : undefined
                 });
               } else if (result === 'defeat') {
-                // Handle defeat - character might die or be captured
                 handleGameUpdate({
                   narrative: {
                     title: 'Defeated...',
                     content: 'You have fallen in battle. The world grows dark as consciousness slips away...'
                   },
                   vitalsChange: {
-                    currentHealth: -(activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health) + 1 // Leave at 1 HP
+                    currentHealth: -(activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health) + 1
                   }
                 });
               } else if (result === 'fled') {
@@ -2322,16 +2400,17 @@ const App: React.FC = () => {
               }
             }}
             onNarrativeUpdate={(narrative) => {
-              // Optionally log combat narratives to story
-              // For now, just console log
               console.log('[Combat Narrative]', narrative);
             }}
             onInventoryUpdate={(removedItems) => {
               handleGameUpdate({ removedItems });
             }}
+            showToast={showToast}
           />
         )}
 
+        {/* Toast Notifications */}
+        <ToastNotification messages={toastMessages} onClose={handleToastClose} />
         {/* Update Notification */}
         <UpdateNotification position="bottom" />
 
