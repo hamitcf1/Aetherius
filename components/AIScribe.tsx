@@ -30,12 +30,27 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
   const [lastResponse, setLastResponse] = useState<GameStateUpdate | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [mode, setMode] = useState<'action' | 'hero'>('action'); // Mode toggle
-  
-  // Draggable button position
-  const [buttonPos, setButtonPos] = useState({ x: window.innerWidth - 200, y: window.innerHeight - 100 });
+  // --- Consult Game Master button visibility ---
+  const [showConsultButton, setShowConsultButton] = useState(() => {
+    try {
+      const stored = localStorage.getItem('showConsultGameMaster');
+      return stored === 'true';
+    } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('showConsultGameMaster', showConsultButton ? 'true' : 'false'); } catch {}
+  }, [showConsultButton]);
+  // --- Draggable state for button ---
   const [isDragging, setIsDragging] = useState(false);
   const [hasDragged, setHasDragged] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [buttonPos, setButtonPos] = useState(() => {
+    const isMobile = window.innerWidth <= 600;
+    return {
+      x: isMobile ? window.innerWidth - 60 : window.innerWidth - 200,
+      y: window.innerHeight - 100
+    };
+  });
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [collapsedSide, setCollapsedSide] = useState<'left' | 'right' | 'top' | 'bottom' | null>(null);
 
@@ -54,67 +69,52 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
     };
   }, [isOpen, handleEscape]);
   
-  // Handle drag events
+  // Handle vertical-only drag events (mouse and touch)
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    function handleMove(e) {
       if (!isDragging) return;
       setHasDragged(true);
-      
-      const newX = e.clientX - dragOffset.x;
-      const newY = e.clientY - dragOffset.y;
-      
-      // Button dimensions (approximate)
-      const buttonWidth = 200;
-      const buttonHeight = 60;
-      const edgeThreshold = -50; // How far off screen before collapsing
-      
-      // Check if pushed to edges
-      if (newX < edgeThreshold) {
-        setIsCollapsed(true);
-        setCollapsedSide('left');
-        setButtonPos({ x: -buttonWidth + 30, y: Math.max(0, Math.min(window.innerHeight - buttonHeight, newY)) });
-      } else if (newX > window.innerWidth - buttonWidth + 50) {
-        setIsCollapsed(true);
-        setCollapsedSide('right');
-        setButtonPos({ x: window.innerWidth - 30, y: Math.max(0, Math.min(window.innerHeight - buttonHeight, newY)) });
-      } else if (newY < edgeThreshold) {
-        setIsCollapsed(true);
-        setCollapsedSide('top');
-        setButtonPos({ x: Math.max(0, Math.min(window.innerWidth - buttonWidth, newX)), y: -buttonHeight + 30 });
-      } else if (newY > window.innerHeight - buttonHeight + 50) {
-        setIsCollapsed(true);
-        setCollapsedSide('bottom');
-        setButtonPos({ x: Math.max(0, Math.min(window.innerWidth - buttonWidth, newX)), y: window.innerHeight - 30 });
+      let clientY;
+      if (e.touches && e.touches.length > 0) {
+        clientY = e.touches[0].clientY;
       } else {
-        setIsCollapsed(false);
-        setCollapsedSide(null);
-        setButtonPos({
-          x: Math.max(0, Math.min(window.innerWidth - buttonWidth, newX)),
-          y: Math.max(0, Math.min(window.innerHeight - buttonHeight, newY))
-        });
+        clientY = e.clientY;
       }
-    };
-
-    const handleMouseUp = () => {
+      const buttonHeight = window.innerWidth <= 600 ? 70 : 60;
+      const newY = clientY - dragOffset.y;
+      setButtonPos(pos => ({ x: pos.x, y: Math.max(0, Math.min(window.innerHeight - buttonHeight, newY)) }));
+    }
+    function handleUp() {
       setIsDragging(false);
-    };
-
+    }
     if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('mousemove', handleMove);
+      document.addEventListener('mouseup', handleUp);
+      document.addEventListener('touchmove', handleMove);
+      document.addEventListener('touchend', handleUp);
       return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('mousemove', handleMove);
+        document.removeEventListener('mouseup', handleUp);
+        document.removeEventListener('touchmove', handleMove);
+        document.removeEventListener('touchend', handleUp);
       };
     }
   }, [isDragging, dragOffset]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // Mouse/touch down for vertical drag only
+  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
+    let clientY;
+    if ('touches' in e && e.touches.length > 0) {
+      clientY = e.touches[0].clientY;
+    } else {
+      // @ts-ignore
+      clientY = e.clientY;
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: 0, // lock horizontal
+      y: clientY - rect.top
     });
     setIsDragging(true);
     setHasDragged(false);
@@ -126,11 +126,12 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
         // Uncollapse button
         setIsCollapsed(false);
         setCollapsedSide(null);
-        const buttonWidth = 200;
-        const buttonHeight = 60;
+        const isMobile = window.innerWidth <= 600;
+        const buttonWidth = isMobile ? 60 : 200;
+        const buttonHeight = isMobile ? 70 : 60;
         setButtonPos({
-          x: Math.max(50, Math.min(window.innerWidth - buttonWidth - 50, buttonPos.x)),
-          y: Math.max(50, Math.min(window.innerHeight - buttonHeight - 50, buttonPos.y))
+          x: Math.max(10, Math.min(window.innerWidth - buttonWidth - 10, buttonPos.x)),
+          y: Math.max(10, Math.min(window.innerHeight - buttonHeight - 10, buttonPos.y))
         });
       } else {
         setIsOpen(true);
@@ -250,23 +251,82 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
 
   if (!isOpen) {
     return (
-      <button
-        onMouseDown={handleMouseDown}
-        onClick={handleButtonClick}
-        style={{
-          left: `${buttonPos.x}px`,
-          top: `${buttonPos.y}px`,
-          cursor: isDragging ? 'grabbing' : 'grab',
-          transition: isDragging ? 'none' : 'all 0.3s ease'
-        }}
-        className={`fixed p-4 bg-skyrim-gold hover:bg-skyrim-goldHover text-skyrim-dark rounded-full shadow-lg border-2 border-skyrim-dark transition-transform hover:scale-105 z-50 flex items-center gap-2 font-serif font-bold ${
-          isCollapsed ? 'opacity-70 scale-75' : ''
-        }`}
-        title={isCollapsed ? 'Click to restore' : 'Consult the Game Master (drag to move)'}
-      >
-        <Sparkles size={20} />
-        {!isCollapsed && <span className="hidden md:inline">Consult Game Master</span>}
-      </button>
+      <>
+        {/* Minimal tab to unhide the button, fixed to side, only if hidden */}
+        {!showConsultButton && (
+          <button
+            onMouseDown={e => {
+              e.preventDefault();
+              const rect = e.currentTarget.getBoundingClientRect();
+              setDragOffset({
+                x: 0, // lock horizontal
+                y: e.clientY - rect.top
+              });
+              setIsDragging(true);
+            }}
+            onClick={() => setShowConsultButton(true)}
+            className="fixed z-50 bg-skyrim-gold text-skyrim-dark rounded-l-lg shadow-lg border-2 border-skyrim-dark font-serif font-bold opacity-80 hover:opacity-100 gm-toggle-btn"
+            style={{
+              top: `${buttonPos.y}px`,
+              right: 0,
+              minWidth: window.innerWidth <= 600 ? 50 : 32,
+              minHeight: window.innerWidth <= 600 ? 60 : 48,
+              writingMode: window.innerWidth <= 600 ? 'horizontal-tb' : 'vertical-rl',
+              fontSize: window.innerWidth <= 600 ? 14 : 12,
+              letterSpacing: 1,
+              padding: window.innerWidth <= 600 ? '4px 8px' : 0,
+              cursor: isDragging ? 'grabbing' : 'grab',
+              transition: isDragging ? 'none' : 'all 0.3s ease',
+              zIndex: 9999,
+            }}
+            aria-label="Show Consult Game Master"
+          >
+            GM
+          </button>
+        )}
+        {/* Consult Game Master button, only if visible */}
+        {showConsultButton && (
+          <button
+            onClick={() => setShowConsultButton(false)}
+            className="fixed top-1/2 right-0 z-50 px-2 py-1 bg-skyrim-gold text-skyrim-dark rounded-l-lg shadow-lg border-2 border-skyrim-dark font-serif font-bold opacity-80 hover:opacity-100"
+            style={{
+              transform: 'translateY(-50%)',
+              minWidth: window.innerWidth <= 600 ? 40 : 32,
+              minHeight: window.innerWidth <= 600 ? 50 : 48,
+              writingMode: window.innerWidth <= 600 ? 'horizontal-tb' : 'vertical-rl',
+              fontSize: window.innerWidth <= 600 ? 14 : 12,
+              letterSpacing: 1,
+              padding: window.innerWidth <= 600 ? '4px 8px' : 0
+            }}
+            aria-label="Hide Consult Game Master"
+          >
+            ×
+          </button>
+        )}
+        {showConsultButton && (
+          <button
+            onMouseDown={handleMouseDown}
+            onClick={handleButtonClick}
+            className={`fixed top-1/2 right-10 z-50 p-3 bg-skyrim-gold hover:bg-skyrim-goldHover text-skyrim-dark rounded-full shadow-lg border-2 border-skyrim-dark transition-transform hover:scale-105 flex items-center gap-2 font-serif font-bold ${
+              isCollapsed ? 'opacity-70 scale-75' : ''
+            }`}
+            style={{
+              transform: 'translateY(-50%)',
+              minWidth: window.innerWidth <= 600 ? 50 : 44,
+              minHeight: window.innerWidth <= 600 ? 50 : 44,
+              maxWidth: '90vw',
+              maxHeight: '90vw',
+              fontSize: window.innerWidth <= 600 ? 12 : 14,
+              padding: window.innerWidth <= 600 ? '8px' : 0,
+              boxSizing: 'border-box'
+            }}
+            title={isCollapsed ? 'Click to restore' : 'Consult the Game Master (drag to move)'}
+          >
+            <Sparkles size={20} />
+            {!isCollapsed && <span className="hidden md:inline">Consult Game Master</span>}
+          </button>
+        )}
+      </>
     );
   }
 
@@ -288,106 +348,73 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
           </button>
         </div>
 
-        {/* Mode Toggle */}
-        <div className="px-4 pt-4 flex gap-2">
-          <button
-            onClick={() => setMode('action')}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded text-sm font-bold transition-colors ${
-              mode === 'action' 
-                ? 'bg-skyrim-gold text-skyrim-dark' 
-                : 'bg-black/30 text-gray-400 hover:text-gray-200 border border-skyrim-border'
-            }`}
-          >
-            <Sparkles size={16} /> Game Action
-          </button>
-          <button
-            onClick={() => setMode('hero')}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded text-sm font-bold transition-colors ${
-              mode === 'hero' 
-                ? 'bg-skyrim-gold text-skyrim-dark' 
-                : 'bg-black/30 text-gray-400 hover:text-gray-200 border border-skyrim-border'
-            }`}
-          >
-            <User size={16} /> Hero Details
-          </button>
-        </div>
-
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {mode === 'action' ? (
             <>
               <p className="text-sm text-gray-400 italic">
-                "Describe your action. I will determine the outcome."
+                "What action should your hero take? Describe what you want to happen next."
               </p>
-              
-              <div>
-                <label className="block text-skyrim-gold text-sm font-bold mb-2">
-                  Your Action
-                </label>
-                <textarea
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  className="w-full bg-black/30 border border-skyrim-border text-gray-200 p-3 rounded focus:border-skyrim-gold focus:outline-none mb-2 normal-case"
-                  rows={3}
-                  placeholder="e.g., I search the bandit chest for loot..."
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                />
-                <textarea
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  className="w-full bg-black/20 border border-skyrim-border text-gray-300 p-2 rounded focus:border-skyrim-gold focus:outline-none text-xs font-mono normal-case"
-                  rows={2}
-                  placeholder="Batch add: 1x Iron Sword, 2x Potion of Healing, Quest: The Golden Claw, ..."
-                  value={batchInput}
-                  onChange={e => setBatchInput(e.target.value)}
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-gray-400 italic">
-                "Let me craft your hero's soul. Choose a quick fill or describe what you want."
-              </p>
-
-              {/* Quick Fill Buttons */}
-              <div className="space-y-2">
-                <label className="block text-skyrim-gold text-sm font-bold">Quick Fill</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {HERO_DETAIL_PROMPTS.map(hp => (
-                    <button
-                      key={hp.key}
-                      onClick={() => setPrompt(hp.prompt)}
-                      disabled={loading}
-                      className={`px-3 py-2 text-xs rounded border transition-colors flex items-center gap-1.5 ${
-                        prompt === hp.prompt 
-                          ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold' 
-                          : 'bg-black/30 border-skyrim-border text-gray-300 hover:border-skyrim-gold/50 hover:text-gray-100'
-                      }`}
-                    >
-                      <Wand2 size={12} />
-                      {hp.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               <div>
                 <label className="block text-skyrim-gold text-sm font-bold mb-2">
-                  Custom Request
+                  Action Request
                 </label>
                 <textarea
                   autoCapitalize="none"
                   autoCorrect="off"
                   className="w-full bg-black/30 border border-skyrim-border text-gray-200 p-3 rounded focus:border-skyrim-gold focus:outline-none normal-case text-sm"
-                  rows={3}
-                  placeholder="e.g., Generate a tragic backstory involving the Great War... or, Make my character fear magic due to a childhood accident..."
+                  rows={4}
+                  placeholder="e.g., My character should explore the nearby ruins... or, Have my hero confront the bandit leader..."
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                 />
               </div>
             </>
-          )}
+          ) : (
+          <>
+            <p className="text-sm text-gray-400 italic">
+              "Let me craft your hero's soul. Choose a quick fill or describe what you want."
+            </p>
+
+            {/* Quick Fill Buttons */}
+            <div className="space-y-2">
+              <label className="block text-skyrim-gold text-sm font-bold">Quick Fill</label>
+              <div className="grid grid-cols-2 gap-2">
+                {HERO_DETAIL_PROMPTS.map(hp => (
+                  <button
+                    key={hp.key}
+                    onClick={() => setPrompt(hp.prompt)}
+                    disabled={loading}
+                    className={`px-3 py-2 text-xs rounded border transition-colors flex items-center gap-1.5 ${
+                      prompt === hp.prompt
+                        ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold'
+                        : 'bg-black/30 border-skyrim-border text-gray-300 hover:border-skyrim-gold/50 hover:text-gray-100'
+                    }`}
+                  >
+                    <Wand2 size={12} />
+                    {hp.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-skyrim-gold text-sm font-bold mb-2">
+                Custom Request
+              </label>
+              <textarea
+                autoCapitalize="none"
+                autoCorrect="off"
+                className="w-full bg-black/30 border border-skyrim-border text-gray-200 p-3 rounded focus:border-skyrim-gold focus:outline-none normal-case text-sm"
+                rows={3}
+                placeholder="e.g., Generate a tragic backstory involving the Great War... or, Make my character fear magic due to a childhood accident..."
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+              />
+            </div>
+          </>
+        )}
 
           {lastResponse && (
             <div className="bg-black/20 p-4 rounded border border-skyrim-border/50 animate-in fade-in">
