@@ -18,6 +18,30 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.5.0',
+    date: '2026-01-11',
+    title: 'Game Features Expansion',
+    changes: [
+      { type: 'feature', text: 'Character Export/Import - Backup and restore characters with full game state' },
+      { type: 'feature', text: 'Day/Night Visual Theme - Dynamic backgrounds based on in-game time' },
+      { type: 'feature', text: 'Weather Effects System - Weather impacts survival needs and visibility' },
+      { type: 'feature', text: 'Companion System - Recruit and manage NPC companions' },
+      { type: 'feature', text: 'Undo/Redo Functionality - State management with history tracking' },
+      { type: 'feature', text: 'Session History View - Track and review past gaming sessions' },
+      { type: 'feature', text: 'Character Templates - Pre-built characters for quick start' },
+      { type: 'feature', text: 'Custom Color Themes - Multiple visual themes (Dark Brotherhood, College, etc.)' },
+      { type: 'feature', text: 'Difficulty Scaling - 6 difficulty levels from Novice to Legendary' },
+      { type: 'feature', text: 'Status Effects Panel - Visual display of buffs, debuffs, and effects' },
+      { type: 'improvement', text: 'Offline Mode Indicator - Shows queued changes when offline' },
+      { type: 'improvement', text: 'AI Response Validation - Enhanced validation for game state updates' },
+      { type: 'improvement', text: 'Rate Limiting UI - Visual progress bars for API usage limits' },
+      { type: 'improvement', text: 'Weight/Encumbrance System - Carry weight limits and over-encumbered warnings' },
+      { type: 'improvement', text: 'Auto-save Indicator - Real-time save status display' },
+      { type: 'fix', text: 'Pokemon-style combat system now properly triggers from AI responses' },
+      { type: 'fix', text: 'Story and Journal deletion now persists to database' },
+    ]
+  },
+  {
     version: '0.4.0',
     date: '2026-01-10',
     title: 'Combat & Time Overhaul',
