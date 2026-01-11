@@ -2234,7 +2234,17 @@ const App: React.FC = () => {
     const def = PERK_DEFINITIONS.find(d => d.id === perkId);
     if (!def) return false;
     if (!def.requires || def.requires.length === 0) return true;
-    return def.requires.every(r => (char.perks || []).some(p => p.id === r));
+    // Requirements may be of form 'perkId' or 'perkId:rank'
+    const parseReq = (req: string) => {
+      if (!req.includes(':')) return { id: req, rank: 1 };
+      const [id, r] = req.split(':');
+      return { id, rank: Number(r || 1) };
+    };
+    return def.requires.every(r => {
+      const parsed = parseReq(r);
+      const have = (char.perks || []).find(p => p.id === parsed.id)?.rank || 0;
+      return have >= parsed.rank;
+    });
   };
 
   const applyPerk = (perkId: string) => {
@@ -2244,43 +2254,109 @@ const App: React.FC = () => {
 
     setCharacters(prev => prev.map(c => {
       if (c.id !== currentCharacterId) return c;
-      const pts = c.perkPoints || 0;
+      let pts = c.perkPoints || 0;
       if (pts <= 0) return c;
-      if ((c.perks || []).some(p => p.id === perkId)) return c;
+      const max = def.maxRank || 1;
+      const existing = (c.perks || []).find(p => p.id === perkId);
+      const currRank = existing?.rank || 0;
+      if (currRank >= max) return c;
 
+      // Apply one rank
       let updatedStats = { ...c.stats };
       if (def.effect && def.effect.type === 'stat') {
         const key = def.effect.key as keyof typeof updatedStats;
         updatedStats = { ...updatedStats, [key]: (updatedStats as any)[key] + def.effect.amount };
       }
 
-      const newPerk: Perk = { id: def.id, name: def.name, skill: def.skill || '', rank: 1, description: def.description };
+      let newPerks = (c.perks || []).slice();
+      if (existing) {
+        newPerks = newPerks.map(p => p.id === perkId ? { ...p, rank: (p.rank || 0) + 1 } : p);
+      } else {
+        newPerks.push({ id: def.id, name: def.name, skill: def.skill || '', rank: 1, description: def.description });
+      }
+      pts = Math.max(0, pts - 1);
       setDirtyEntities(d => new Set([...d, c.id]));
-      return { ...c, stats: updatedStats, perks: [...(c.perks || []), newPerk], perkPoints: Math.max(0, pts - 1) } as Character;
+      return { ...c, stats: updatedStats, perks: newPerks, perkPoints: pts } as Character;
     }));
   };
 
   const applyPerks = (perkIds: string[]) => {
     if (!currentCharacterId || perkIds.length === 0) return;
-    const defs = PERK_DEFINITIONS.filter(d => perkIds.includes(d.id));
+    // Count desired ranks per perk id
+    const counts: Record<string, number> = {};
+    for (const id of perkIds) counts[id] = (counts[id] || 0) + 1;
+
     setCharacters(prev => prev.map(c => {
       if (c.id !== currentCharacterId) return c;
       let updatedStats = { ...c.stats };
-      const existing = new Set((c.perks || []).map(p => p.id));
-      let added: Perk[] = [];
       let pts = c.perkPoints || 0;
-      for (const def of defs) {
+      const nextPerks = (c.perks || []).slice();
+
+      for (const [id, wantCount] of Object.entries(counts)) {
         if (pts <= 0) break;
-        if (existing.has(def.id)) continue;
-        if (def.effect && def.effect.type === 'stat') {
-          const key = def.effect.key as keyof typeof updatedStats;
-          updatedStats = { ...updatedStats, [key]: (updatedStats as any)[key] + def.effect.amount };
+        const def = PERK_DEFINITIONS.find(d => d.id === id);
+        if (!def) continue;
+        const max = def.maxRank || 1;
+        const existing = nextPerks.find(p => p.id === id);
+        let currRank = existing?.rank || 0;
+        let applied = 0;
+        while (applied < wantCount && pts > 0 && currRank < max) {
+          // apply one rank
+          if (def.effect && def.effect.type === 'stat') {
+            const key = def.effect.key as keyof typeof updatedStats;
+            updatedStats = { ...updatedStats, [key]: (updatedStats as any)[key] + def.effect.amount };
+          }
+          if (existing) {
+            for (let i = 0; i < nextPerks.length; i++) {
+              if (nextPerks[i].id === id) { nextPerks[i] = { ...nextPerks[i], rank: (nextPerks[i].rank || 0) + 1 }; break; }
+            }
+          } else {
+            nextPerks.push({ id: def.id, name: def.name, skill: def.skill || '', rank: 1, description: def.description });
+          }
+          currRank += 1;
+          applied += 1;
+          pts = Math.max(0, pts - 1);
         }
-        added.push({ id: def.id, name: def.name, skill: def.skill || '', rank: 1, description: def.description });
-        pts = Math.max(0, pts - 1);
       }
+
       setDirtyEntities(d => new Set([...d, c.id]));
-      return { ...c, stats: updatedStats, perks: [...(c.perks || []), ...added], perkPoints: pts } as Character;
+      return { ...c, stats: updatedStats, perks: nextPerks, perkPoints: pts } as Character;
+    }));
+  };
+
+  // Force-unlock a locked perk by spending 3 perk points (limited uses per character)
+  const forceUnlockPerk = (perkId: string) => {
+    if (!currentCharacterId) return;
+    setCharacters(prev => prev.map(c => {
+      if (c.id !== currentCharacterId) return c;
+      let pts = c.perkPoints || 0;
+      let forced = c.forcedPerkUnlocks || 0;
+      if (pts < 3) return c; // not enough points
+      if (forced >= 3) return c; // reached forced-unlock limit
+      const def = PERK_DEFINITIONS.find(d => d.id === perkId);
+      if (!def) return c;
+      const max = def.maxRank || 1;
+      const existing = (c.perks || []).find(p => p.id === perkId);
+      const currRank = existing?.rank || 0;
+      if (currRank >= max) return c; // already maxed
+
+      // Apply one rank regardless of prerequisites
+      let updatedStats = { ...c.stats };
+      if (def.effect && def.effect.type === 'stat') {
+        const key = def.effect.key as keyof typeof updatedStats;
+        updatedStats = { ...updatedStats, [key]: (updatedStats as any)[key] + def.effect.amount };
+      }
+      let newPerks = (c.perks || []).slice();
+      if (existing) {
+        newPerks = newPerks.map(p => p.id === perkId ? { ...p, rank: (p.rank || 0) + 1 } : p);
+      } else {
+        newPerks.push({ id: def.id, name: def.name, skill: def.skill || '', rank: 1, description: def.description });
+      }
+
+      pts = Math.max(0, pts - 3);
+      forced = forced + 1;
+      setDirtyEntities(d => new Set([...d, c.id]));
+      return { ...c, stats: updatedStats, perks: newPerks, perkPoints: pts, forcedPerkUnlocks: forced } as Character;
     }));
   };
 
@@ -2428,6 +2504,7 @@ const App: React.FC = () => {
         onClose={() => setPerkModalOpen(false)}
         character={activeCharacter as any}
         onConfirm={(perkIds: string[]) => { applyPerks(perkIds); setPerkModalOpen(false); }}
+        onForceUnlock={(id: string) => { forceUnlockPerk(id); setPerkModalOpen(false); }}
       />
       <div className="min-h-screen bg-skyrim-dark text-skyrim-text font-sans selection:bg-skyrim-gold selection:text-skyrim-dark">
         {/* Status Indicators */}

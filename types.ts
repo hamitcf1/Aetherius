@@ -69,6 +69,8 @@ export interface Character {
   perks: Perk[];
   // Unspent perk points (granted on level up)
   perkPoints?: number;
+  // Number of times the player used a forced unlock (spending extra points to bypass prerequisites)
+  forcedPerkUnlocks?: number;
 
   // Stats (max values)
   stats: Stats;

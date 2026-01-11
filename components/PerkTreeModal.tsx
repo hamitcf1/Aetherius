@@ -8,33 +8,50 @@ interface Props {
   open: boolean;
   onClose: () => void;
   character: Character;
+  // Accept an array of perk ids (can include duplicates to apply multiple ranks)
   onConfirm: (perkIds: string[]) => void; // commit staged perks
+  onForceUnlock?: (perkId: string) => void;
 }
 
-function isUnlocked(char: Character, perkId: string) {
-  return (char.perks || []).some(p => p.id === perkId);
+function currentPerkRank(char: Character, perkId: string) {
+  return (char.perks || []).find(p => p.id === perkId)?.rank || 0;
+}
+
+function parseRequirement(req: string): { id: string; rank: number } {
+  if (!req.includes(':')) return { id: req, rank: 1 };
+  const [id, r] = req.split(':');
+  return { id, rank: Number(r || 1) };
 }
 
 function prerequisitesMet(char: Character, def: PerkDef) {
   if (!def.requires || def.requires.length === 0) return true;
-  return def.requires.every(r => isUnlocked(char, r));
+  return def.requires.every(r => {
+    const parsed = parseRequirement(r);
+    const have = currentPerkRank(char, parsed.id);
+    return have >= parsed.rank;
+  });
 }
 
 export default function PerkTreeModal({ open, onClose, character, onConfirm }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [staged, setStaged] = useState<string[]>([]); // staged unlocks (not yet committed)
+  // staged map: perkId -> stagedRanks
+  const [stagedMap, setStagedMap] = useState<Record<string, number>>({});
 
   const defs = useMemo(() => PERK_DEFINITIONS, []);
 
   const availablePoints = character.perkPoints || 0;
-  const stagedCount = staged.length;
+  const stagedCount = Object.values(stagedMap).reduce((s, v) => s + (v || 0), 0);
   const remainingPoints = Math.max(0, availablePoints - stagedCount);
 
   const statusOf = (def: PerkDef) => {
-    if (isUnlocked(character, def.id)) return 'unlocked';
+    const curr = currentPerkRank(character, def.id);
+    const max = def.maxRank || 1;
+    if (curr >= max) return 'unlocked';
     if (prerequisitesMet(character, def)) return 'available';
     return 'locked';
   };
+
+  const stagedFor = (id: string) => stagedMap[id] || 0;
 
   return (
     <ModalWrapper open={open} onClose={onClose} preventOutsideClose>
@@ -47,7 +64,10 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm }: P
         <div className="grid grid-cols-3 gap-4">
           {defs.map(def => {
             const st = statusOf(def);
-            const isStaged = staged.includes(def.id);
+            const curr = currentPerkRank(character, def.id);
+            const max = def.maxRank || 1;
+            const stagedCountFor = stagedFor(def.id);
+            const isStaged = stagedCountFor > 0;
             return (
               <div key={def.id} className={`p-3 rounded border transform transition-all duration-200 ${isStaged ? 'scale-105 ring-2 ring-skyrim-gold/30 shadow-lg' : ''} ${st === 'unlocked' ? 'border-green-600 bg-green-950/5' : st === 'available' ? 'border-skyrim-gold bg-skyrim-gold/5' : 'border-skyrim-border bg-black/20'}`}>
                 <button onClick={() => setSelected(def.id)} className="w-full text-left">
@@ -55,6 +75,7 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm }: P
                     <div>
                       <div className="text-sm font-bold">{def.name}</div>
                       <div className="text-xs text-gray-400">{def.skill || ''}</div>
+                      <div className="text-xs text-gray-400">Rank: {curr + stagedCountFor}/{max}</div>
                     </div>
                     <div className="ml-2">
                       {st === 'unlocked' && <Check className="text-green-400" />}
@@ -73,8 +94,10 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm }: P
             (() => {
               const def = defs.find(d => d.id === selected)!;
               const st = statusOf(def);
-              const isStaged = staged.includes(def.id);
-              const canStage = st === 'available' && remainingPoints > 0 && !isStaged;
+              const curr = currentPerkRank(character, def.id);
+              const max = def.maxRank || 1;
+              const stagedCountFor = stagedFor(def.id);
+              const canStage = st === 'available' && remainingPoints > 0 && (curr + stagedCountFor) < max;
               return (
                 <div>
                   <div className="flex items-center justify-between">
@@ -85,13 +108,43 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm }: P
                     <div className="text-sm text-gray-300">Status: <span className={`font-bold ${st === 'unlocked' ? 'text-green-400' : st === 'available' ? 'text-skyrim-gold' : 'text-gray-400'}`}>{st}</span></div>
                   </div>
                   <p className="mt-2 text-sm text-gray-300">{def.description}</p>
-                  <div className="mt-4 flex gap-2">
-                    <button disabled={!canStage} onClick={() => {
+                  <div className="mt-2 text-xs text-gray-400">Current Rank: {curr} / {max}</div>
+                      {def.effect && def.effect.type === 'stat' && (
+                        (() => {
+                          const perRank = def.effect ? def.effect.amount : 0;
+                          const key = def.effect ? def.effect.key : '';
+                          const currentBonus = perRank * curr;
+                          const stagedBonus = perRank * stagedCountFor;
+                          const projectedBonus = currentBonus + stagedBonus;
+                          return (
+                            <div className="mt-3 text-sm text-gray-300">
+                              <div className="text-xs text-gray-400">Per rank: <span className="font-bold">{perRank} {key}</span></div>
+                              <div className="text-xs text-gray-400">Current bonus: <span className="font-bold text-skyrim-gold">+{currentBonus} {key}</span></div>
+                              <div className="text-xs text-gray-400">After staged: <span className="font-bold text-skyrim-gold">+{projectedBonus} {key}</span></div>
+                            </div>
+                          );
+                        })()
+                      )}
+                      <div className="mt-4 flex gap-2 items-center">
+                        <button disabled={!canStage} onClick={() => {
                       if (!canStage) return;
-                      setStaged(s => [...s, def.id]);
-                    }} className={`px-3 py-2 rounded ${canStage ? 'bg-skyrim-gold text-black' : 'bg-black/20 text-gray-400 border border-skyrim-border'}`}>{isStaged ? 'Staged' : 'Stage Unlock'}</button>
-                    <button disabled={!isStaged} onClick={() => setStaged(s => s.filter(x => x !== def.id))} className={`px-3 py-2 rounded ${isStaged ? 'border border-skyrim-gold text-skyrim-gold' : 'bg-black/20 text-gray-400 border border-skyrim-border'}`}>Undo</button>
-                    <button onClick={() => setSelected(null)} className="px-3 py-2 rounded border border-skyrim-border">Close</button>
+                      setStagedMap(m => ({ ...m, [def.id]: (m[def.id] || 0) + 1 }));
+                    }} className={`px-3 py-2 rounded ${canStage ? 'bg-skyrim-gold text-black' : 'bg-black/20 text-gray-400 border border-skyrim-border'}`}>{stagedCountFor > 0 ? `Staged +${stagedCountFor}` : 'Stage Rank'}</button>
+                    <button disabled={stagedCountFor === 0} onClick={() => setStagedMap(m => {
+                      const next = { ...m };
+                      if (!next[def.id]) return next;
+                      next[def.id] = Math.max(0, next[def.id] - 1);
+                      if (next[def.id] === 0) delete next[def.id];
+                      return next;
+                    })} className={`px-3 py-2 rounded ${stagedCountFor ? 'border border-skyrim-gold text-skyrim-gold' : 'bg-black/20 text-gray-400 border border-skyrim-border'}`}>Undo</button>
+                        <button onClick={() => setSelected(null)} className="px-3 py-2 rounded border border-skyrim-border">Close</button>
+                        {st === 'locked' && (
+                          <button
+                            onClick={() => onForceUnlock && onForceUnlock(def.id)}
+                            disabled={(character.perkPoints || 0) < 3 || (character.forcedPerkUnlocks || 0) >= 3}
+                            className={`px-3 py-2 rounded ${((character.perkPoints || 0) >= 3 && (character.forcedPerkUnlocks || 0) < 3) ? 'bg-red-600 text-white' : 'bg-black/20 text-gray-400 border border-skyrim-border'}`}
+                          >Unlock (cost 3)</button>
+                        )}
                   </div>
                   {st === 'locked' && def.requires && (
                     <div className="mt-3 text-xs text-gray-400">Requires: {def.requires.map(r => <span key={r} className="px-1 py-0.5 bg-black/20 rounded mr-1">{r}</span>)}</div>
@@ -107,8 +160,18 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm }: P
         <div className="flex items-center justify-between mt-4">
           <div className="text-sm text-gray-300">Staged: <span className="text-skyrim-gold font-bold">{stagedCount}</span> / {availablePoints}</div>
           <div className="flex gap-2">
-            <button onClick={() => { setStaged([]); setSelected(null); onClose(); }} className="px-4 py-2 rounded border border-skyrim-border">Cancel</button>
-            <button disabled={stagedCount === 0} onClick={() => { onConfirm(staged); setStaged([]); setSelected(null); }} className={`px-4 py-2 rounded ${stagedCount>0 ? 'bg-skyrim-gold text-black' : 'bg-black/20 text-gray-400 border border-skyrim-border'}`}>Confirm Unlocks</button>
+            <button onClick={() => { setStagedMap({}); setSelected(null); onClose(); }} className="px-4 py-2 rounded border border-skyrim-border">Cancel</button>
+            <button disabled={stagedCount === 0} onClick={() => {
+              // expand stagedMap into array of ids (allow duplicates per rank)
+              const expanded: string[] = [];
+              for (const k of Object.keys(stagedMap)) {
+                const count = stagedMap[k] || 0;
+                for (let i = 0; i < count; i++) expanded.push(k);
+              }
+              onConfirm(expanded);
+              setStagedMap({});
+              setSelected(null);
+            }} className={`px-4 py-2 rounded ${stagedCount>0 ? 'bg-skyrim-gold text-black' : 'bg-black/20 text-gray-400 border border-skyrim-border'}`}>Confirm Unlocks</button>
           </div>
         </div>
       </div>
