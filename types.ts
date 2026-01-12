@@ -457,6 +457,8 @@ export interface CombatEffect {
   chance?: number; // 0-100
 }
 
+export type LootRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
+
 export interface CombatEnemy {
   id: string;
   name: string;
@@ -510,6 +512,7 @@ export interface CombatState {
     gold: number;
     items: Array<{ name: string; type: string; description?: string; quantity: number }>;
   };
+
   // Per-enemy loot snapshot (so defeated enemy state persists until looted)
   pendingLoot?: Array<{
     enemyId: string;
@@ -537,7 +540,17 @@ export interface CombatState {
     items: Array<{ name: string; type: string; description: string; quantity: number }>;
     transactionId?: string;
     combatId?: string;
-  }; 
+  };
+  // Structured combat result (helps story engine consume a single object)
+  combatResult?: {
+    id: string;
+    result: 'victory' | 'defeat' | 'fled' | 'surrendered';
+    winner?: 'player' | 'enemy' | 'escaped' | 'unresolved';
+    survivors: Array<{ id: string; name: string; currentHealth: number }>;
+    playerStatus: { currentHealth: number; currentMagicka: number; currentStamina: number; isAlive: boolean };
+    rewards?: { xp: number; gold: number; items: Array<{ name: string; type?: string; description?: string; quantity: number }>; transactionId?: string; combatId?: string };
+    timestamp: number;
+  };
 }
 
 export interface CombatLogEntry {

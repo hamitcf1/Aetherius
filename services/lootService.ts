@@ -6,18 +6,63 @@ export const computeEnemyXP = (enemy: CombatEnemy) => {
   return enemy.isBoss ? base * 2 : base;
 };
 
-// Generate loot for an enemy based on its loot table
-export const generateEnemyLoot = (enemy: CombatEnemy): Array<{ name: string; type: string; description: string; quantity: number }> => {
-  if (!enemy.loot || enemy.loot.length === 0) return [];
+import LOOT_TABLES, { LootTableEntry } from '../data/lootTables';
 
-  return enemy.loot
-    .filter(item => Math.random() * 100 < item.dropChance) // Filter by drop chance
-    .map(item => ({
-      name: item.name,
-      type: item.type,
-      description: item.description || '',
-      quantity: item.quantity,
-    }));
+// Helper: pick one item from weighted table
+const pickWeighted = (table: LootTableEntry[], rng = Math.random): LootTableEntry | null => {
+  if (!table || table.length === 0) return null;
+  const total = table.reduce((s, t) => s + (t.weight || 1), 0);
+  let r = rng() * total;
+  for (const t of table) {
+    r -= (t.weight || 1);
+    if (r <= 0) return t;
+  }
+  return table[table.length - 1] || null;
+};
+
+const scaledChance = (entry: LootTableEntry, level: number, isBoss = false) => {
+  // Scale chance slightly by level and bossness, convert weight into an approximate chance when baseChance not present
+  if (typeof entry.baseChance === 'number') return Math.min(100, Math.max(0, entry.baseChance + level * 0.5 + (isBoss ? 10 : 0)));
+  // fallback: common weight -> decent chance, rare weight -> low; use weight to compute
+  const base = Math.min(95, Math.max(1, (entry.weight || 1) * 4 + level * 0.5 + (isBoss ? 10 : 0)));
+  return base;
+};
+
+// Generate loot for an enemy based on its loot table or global tables
+export const generateEnemyLoot = (enemy: CombatEnemy): Array<{ name: string; type: string; description: string; quantity: number }> => {
+  const items: Array<{ name: string; type: string; description: string; quantity: number }> = [];
+
+  // 1) If enemy declares an explicit loot table, honor it (backwards compat)
+  if (enemy.loot && enemy.loot.length > 0) {
+    enemy.loot.forEach(lootItem => {
+      const chance = lootItem.dropChance ?? 50;
+      if (Math.random() * 100 < chance) {
+        items.push({ name: lootItem.name, type: lootItem.type, description: lootItem.description || '', quantity: lootItem.quantity });
+      }
+    });
+  } else {
+    // 2) Otherwise sample from LOOT_TABLES by enemy.type
+    const table = LOOT_TABLES[enemy.type] || [];
+    // Attempt multiple picks so enemies can drop several items; number of attempts scales mildly with level
+    const attempts = Math.max(1, Math.min(4, Math.floor(1 + (enemy.level || 1) / 3 + (enemy.isBoss ? 1 : 0))));
+    for (let i = 0; i < attempts; i++) {
+      const pick = pickWeighted(table);
+      if (!pick) continue;
+      const chance = scaledChance(pick, enemy.level || 1, !!enemy.isBoss);
+      if (Math.random() * 100 < chance) {
+        const qty = Math.floor(Math.random() * (pick.maxQty || 1 - (pick.minQty || 1) + 1)) + (pick.minQty || 1);
+        items.push({ name: pick.name, type: pick.type, description: pick.description || '', quantity: qty });
+      }
+    }
+  }
+
+  // Guarantee at least some reward: if nothing dropped, give small gold or scraps
+  if (items.length === 0) {
+    const fallbackGold = Math.max(1, Math.floor((enemy.goldReward || (enemy.level || 1) * 2) * (enemy.isBoss ? 2 : 1)));
+    items.push({ name: 'Coin Pouch', type: 'misc', description: 'Collected coins.', quantity: fallbackGold });
+  }
+
+  return items;
 };
 
 // Populate pending loot for all defeated enemies

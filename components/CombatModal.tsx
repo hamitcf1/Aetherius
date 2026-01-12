@@ -234,7 +234,6 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   const [floatingHits, setFloatingHits] = useState<Array<{ id: string; actor: string; damage: number; hitLocation?: string; isCrit?: boolean; x?: number; y?: number }>>([]);
   const enemyRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const playerRef = useRef<HTMLDivElement | null>(null);
-  const [showVictory, setShowVictory] = useState(false);
   const [showDefeat, setShowDefeat] = useState(false);
   const [showItemSelection, setShowItemSelection] = useState(false);
   const [isHealing, setIsHealing] = useState(false);
@@ -370,12 +369,56 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     return () => { if (t) window.clearInterval(t); };
   }, [combatState.combatStartTime]);
 
-  // Trigger loot phase after combat ends
+  // Trigger loot phase after combat ends - auto-finalize loot and emit result
   useEffect(() => {
     if (combatState.result === 'victory') {
       const populatedState = populatePendingLoot(combatState);
-      setCombatState(populatedState);
-      setLootPhase(true);
+
+      // Automatically finalize loot (award all pending rewards) to avoid a separate victory screen
+      try {
+        const { newState, updatedInventory, grantedXp, grantedGold, grantedItems } = finalizeLoot(
+          populatedState,
+          // null indicates no manual selection; default to granting pending rewards
+          null,
+          inventory
+        );
+
+        setCombatState(newState);
+        // Persist updated inventory snapshot
+        onInventoryUpdate && onInventoryUpdate(updatedInventory);
+        showToast?.(`Loot collected: ${grantedItems.map(i => i.name).join(', ')}`, 'success');
+
+        // Build a structured combat result and notify parent immediately
+        const combatResult = {
+          id: newState.id || `combat_${Date.now()}`,
+          result: 'victory' as const,
+          winner: 'player' as const,
+          survivors: newState.enemies.filter(e => e.currentHealth > 0).map(e => ({ id: e.id, name: e.name, currentHealth: e.currentHealth })),
+          playerStatus: {
+            currentHealth: playerStats.currentHealth,
+            currentMagicka: playerStats.currentMagicka,
+            currentStamina: playerStats.currentStamina,
+            isAlive: playerStats.currentHealth > 0
+          },
+          rewards: newState.rewards,
+          timestamp: Date.now()
+        };
+
+        // Attach combatResult to state for observability
+        setCombatState(prev => ({ ...prev, combatResult } as any));
+
+        // Propagate final result so App can apply narrative and auto-resume
+        onCombatEnd && onCombatEnd('victory', newState.rewards, {
+          health: playerStats.currentHealth,
+          magicka: playerStats.currentMagicka,
+          stamina: playerStats.currentStamina
+        }, Math.max(0, Math.round((newState.combatElapsedSec || 0) / 60)));
+      } catch (e) {
+        // Fallback: if finalize fails, open the normal loot modal so the player can continue manually
+        console.error('Auto-finalize loot failed, falling back to manual loot phase:', e);
+        setCombatState(populatedState);
+        setLootPhase(true);
+      }
     }
   }, [combatState.result]);
 
@@ -392,8 +435,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     showToast?.(`Loot collected: ${grantedItems.map(item => item.name).join(', ')}`, 'success');
     setLootPhase(false);
 
-    // Show victory overlay in UI; actual onCombatEnd will be triggered when user closes the victory modal
-    setShowVictory(true);
+    // Victory is now handled inline (auto-finalized). Parent will be notified via onCombatEnd; no separate victory screen.
   };
 
   // When entering loot phase, keep combat UI open and show LootModal
@@ -620,15 +662,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     setTimeout(() => setIsAnimating(false), 500);
   };
 
-  // Close victory screen and end combat
-  const handleVictoryClose = () => {
-    const minutes = Math.max(1, Math.ceil((combatState.combatElapsedSec || 0) / 60));
-    onCombatEnd('victory', combatState.rewards, {
-      health: playerStats.currentHealth,
-      magicka: playerStats.currentMagicka,
-      stamina: playerStats.currentStamina
-    }, minutes);
-  };
+
 
   // Close defeat screen
   const handleDefeatClose = () => {
@@ -891,38 +925,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
         </div>
       </div>
 
-      {/* Victory overlay */}
-      {showVictory && (
-        <div className="absolute inset-0 bg-skyrim-dark/60 flex items-center justify-center z-60">
-          <div className="bg-gradient-to-b from-amber-900/90 to-stone-900/95 rounded-xl p-8 max-w-md text-center border-2 border-amber-500 shadow-2xl">
-            <div className="text-6xl mb-4">🏆</div>
-            <h2 className="text-3xl font-bold text-amber-100 mb-2">VICTORY!</h2>
-            <p className="text-stone-300 mb-6">You have defeated all enemies!</p>
-            
-            {combatState.rewards && (
-              <div className="bg-stone-900/60 rounded-lg p-4 mb-6 text-left">
-                <h3 className="text-amber-200 font-bold mb-2">Rewards:</h3>
-                <div className="space-y-1 text-sm">
-                  <div className="text-green-400">✨ {combatState.rewards.xp} XP</div>
-                  {combatState.rewards.gold > 0 && (
-                    <div className="text-yellow-400">💰 {combatState.rewards.gold} Gold</div>
-                  )}
-                  {combatState.rewards.items.map((item, i) => (
-                    <div key={i} className="text-blue-300">📦 {item.name} x{item.quantity}</div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            <button
-              onClick={handleVictoryClose}
-              className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg transition-colors"
-            >
-              Continue
-            </button>
-          </div>
-        </div>
-      )}
+
 
       {/* Loot modal shown when combatState indicates loot is pending */}
       {combatState.lootPending && (

@@ -8,6 +8,7 @@ import { useAppContext } from '../AppContext';
 import { LockpickingMinigame, LockDifficulty } from './LockpickingMinigame';
 import { SkyrimMap, findLocationByName } from './SkyrimMap';
 import { ThinkingBubble } from './ThinkingBubble';
+import AdventureInput from './AdventureInput';
 import { RateLimitIndicator } from './StatusIndicators';
 import type { EquipmentSlot } from '../types';
 import { saveInventoryItem } from '../services/firestore';
@@ -2123,16 +2124,13 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       {/* Input Area - fixed at bottom */}
       <div className="flex-shrink-0 mt-2 bg-skyrim-paper/60 border border-skyrim-border rounded-lg p-2">
         <div className="flex gap-2">
-          <textarea
+          <AdventureInput
             ref={inputRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onChange={setInput}
+            onSend={handleSend}
             placeholder="What do you do? (Enter to send)"
             disabled={loading || messages.length === 0}
-            autoCapitalize="none"
-            autoCorrect="off"
-            className="flex-1 bg-skyrim-paper/30 border border-skyrim-border rounded p-2 text-sm text-skyrim-text placeholder-gray-500 resize-none focus:border-skyrim-gold focus:outline-none disabled:opacity-50 font-sans normal-case"
             rows={1}
           />
           <button

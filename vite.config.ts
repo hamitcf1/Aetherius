@@ -4,6 +4,7 @@ import { resolve } from 'path';
 import { copyFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   const geminiApiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || '';
@@ -12,6 +13,7 @@ export default defineConfig(({ mode }) => {
   const gemmaApiKey = env.VITE_GEMMA_API_KEY || env.GEMMA_API_KEY || env.gemma_api_key || '';
   
   return {
+    base:'.skyaetherius/',
     plugins: [
       react(),
       {
