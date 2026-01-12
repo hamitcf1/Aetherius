@@ -98,6 +98,8 @@ import { getRateLimitStats, generateAdventureResponse } from './services/geminiS
 import { learnSpell, getSpellById } from './services/spells';
 import type { ShopItem } from './components/ShopModal';
 import { getDefaultSlotForItem } from './components/EquipmentHUD';
+import BonfireMenu from './components/BonfireMenu';
+import type { RestOptions } from './components/SurvivalModals';
 import { filterDuplicateTransactions } from './services/transactionLedger';
 import type { PreferredAIModel } from './services/geminiService';
 import type { UserSettings } from './services/firestore';
@@ -262,6 +264,14 @@ const App: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [restOpen, setRestOpen] = useState(false);
+  // Optional preview options when opening the Bonfire (prefill type/hours)
+  const [restPreviewOptions, setRestPreviewOptions] = useState<RestOptions | null>(null);
+
+  const openBonfireMenu = (options?: RestOptions | null) => {
+    if (options) setRestPreviewOptions(options);
+    else setRestPreviewOptions(null);
+    setRestOpen(true);
+  };
   // Perk modal state (moved here so all hooks run before early returns)
   const [perkModalOpen, setPerkModalOpen] = useState(false);
 
@@ -318,6 +328,8 @@ const App: React.FC = () => {
 
   // Toast notification helper
   const showToast = useCallback((message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info', opts?: { color?: string; stat?: string; amount?: number }) => {
+    // (no-change) helper kept here for context; Bonfire uses same toast flow
+
     console.log('showToast called:', message, type, opts);
     const id = uniqueId();
     setToastMessages(prev => {
@@ -1457,7 +1469,11 @@ const App: React.FC = () => {
   // Rest with options (outside/camp/inn, variable hours)
   const handleRestWithOptions = (options: { type: 'outside' | 'camp' | 'inn'; hours: number; innCost?: number }) => {
     if (!currentCharacterId || !activeCharacter) return;
-    
+
+    // close any open bonfire UI once rest is confirmed
+    setRestOpen(false);
+    setRestPreviewOptions(null);
+
     // Calculate fatigue reduction based on rest type
     let fatigueReduction = 15; // outside (poor rest)
     if (options.type === 'camp') {
@@ -2848,6 +2864,7 @@ const App: React.FC = () => {
       handleShopPurchase,
       handleShopSell,
       showToast,
+      openBonfireMenu,
       gold: activeCharacter?.gold || 0,
       inventory: getCharacterItems(),
       hasCampingGear,
@@ -2880,6 +2897,24 @@ const App: React.FC = () => {
         character={activeCharacter as any}
         onConfirm={(perkIds: string[]) => { applyPerks(perkIds); setPerkModalOpen(false); }}
         onForceUnlock={(id: string) => { forceUnlockPerk(id); setPerkModalOpen(false); }}
+      />
+
+      {/* Bonfire / Rest Menu */}
+      <BonfireMenu
+        open={restOpen}
+        onClose={() => { setRestOpen(false); setRestPreviewOptions(null); }}
+        onConfirmRest={(opts) => handleRestWithOptions(opts as any)}
+        onApplyChanges={(changedItems) => {
+          if (!changedItems || changedItems.length === 0) return;
+          const toSave = changedItems.map(it => ({ ...it, characterId: (currentCharacterId || '') }));
+          handleGameUpdate({ newItems: toSave as any });
+          showToast(`Applied ${changedItems.length} item change(s).`, 'success');
+        }}
+        inventory={getCharacterItems()}
+        gold={activeCharacter?.gold || 0}
+        hasCampingGear={hasCampingGear}
+        hasBedroll={hasBedroll}
+        previewOptions={restPreviewOptions}
       />
       <div className="min-h-screen bg-skyrim-dark text-skyrim-text font-sans selection:bg-skyrim-gold selection:text-skyrim-dark">
         {/* Status Indicators */}
@@ -2947,7 +2982,7 @@ const App: React.FC = () => {
                 quests={getCharacterQuests()}
                 journal={getCharacterJournal()}
                 story={getCharacterStory()}
-                onRest={handleRestWithOptions}
+                onRest={openBonfireMenu}
                 onEat={handleEatItem}
                 onDrink={handleDrinkItem}
                 hasCampingGear={hasCampingGear}

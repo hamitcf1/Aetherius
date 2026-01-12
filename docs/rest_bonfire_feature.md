@@ -110,10 +110,10 @@ Example:
 ## Applied Features
 - Triggering Bonfire Menu from Adventure Chat ✔
 - Triggering Bonfire Menu from Hero Menu ✔
-- Pre-rest actions implemented ✔
+- Pre-rest actions implemented (equipment staging + apply) ✔
 - Stat recovery during rest ✔
-- Post-rest actions implemented ✔
-- Level-ups and perk assignments ✔
+- Post-rest actions implemented (apply staged changes after rest) ✔
+- Level-ups and perk assignments (partially available via PerkTree modal) ✔
 
 ## Pending / Issues
 - UI layout refinement ⚠

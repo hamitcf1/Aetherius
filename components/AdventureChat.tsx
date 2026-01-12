@@ -531,7 +531,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   story,
   onUpdateState
 }) => {
-  const { showToast } = useAppContext();
+  const { showToast, openBonfireMenu } = useAppContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1208,8 +1208,34 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       // Filter out duplicate/preview transactions to prevent double-charging
       if (autoApply && result) {
         // Detect and apply proper rest logic for adventure chat
+        // If this looks like a rest action, open the Bonfire menu for player confirmation instead of auto-applying
         const processedResult = processRestLogicForAdventure(result, gmMessage.content, inventory);
-        
+        let skipAutoApply = false;
+
+        if (processedResult && processedResult.timeAdvanceMinutes) {
+          // Determine rest type by inspecting content (same heuristics as before)
+          let restType: 'outside' | 'camp' | 'inn' = 'outside';
+          const contentLower = gmMessage.content.toLowerCase();
+          if (contentLower.includes('inn') || contentLower.includes('bed')) restType = 'inn';
+          else if (contentLower.includes('camp') || contentLower.includes('tent')) restType = 'camp';
+          const hours = Math.max(1, Math.min(12, Math.round((processedResult.timeAdvanceMinutes || 480) / 60)));
+
+          // Open bonfire menu with a preview — player must confirm
+          if (openBonfireMenu) {
+            try {
+              openBonfireMenu({ type: restType, hours });
+              skipAutoApply = true;
+            } catch (e) {
+              // ignore any opener errors and fall back to normal processing
+            }
+          }
+        }
+
+        if (skipAutoApply) {
+          console.log('[Bonfire] Rest detected; opened Bonfire menu and skipped auto-apply.');
+          return; // don't apply any auto-update now — user will confirm via Bonfire UI
+        }
+
         // Only treat as preview if:
         // 1. Explicitly marked as preview by AI, OR
         // 2. Has choices AND has previewCost in choices (showing options, not executing)

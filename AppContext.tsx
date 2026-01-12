@@ -21,6 +21,8 @@ export interface AppContextType {
   isAnonymous: boolean;
   // Survival (now with modals)
   handleRestWithOptions: (options: RestOptions) => void;
+  // Open the Bonfire / Rest menu (optional preview options)
+  openBonfireMenu: (options?: RestOptions | null) => void;
   handleEatItem: (item: InventoryItem) => void;
   handleDrinkItem: (item: InventoryItem) => void;
   // Shop
