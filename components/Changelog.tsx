@@ -18,6 +18,16 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.5.3',
+    date: '2026-01-12',
+    title: 'Themes & Pointer improvements',
+    changes: [
+      { type: 'feature', text: 'Added Light and True Dark color themes to Theme Selector' },
+      { type: 'improvement', text: 'Reverted to native system cursors for pointer and text input (no custom PNG cursors)' },
+      { type: 'improvement', text: 'Theme persistence unchanged — themes saved per-user in localStorage' },
+    ]
+  },
+  {
     version: '0.5.2',
     date: '2026-01-12',
     title: 'Bonfire (Rest) menu + rest handling fixes',
@@ -134,7 +144,7 @@ const getChangeIcon = (type: string) => {
     case 'improvement': return <Zap size={12} className="text-blue-400" />;
     case 'fix': return <Bug size={12} className="text-orange-400" />;
     case 'combat': return <Swords size={12} className="text-red-400" />;
-    default: return <Clock size={12} className="text-gray-400" />;
+    default: return <Clock size={12} className="text-skyrim-text" />;
   }
 };
 
@@ -170,11 +180,11 @@ export const Changelog: React.FC = () => {
       <div className="fixed bottom-4 left-4 z-40 group flex items-center gap-2">
         <button
           onClick={() => setIsOpen(true)}
-          className="group flex items-center gap-2 px-3 py-1.5 bg-black/60 hover:bg-black/80 border border-skyrim-border/50 hover:border-skyrim-gold/50 rounded-full transition-all duration-300 backdrop-blur-sm"
+          className="group flex items-center gap-2 px-3 py-1.5 bg-skyrim-paper/60 hover:bg-skyrim-paper/80 border border-skyrim-border/50 hover:border-skyrim-gold/50 rounded-full transition-all duration-300 backdrop-blur-sm"
           title="View Changelog"
         >
-          <ScrollText size={14} className="text-gray-500 group-hover:text-skyrim-gold transition-colors" />
-          <span className="text-[10px] text-gray-500 group-hover:text-gray-300 font-mono transition-colors">
+          <ScrollText size={14} className="text-skyrim-text group-hover:text-skyrim-gold transition-colors" />
+          <span className="text-[10px] text-skyrim-text group-hover:text-gray-300 font-mono transition-colors">
             v{latestVersion}
           </span>
         </button>
@@ -185,22 +195,22 @@ export const Changelog: React.FC = () => {
           title="Dismiss changelog (don't show again)"
           style={{ pointerEvents: 'auto' }}
         >
-          <X size={14} className="text-gray-400 hover:text-red-400" />
+          <X size={14} className="text-skyrim-text hover:text-red-400" />
         </button>
       </div>
 
       {/* Changelog Modal */}
       {isOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-skyrim-dark/60 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setIsOpen(false)}
         >
           <div 
-            className="relative w-full max-w-lg max-h-[80vh] bg-gradient-to-b from-gray-900 to-black border border-skyrim-border rounded-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            className="relative w-full max-w-lg max-h-[80vh] bg-skyrim-paper border border-skyrim-border rounded-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-gradient-to-b from-gray-900 via-gray-900 to-transparent px-6 py-4 border-b border-skyrim-gold/20">
+            <div className="sticky top-0 z-10 bg-skyrim-paper px-6 py-4 border-b border-skyrim-gold/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-skyrim-gold/10 rounded-lg border border-skyrim-border">
@@ -247,7 +257,7 @@ export const Changelog: React.FC = () => {
                       <div className={`w-4 h-4 rounded-full border-2 ${idx === 0 ? 'bg-skyrim-gold border-skyrim-gold' : 'bg-gray-800 border-skyrim-border'} flex-shrink-0 mt-1`} />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`font-mono text-sm ${idx === 0 ? 'text-skyrim-gold' : 'text-gray-400'}`}>
+                          <span className={`font-mono text-sm ${idx === 0 ? 'text-skyrim-gold' : 'text-skyrim-text'}`}>
                             v{entry.version}
                           </span>
                           {idx === 0 && (

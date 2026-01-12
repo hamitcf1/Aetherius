@@ -92,17 +92,17 @@ export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, on
   }, [items]);
 
   return (
-    <div className="bg-gradient-to-b from-black/60 to-black/40 border border-skyrim-border rounded-lg p-4">
+    <div className="bg-skyrim-paper/60 border border-skyrim-border rounded-lg p-4">
       {/* Stats Summary */}
       <div className="flex justify-center gap-6 mb-4 pb-3 border-b border-skyrim-border/50">
         <div className="flex items-center gap-2">
           <Shield size={18} className="text-blue-400" />
-          <span className="text-sm text-gray-300">Armor:</span>
+          <span className="text-sm text-skyrim-text">Armor:</span>
           <span className="text-lg font-bold text-blue-400">{totalStats.armor}</span>
         </div>
         <div className="flex items-center gap-2">
           <Swords size={18} className="text-red-400" />
-          <span className="text-sm text-gray-300">Damage:</span>
+          <span className="text-sm text-skyrim-text">Damage:</span>
           <span className="text-lg font-bold text-red-400">{totalStats.damage}</span>
         </div>
       </div>
@@ -156,7 +156,7 @@ export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, on
                     ? 'bg-skyrim-gold/20 border-skyrim-gold shadow-[0_0_10px_rgba(192,160,98,0.3)]' 
                     : disabled
                       ? 'bg-gray-800 border-gray-700 cursor-not-allowed opacity-60'
-                      : 'bg-black/50 border-skyrim-border/50 hover:border-skyrim-gold/50 hover:bg-black/70'
+                      : 'bg-skyrim-paper/50 border-skyrim-border/50 hover:border-skyrim-gold/50 hover:bg-skyrim-paper/70'
                   }
                 `}
                 title={equipped ? `${equipped.name} (Click to unequip)` : (
@@ -185,7 +185,7 @@ export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, on
                       <X size={20} className="text-red-300" />
                     </div>
                     {/* Stats tooltip */}
-                    <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 bg-black/95 border border-skyrim-gold/50 rounded px-2 py-1 text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
+                    <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 bg-skyrim-paper/95 border border-skyrim-gold/50 rounded px-2 py-1 text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
                       <div className="text-skyrim-gold font-bold">{equipped.name}</div>
                       {equipped.armor && <div className="text-blue-400">Armor: {equipped.armor}</div>}
                       {equipped.damage && <div className="text-red-400">Damage: {equipped.damage}</div>}
@@ -193,10 +193,10 @@ export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, on
                   </>
                 ) : (
                   <>
-                    <div className="text-gray-600 group-hover:text-gray-400">{config.icon}</div>
-                    <span className="text-[9px] text-gray-600 group-hover:text-gray-400 mt-0.5">{config.label}</span>
+                    <div className="text-skyrim-text/70 group-hover:text-skyrim-text">{config.icon}</div>
+                    <span className="text-[9px] text-skyrim-text/70 group-hover:text-skyrim-text mt-0.5">{config.label}</span>
                     {disabled && (
-                      <div className="absolute -top-2 right-0 text-gray-300 text-xs flex items-center gap-1">
+                      <div className="absolute -top-2 right-0 text-skyrim-text text-xs flex items-center gap-1">
                         <Lock size={12} />
                       </div>
                     )}
@@ -210,7 +210,7 @@ export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, on
 
       {/* Legend */}
       <div className="mt-4 pt-3 border-t border-skyrim-border/50 text-center">
-        <p className="text-[10px] text-gray-500">Click empty slot to equip • Click equipped item to unequip</p>
+        <p className="text-[10px] text-skyrim-text">Click empty slot to equip • Click equipped item to unequip</p>
       </div>
     </div>
   );

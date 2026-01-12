@@ -332,7 +332,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
 
   return (
     <div 
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-skyrim-dark/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) setIsOpen(false); }}
     >
       <div className="bg-skyrim-paper border border-skyrim-gold w-full max-w-lg rounded-lg shadow-2xl flex flex-col max-h-[90vh]">
@@ -343,7 +343,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
             <Scroll size={20} />
             The Game Master
           </h3>
-          <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
+          <button onClick={() => setIsOpen(false)} className="text-skyrim-text hover:text-white">
             <X size={24} />
           </button>
         </div>
@@ -352,7 +352,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {mode === 'action' ? (
             <>
-              <p className="text-sm text-gray-400 italic">
+              <p className="text-sm text-skyrim-text italic">
                 "What action should your hero take? Describe what you want to happen next."
               </p>
 
@@ -363,7 +363,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
                 <textarea
                   autoCapitalize="none"
                   autoCorrect="off"
-                  className="w-full bg-black/30 border border-skyrim-border text-gray-200 p-3 rounded focus:border-skyrim-gold focus:outline-none normal-case text-sm"
+                  className="w-full bg-skyrim-paper/30 border border-skyrim-border text-skyrim-text p-3 rounded focus:border-skyrim-gold focus:outline-none normal-case text-sm"
                   rows={4}
                   placeholder="e.g., My character should explore the nearby ruins... or, Have my hero confront the bandit leader..."
                   value={prompt}
@@ -373,7 +373,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
             </>
           ) : (
           <>
-            <p className="text-sm text-gray-400 italic">
+            <p className="text-sm text-skyrim-text italic">
               "Let me craft your hero's soul. Choose a quick fill or describe what you want."
             </p>
 
@@ -389,7 +389,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
                     className={`px-3 py-2 text-xs rounded border transition-colors flex items-center gap-1.5 ${
                       prompt === hp.prompt
                         ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold'
-                        : 'bg-black/30 border-skyrim-border text-gray-300 hover:border-skyrim-gold/50 hover:text-gray-100'
+                        : 'bg-skyrim-paper/30 border-skyrim-border text-skyrim-text hover:border-skyrim-gold/50 hover:text-gray-100'
                     }`}
                   >
                     <Wand2 size={12} />
@@ -406,7 +406,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
               <textarea
                 autoCapitalize="none"
                 autoCorrect="off"
-                className="w-full bg-black/30 border border-skyrim-border text-gray-200 p-3 rounded focus:border-skyrim-gold focus:outline-none normal-case text-sm"
+                className="w-full bg-skyrim-paper/30 border border-skyrim-border text-skyrim-text p-3 rounded focus:border-skyrim-gold focus:outline-none normal-case text-sm"
                 rows={3}
                 placeholder="e.g., Generate a tragic backstory involving the Great War... or, Make my character fear magic due to a childhood accident..."
                 value={prompt}
@@ -417,7 +417,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
         )}
 
           {lastResponse && (
-            <div className="bg-black/20 p-4 rounded border border-skyrim-border/50 animate-in fade-in">
+            <div className="bg-skyrim-paper/20 p-4 rounded border border-skyrim-border/50 animate-in fade-in">
               <h4 className="text-xs uppercase tracking-widest text-skyrim-gold mb-2">
                 {lastResponse.characterUpdates && Object.keys(lastResponse.characterUpdates).length > 0 
                   ? 'Hero Details Generated' 
@@ -426,7 +426,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
               {lastResponse.narrative && (
                 <>
                   <h5 className="font-serif text-lg text-white mb-1">{lastResponse.narrative?.title}</h5>
-                  <p className="text-gray-300 whitespace-pre-wrap text-sm leading-relaxed font-serif mb-4">
+                  <p className="text-skyrim-text whitespace-pre-wrap text-sm leading-relaxed font-serif mb-4">
                     {lastResponse.narrative?.content}
                   </p>
                 </>
@@ -435,7 +435,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
               {generatedImage && (
                   <div className="mb-4 relative group">
                       <img src={generatedImage} alt="Generated Scene" className="w-full rounded border border-skyrim-border" />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <div className="absolute inset-0 bg-skyrim-paper/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                          <span className="text-white text-xs">Generated by Gemini</span>
                       </div>
                   </div>
@@ -458,10 +458,10 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
                   <div className="text-xs text-purple-400 flex items-center gap-1">
                     <Brain size={12} /> Hero details to update:
                   </div>
-                  <div className="text-xs text-gray-400 bg-black/20 p-2 rounded max-h-32 overflow-y-auto">
+                  <div className="text-xs text-skyrim-text bg-skyrim-paper/20 p-2 rounded max-h-32 overflow-y-auto">
                     {Object.entries(lastResponse.characterUpdates).map(([key, value]) => (
                       <div key={key} className="mb-1">
-                        <span className="text-gray-300 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                        <span className="text-skyrim-text capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
                         <span className="text-gray-500 ml-1">{String(value).substring(0, 60)}...</span>
                       </div>
                     ))}
@@ -488,7 +488,7 @@ export const AIScribe: React.FC<AIScribeProps> = ({ contextData, onUpdateState, 
              <>
                <button
                   onClick={() => { setLastResponse(null); setGeneratedImage(null); }}
-                  className="px-4 py-2 text-gray-400 hover:text-white text-sm"
+                  className="px-4 py-2 text-skyrim-text hover:text-white text-sm"
                 >
                   Discard
                 </button>

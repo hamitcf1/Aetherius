@@ -92,7 +92,7 @@ const InventoryItemCard: React.FC<{
             <div className={`p-3 rounded-full border ${
               isEquipped 
                 ? 'bg-skyrim-gold/30 text-skyrim-gold border-skyrim-gold' 
-                : 'bg-black/40 text-skyrim-gold border-skyrim-border'
+                : 'bg-skyrim-paper/40 text-skyrim-gold border-skyrim-border'
             }`}>
                 {getIcon(item.type)}
             </div>
@@ -100,13 +100,13 @@ const InventoryItemCard: React.FC<{
                 {editMode ? (
                     <>
                         <input
-                            className="w-full bg-black/40 border border-skyrim-border p-1 rounded text-skyrim-gold font-serif mb-1"
+                            className="w-full bg-skyrim-paper/40 border border-skyrim-border p-1 rounded text-skyrim-gold font-serif mb-1"
                             value={editName}
                             onChange={e => setEditName(e.target.value)}
                         />
                         {showQuantityControls && (
                           <input
-                              className="w-20 bg-black/40 border border-skyrim-border p-1 rounded text-gray-200 mb-1"
+                              className="w-20 bg-skyrim-paper/40 border border-skyrim-border p-1 rounded text-skyrim-text mb-1"
                               type="number"
                               min={1}
                               value={editQty}
@@ -131,7 +131,7 @@ const InventoryItemCard: React.FC<{
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-400 truncate">{item.description}</p>
+                        <p className="text-sm text-skyrim-text truncate">{item.description}</p>
                         {/* Stats display - get from item or itemStats service */}
                         {(() => {
                           let displayArmor = item.armor;
@@ -194,7 +194,7 @@ const InventoryItemCard: React.FC<{
                             <button
                               onClick={() => onUpdate({ ...item, isFavorite: !item.isFavorite })}
                               title={item.isFavorite ? 'Unmark Favorite' : 'Mark Favorite'}
-                              className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${item.isFavorite ? 'bg-yellow-500 text-black' : 'bg-black/30 text-gray-300 hover:bg-black/50'}`}>
+                              className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${item.isFavorite ? 'bg-yellow-500 text-black' : 'bg-skyrim-paper/30 text-gray-300 hover:bg-skyrim-paper/50'}`}>
                               <Star size={14} />
                             </button>
                             <button onClick={startEdit} className="px-2 py-1 bg-skyrim-gold/20 text-skyrim-gold rounded text-xs">Edit</button>
@@ -494,7 +494,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
           className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
             viewMode === 'inventory'
               ? 'bg-skyrim-gold text-skyrim-dark font-bold'
-              : 'bg-black/40 text-gray-400 hover:text-skyrim-gold'
+              : 'bg-skyrim-paper/40 text-skyrim-text hover:text-skyrim-gold'
           }`}
         >
           <Backpack size={16} />
@@ -505,7 +505,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
           className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
             viewMode === 'equipment'
               ? 'bg-skyrim-gold text-skyrim-dark font-bold'
-              : 'bg-black/40 text-gray-400 hover:text-skyrim-gold'
+              : 'bg-skyrim-paper/40 text-skyrim-text hover:text-skyrim-gold'
           }`}
         >
           <User size={16} />
@@ -527,7 +527,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
 
     {/* Equip Modal */}
     {equipModalOpen && selectedSlot && (
-      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-skyrim-dark/60 flex items-center justify-center z-50 p-4">
         <div className="bg-skyrim-paper border-2 border-skyrim-gold rounded-lg shadow-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
           <h3 className="text-xl font-serif text-skyrim-gold mb-4">
             Select item for {selectedSlot.charAt(0).toUpperCase() + selectedSlot.slice(1)}
@@ -539,7 +539,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
               if (favoritesOnly) candidates = candidates.filter(i => i.isFavorite);
               if (candidates.length === 0) {
                 return (
-                  <p className="text-gray-500 italic text-center py-4">No suitable items for this slot</p>
+                  <p className="text-skyrim-text italic text-center py-4">No suitable items for this slot</p>
                 );
               }
 
@@ -549,14 +549,14 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
                     <button
                       key={item.id}
                       onClick={() => equipItem(item, selectedSlot)}
-                      className="w-full p-3 bg-black/40 border border-skyrim-border rounded hover:border-skyrim-gold hover:bg-black/60 transition-colors text-left flex items-center gap-3"
+                      className="w-full p-3 bg-skyrim-paper/40 border border-skyrim-border rounded hover:border-skyrim-gold hover:bg-skyrim-paper/60 transition-colors text-left flex items-center gap-3"
                     >
                       <div className="p-2 rounded-full bg-skyrim-gold/20 text-skyrim-gold">
                         {getIcon(item.type)}
                       </div>
                       <div className="flex-1">
                         <div className="text-skyrim-gold font-serif">{item.name}</div>
-                        <div className="text-xs text-gray-400">{item.description}</div>
+                        <div className="text-xs text-skyrim-text">{item.description}</div>
                         {(item.armor || item.damage) && (
                           <div className="flex gap-3 mt-1 text-xs">
                             {item.armor && <span className="text-blue-400">Armor: {item.armor}</span>}
@@ -572,8 +572,8 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
           }
 
           <div className="mt-3 flex items-center gap-2">
-            <label className="text-sm text-gray-400">Show favorites only</label>
-            <button onClick={() => setFavoritesOnly(v => !v)} className={`px-3 py-1 rounded ${favoritesOnly ? 'bg-yellow-500 text-black' : 'bg-black/30 text-gray-300'}`}>
+            <label className="text-sm text-skyrim-text">Show favorites only</label>
+            <button onClick={() => setFavoritesOnly(v => !v)} className={`px-3 py-1 rounded ${favoritesOnly ? 'bg-yellow-500 text-black' : 'bg-skyrim-paper/30 text-skyrim-text'}`}>
               <Star size={14} />
             </button>
           </div>
@@ -591,13 +591,13 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
     {/* Inventory View */}
     {viewMode === 'inventory' && (
       <>
-    <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-black/40 p-4 rounded border border-skyrim-border">
+    <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-skyrim-paper/40 p-4 rounded border border-skyrim-border">
           <div className="flex items-center gap-3 flex-1">
               <div className="p-3 bg-yellow-900/30 rounded-full border border-yellow-700 text-yellow-500">
                   <Coins size={24} />
               </div>
               <div className="flex-1">
-                  <div className="text-xs text-gray-400 uppercase tracking-widest">Gold Septims</div>
+                  <div className="text-xs text-skyrim-text uppercase tracking-widest">Gold Septims</div>
                   <input 
                     type="number" 
                     value={gold} 
@@ -631,8 +631,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
             <button
               onClick={() => setShowQuantityControls(v => !v)}
               title={showQuantityControls ? 'Hide quantity controls' : 'Show quantity controls'}
-              className={`px-3 py-2 rounded border ${showQuantityControls ? 'bg-skyrim-gold text-skyrim-dark border-skyrim-gold' : 'bg-black/30 text-gray-400 hover:bg-black/50'}`}
-            >
+              className={`px-3 py-2 rounded border ${showQuantityControls ? 'bg-skyrim-gold text-skyrim-dark border-skyrim-gold' : 'bg-skyrim-paper/30 text-skyrim-text hover:bg-skyrim-paper/50'}`}>
               {showQuantityControls ? <Eye size={16} /> : <EyeOff size={16} />}
             </button>
           </div>
@@ -657,7 +656,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
              <div className="flex flex-col sm:flex-row gap-4">
                  <div className="flex-1 w-full">
                      <label className="text-xs text-gray-500 uppercase">Item Name</label>
-                     <input className="w-full bg-black/40 border border-skyrim-border p-2 rounded text-gray-200" value={newName} onChange={e => setNewName(e.target.value)} />
+                     <input className="w-full bg-skyrim-paper/40 border border-skyrim-border p-2 rounded text-skyrim-text" value={newName} onChange={e => setNewName(e.target.value)} />
                  </div>
                  <div className="w-full md:w-32">
                      <label className="text-xs text-gray-500 uppercase">Type</label>
@@ -677,7 +676,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
              </div>
              <div className="flex-1 w-full">
                  <label className="text-xs text-gray-500 uppercase">Description</label>
-                 <input className="w-full bg-black/40 border border-skyrim-border p-2 rounded text-gray-200" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
+                 <input className="w-full bg-skyrim-paper/40 border border-skyrim-border p-2 rounded text-skyrim-text" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
              </div>
              <div className="flex justify-end">
                 <button onClick={addItem} className="px-6 py-2 bg-skyrim-gold text-skyrim-dark font-bold rounded">Add to Inventory</button>
@@ -695,7 +694,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
               className={`flex items-center gap-1.5 px-3 py-2 rounded text-sm transition-colors whitespace-nowrap ${
                 activeTab === tab.key 
                   ? 'bg-skyrim-gold text-skyrim-dark font-bold' 
-                  : 'bg-black/30 text-gray-400 hover:text-skyrim-gold hover:bg-black/50 border border-skyrim-border/50'
+                  : 'bg-skyrim-paper/30 text-skyrim-text hover:text-skyrim-gold hover:bg-skyrim-paper/50 border border-skyrim-border/50'
               }`}
             >
               {tab.icon}
@@ -714,7 +713,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
 
       {/* Sort Controls */}
       <div className="mb-4 flex items-center justify-between">
-        <span className="text-sm text-gray-400">
+        <span className="text-sm text-skyrim-text">
           {sortedItems.length} {sortedItems.length === 1 ? 'item' : 'items'}
           {activeTab !== 'all' && ` in ${CATEGORY_TABS.find(t => t.key === activeTab)?.label}`}
         </span>

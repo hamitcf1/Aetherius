@@ -43,7 +43,7 @@ const Section: React.FC<{
           {icon}
           <span>{title}</span>
         </div>
-        {isOpen ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
+        {isOpen ? <ChevronDown size={20} className="text-skyrim-text" /> : <ChevronRight size={20} className="text-skyrim-text" />}
       </button>
       
       {isOpen && (
@@ -65,11 +65,11 @@ const TextAreaField: React.FC<{
 }> = ({ label, value, onChange, placeholder, rows = 3, tooltip }) => (
   <div className="flex flex-col gap-2">
     <div className="flex items-center gap-2">
-      <label className="text-sm uppercase tracking-wider text-gray-400 font-bold">{label}</label>
+      <label className="text-sm uppercase tracking-wider text-skyrim-text font-bold">{label}</label>
       {tooltip && (
         <div className="group relative flex items-center">
           <Info size={14} className="text-gray-500 hover:text-skyrim-gold cursor-help" />
-          <div className="absolute left-0 bottom-full mb-2 w-72 p-3 bg-black/95 border border-skyrim-gold rounded text-xs text-gray-300 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 font-sans leading-relaxed">
+          <div className="absolute left-0 bottom-full mb-2 w-72 p-3 bg-skyrim-paper/95 border border-skyrim-gold rounded text-xs text-skyrim-text shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 font-sans leading-relaxed">
             {tooltip}
             <div className="absolute left-2 -bottom-1 w-2 h-2 bg-black border-r border-b border-skyrim-gold transform rotate-45"></div>
           </div>
@@ -79,7 +79,7 @@ const TextAreaField: React.FC<{
     <textarea
       value={value}
       onChange={(e) => onChange(e.target.value)}
-            className="w-full bg-black/40 border border-skyrim-border/60 rounded p-3 text-gray-300 focus:border-skyrim-gold focus:ring-1 focus:ring-skyrim-gold/50 outline-none transition-all placeholder-gray-600 font-sans"
+            className="w-full bg-skyrim-paper/40 border border-skyrim-border/60 rounded p-3 text-skyrim-text focus:border-skyrim-gold focus:ring-1 focus:ring-skyrim-gold/50 outline-none transition-all placeholder-gray-600 font-sans"
             autoCapitalize="none"
             autoCorrect="off"
       rows={rows}
@@ -97,7 +97,7 @@ const StatBar: React.FC<{
 }> = ({ label, value, color, icon, onChange }) => { 
     return (
         <div className="flex-1 min-w-0 group">
-            <div className="flex justify-between text-xs uppercase mb-1 text-gray-400 font-bold items-center">
+            <div className="flex justify-between text-xs uppercase mb-1 text-skyrim-text font-bold items-center">
                 <span className="flex items-center gap-1 group-hover:text-skyrim-gold transition-colors">{icon} {label}</span>
                 <input
                     type="number"
@@ -110,7 +110,7 @@ const StatBar: React.FC<{
                         if (v > 600) v = 600;
                         onChange(v);
                     }}
-                    className="w-14 sm:w-16 bg-black/40 border border-skyrim-border rounded text-gray-300 text-sm px-2 ml-2 focus:outline-none focus:border-skyrim-gold text-right tracking-widest"
+                    className="w-14 sm:w-16 bg-skyrim-paper/40 border border-skyrim-border rounded text-skyrim-text text-sm px-2 ml-2 focus:outline-none focus:border-skyrim-gold text-right tracking-widest"
                     style={{ height: 24, letterSpacing: '0.05em' }}
                 />
             </div>
@@ -618,14 +618,14 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
           </div>
 
           {/* Level and Experience */}
-            <div className="mb-6 bg-black/40 border border-skyrim-border p-4 rounded flex items-center justify-between gap-4">
+            <div className="mb-6 bg-skyrim-paper/40 border border-skyrim-border p-4 rounded flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-full border-2 border-skyrim-gold flex items-center justify-center bg-skyrim-paper relative shadow-[0_0_15px_rgba(192,160,98,0.2)]">
                   <span className="text-2xl font-serif text-skyrim-gold">{character.level}</span>
                   <div className="absolute -bottom-2 text-[10px] uppercase bg-black px-1 border border-skyrim-border rounded">Level</div>
                 </div>
                 <div className="flex flex-col">
-                   <div className="text-xs text-gray-400 uppercase tracking-widest mb-1">Experience</div>
+                   <div className="text-xs text-skyrim-text uppercase tracking-widest mb-1">Experience</div>
                    <input 
                     type="range" 
                     min="0" 
@@ -646,20 +646,20 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
           <div className="mb-6">
             <button 
               onClick={() => setShowMaxStats(!showMaxStats)}
-              className="w-full flex items-center justify-between p-3 bg-black/40 rounded border border-skyrim-border hover:border-skyrim-gold/50 transition-colors"
+              className="w-full flex items-center justify-between p-3 bg-skyrim-paper/40 rounded border border-skyrim-border hover:border-skyrim-gold/50 transition-colors"
             >
               <div className="flex items-center gap-2 text-sm">
-                <Activity size={14} className="text-gray-400" />
+                <Activity size={14} className="text-skyrim-text" />
                 <span className="text-gray-300 font-medium">Max Stats (Character Creation)</span>
-                <span className="text-[10px] text-gray-500 px-1.5 py-0.5 bg-black/40 rounded">
+                <span className="text-[10px] text-gray-500 px-1.5 py-0.5 bg-skyrim-paper/40 rounded">
                   H:{character.stats.health} M:{character.stats.magicka} S:{character.stats.stamina}
                 </span>
               </div>
-              {showMaxStats ? <ChevronDown size={16} className="text-gray-400" /> : <ChevronRight size={16} className="text-gray-400" />}
+              {showMaxStats ? <ChevronDown size={16} className="text-skyrim-text" /> : <ChevronRight size={16} className="text-skyrim-text" />}
             </button>
             
             {showMaxStats && (
-              <div className="mt-2 p-4 bg-black/40 rounded border border-skyrim-border flex flex-col sm:flex-row gap-4">
+              <div className="mt-2 p-4 bg-skyrim-paper/40 rounded border border-skyrim-border flex flex-col sm:flex-row gap-4">
                 <StatBar 
                   label="Max Health" 
                   value={character.stats.health} 
@@ -686,10 +686,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
           </div>
 
           {/* Perk Points Summary */}
-          <div className="mb-4 p-3 bg-black/30 border border-skyrim-border rounded flex items-center justify-between">
+          <div className="mb-4 p-3 bg-skyrim-paper/30 border border-skyrim-border rounded flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="text-xs text-gray-400 uppercase">Perk Points</div>
-              <div className="px-2 py-1 bg-black/30 border border-skyrim-border rounded text-skyrim-gold font-bold">{character.perkPoints || 0}</div>
+              <div className="text-xs text-skyrim-text uppercase">Perk Points</div>
+              <div className="px-2 py-1 bg-skyrim-paper/30 border border-skyrim-border rounded text-skyrim-gold font-bold">{character.perkPoints || 0}</div>
             </div>
             <div>
               <button onClick={() => onOpenPerkTree ? onOpenPerkTree() : null} className="px-3 py-1 rounded border border-skyrim-border hover:border-skyrim-gold text-sm">Open Perk Tree</button>
@@ -697,20 +697,20 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
           </div>
 
           {/* Current Vitals (for Adventure) */}
-          <div className="mb-6 p-4 bg-gradient-to-r from-red-950/30 via-black/40 to-blue-950/30 rounded border border-skyrim-border">
-            <div className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-3">Current Vitals (Adventure)</div>
+          <div className="mb-6 p-4 bg-gradient-to-r from-red-950/30 via-skyrim-paper/40 to-blue-950/30 rounded border border-skyrim-border">
+            <div className="text-xs uppercase tracking-widest text-skyrim-text font-bold mb-3">Current Vitals (Adventure)</div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Current Health */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <span className="text-xs text-skyrim-text flex items-center gap-1">
                     <Heart size={12} className="text-red-500" /> Health
                   </span>
                   <span className="text-sm font-bold text-red-400">
                     {character.currentVitals?.currentHealth ?? character.stats.health} / {character.stats.health}
                   </span>
                 </div>
-                <div className="h-4 bg-black/60 rounded-full border border-red-900/50 overflow-hidden relative">
+                <div className="h-4 bg-skyrim-paper/60 rounded-full border border-red-900/50 overflow-hidden relative">
                   <div 
                     className="h-full bg-gradient-to-r from-red-800 to-red-500 transition-all duration-500"
                     style={{ width: `${Math.max(0, Math.min(100, ((character.currentVitals?.currentHealth ?? character.stats.health) / character.stats.health) * 100))}%` }}
@@ -722,14 +722,14 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
               {/* Current Magicka */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <span className="text-xs text-skyrim-text flex items-center gap-1">
                     <Droplets size={12} className="text-blue-500" /> Magicka
                   </span>
                   <span className="text-sm font-bold text-blue-400">
                     {character.currentVitals?.currentMagicka ?? character.stats.magicka} / {character.stats.magicka}
                   </span>
                 </div>
-                <div className="h-4 bg-black/60 rounded-full border border-blue-900/50 overflow-hidden relative">
+                <div className="h-4 bg-skyrim-paper/60 rounded-full border border-blue-900/50 overflow-hidden relative">
                   <div 
                     className="h-full bg-gradient-to-r from-blue-800 to-blue-500 transition-all duration-500"
                     style={{ width: `${Math.max(0, Math.min(100, ((character.currentVitals?.currentMagicka ?? character.stats.magicka) / character.stats.magicka) * 100))}%` }}
@@ -741,14 +741,14 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
               {/* Current Stamina */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <span className="text-xs text-skyrim-text flex items-center gap-1">
                     <BicepsFlexed size={12} className="text-green-500" /> Stamina
                   </span>
                   <span className="text-sm font-bold text-green-400">
                     {character.currentVitals?.currentStamina ?? character.stats.stamina} / {character.stats.stamina}
                   </span>
                 </div>
-                <div className="h-4 bg-black/60 rounded-full border border-green-900/50 overflow-hidden relative">
+                <div className="h-4 bg-skyrim-paper/60 rounded-full border border-green-900/50 overflow-hidden relative">
                   <div 
                     className="h-full bg-gradient-to-r from-green-800 to-green-500 transition-all duration-500"
                     style={{ width: `${Math.max(0, Math.min(100, ((character.currentVitals?.currentStamina ?? character.stats.stamina) / character.stats.stamina) * 100))}%` }}
@@ -763,15 +763,15 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
           </div>
 
           {/* Armor & Damage from Equipment */}
-          <div className="mb-6 p-4 bg-black/40 rounded border border-skyrim-border">
-            <div className="text-xs uppercase tracking-widest text-gray-400 font-bold mb-3">Combat Stats (from Equipment)</div>
+          <div className="mb-6 p-4 bg-skyrim-paper/40 rounded border border-skyrim-border">
+            <div className="text-xs uppercase tracking-widest text-skyrim-text font-bold mb-3">Combat Stats (from Equipment)</div>
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1 flex items-center gap-3 p-3 bg-blue-900/20 border border-blue-700/30 rounded">
                 <div className="p-2 rounded-full bg-blue-900/40 border border-blue-600/50">
                   <Shield size={20} className="text-blue-400" />
                 </div>
                 <div>
-                  <div className="text-xs text-gray-400 uppercase">Armor Rating</div>
+                  <div className="text-xs text-skyrim-text uppercase">Armor Rating</div>
                   <div className="text-2xl font-bold text-blue-400">{equipmentStats.armor}</div>
                 </div>
               </div>
@@ -780,7 +780,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                   <Swords size={20} className="text-red-400" />
                 </div>
                 <div>
-                  <div className="text-xs text-gray-400 uppercase">Weapon Damage</div>
+                  <div className="text-xs text-skyrim-text uppercase">Weapon Damage</div>
                   <div className="text-2xl font-bold text-red-400">{equipmentStats.damage}</div>
                 </div>
               </div>
@@ -803,12 +803,12 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
             )}
           </div>
 
-                    <div className="mb-6 p-4 bg-black/40 rounded border border-skyrim-border">
+                    <div className="mb-6 p-4 bg-skyrim-paper/40 rounded border border-skyrim-border">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <div>
-                                <div className="text-xs uppercase tracking-widest text-gray-400 font-bold">In-Game Time</div>
+                                <div className="text-xs uppercase tracking-widest text-skyrim-text font-bold">In-Game Time</div>
                                 <div className="text-skyrim-gold font-serif text-lg">{fmtTime}</div>
-                                <div className="flex items-center gap-1.5 text-sm text-gray-400 mt-1">
+                                <div className="flex items-center gap-1.5 text-sm text-skyrim-text mt-1">
                                     <Calendar size={12} />
                                     <span>{fmtDate}</span>
                                 </div>
@@ -820,10 +820,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
 
                         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                             {/* Hunger with Eat button */}
-                            <div className="bg-black/30 border border-skyrim-border/60 rounded p-3">
-                                <div className="flex items-center justify-between text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">
+                            <div className="bg-skyrim-paper/30 border border-skyrim-border/60 rounded p-3">
+                                <div className="flex items-center justify-between text-xs uppercase tracking-wider text-skyrim-text font-bold mb-2">
                                     <span>Hunger</span>
-                                    <span className="text-gray-300">{clampNeed(needs.hunger)}</span>
+                                    <span className="text-skyrim-text">{clampNeed(needs.hunger)}</span>
                                 </div>
                                 <div className="h-2 bg-black rounded-full overflow-hidden border border-skyrim-border mb-2">
                                     <div
@@ -842,10 +842,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                             </div>
 
                             {/* Thirst with Drink button */}
-                            <div className="bg-black/30 border border-skyrim-border/60 rounded p-3">
-                                <div className="flex items-center justify-between text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">
+                            <div className="bg-skyrim-paper/30 border border-skyrim-border/60 rounded p-3">
+                                <div className="flex items-center justify-between text-xs uppercase tracking-wider text-skyrim-text font-bold mb-2">
                                     <span>Thirst</span>
-                                    <span className="text-gray-300">{clampNeed(needs.thirst)}</span>
+                                    <span className="text-skyrim-text">{clampNeed(needs.thirst)}</span>
                                 </div>
                                 <div className="h-2 bg-black rounded-full overflow-hidden border border-skyrim-border mb-2">
                                     <div
@@ -864,10 +864,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                             </div>
 
                             {/* Fatigue with Rest button */}
-                            <div className="bg-black/30 border border-skyrim-border/60 rounded p-3">
-                                <div className="flex items-center justify-between text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">
+                            <div className="bg-skyrim-paper/30 border border-skyrim-border/60 rounded p-3">
+                                <div className="flex items-center justify-between text-xs uppercase tracking-wider text-skyrim-text font-bold mb-2">
                                     <span>Fatigue</span>
-                                    <span className="text-gray-300">{clampNeed(needs.fatigue)}</span>
+                                    <span className="text-skyrim-text">{clampNeed(needs.fatigue)}</span>
                                 </div>
                                 <div className="h-2 bg-black rounded-full overflow-hidden border border-skyrim-border mb-2">
                                     <div
@@ -923,7 +923,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
 
           <Section title="Identity & Psychology" icon={<User />} defaultOpen={true}>
              <div className="mb-4">
-                 <label className="text-sm uppercase tracking-wider text-gray-400 font-bold mb-2 block">Gender</label>
+                 <label className="text-sm uppercase tracking-wider text-skyrim-text font-bold mb-2 block">Gender</label>
                  <DropdownSelector
                    currentValue={character.gender}
                    onSelect={(value) => updateCharacter('gender', value)}
@@ -974,7 +974,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
 
                 <TextAreaField label="Long Term Evolution" value={character.longTermEvolution} onChange={(v) => updateCharacter('longTermEvolution', v)} placeholder="How should the character change over levels 1-50?" rows={4} />
                 
-                <div className="bg-black/30 p-4 rounded border border-skyrim-border">
+                <div className="bg-skyrim-paper/30 p-4 rounded border border-skyrim-border">
                     <h3 className="text-skyrim-gold font-bold uppercase text-sm mb-3">Evolution Milestones</h3>
                     <div className="flex gap-2 mb-4">
                         <input 
@@ -983,14 +983,14 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                             max="81" 
                             value={newMilestoneLevel} 
                             onChange={(e) => setNewMilestoneLevel(parseInt(e.target.value))}
-                            className="w-16 bg-black/40 border border-skyrim-border p-2 rounded text-gray-200 text-center"
+                            className="w-16 bg-skyrim-paper/40 border border-skyrim-border p-2 rounded text-skyrim-text text-center"
                         />
                         <input 
                             type="text" 
                             placeholder="Milestone description (e.g., Become Arch-Mage)" 
                             value={newMilestone} 
                             onChange={(e) => setNewMilestone(e.target.value)}
-                            className="flex-1 bg-black/40 border border-skyrim-border p-2 rounded text-gray-200"
+                            className="flex-1 bg-skyrim-paper/40 border border-skyrim-border p-2 rounded text-skyrim-text"
                         />
                         <button onClick={addMilestone} className="px-3 bg-skyrim-gold text-skyrim-dark rounded font-bold hover:bg-skyrim-goldHover">
                             <Plus size={18} />
@@ -1001,7 +1001,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                         {(character.milestones || []).sort((a,b) => a.level - b.level).map(m => (
                             <div key={m.id} className="flex items-center gap-3 group">
                                  <span className="text-xs font-bold text-skyrim-gold w-12 text-right">Lvl {m.level}</span>
-                                 <button onClick={() => toggleMilestone(m.id)} className="text-gray-400 hover:text-skyrim-gold">
+                                 <button onClick={() => toggleMilestone(m.id)} className="text-skyrim-text hover:text-skyrim-gold">
                                      {m.achieved ? <CheckCircle size={16} className="text-green-500" /> : <Circle size={16} />}
                                  </button>
                                  <span className={`flex-1 text-sm ${m.achieved ? 'text-gray-500 line-through' : 'text-gray-300'}`}>{m.description}</span>
@@ -1024,7 +1024,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                       <div className="grid grid-cols-1 gap-2 max-h-[500px] overflow-y-auto pr-2">
                           {character.skills.sort((a,b) => b.level - a.level).map(skill => (
                               <div key={skill.name} className="flex items-center gap-3 text-sm">
-                                  <span className="w-28 text-gray-400 font-serif">{skill.name}</span>
+                                  <span className="w-28 text-skyrim-text font-serif">{skill.name}</span>
                                   <div className="flex-1 relative h-3 bg-black border border-skyrim-border rounded-sm">
                                       <div className="absolute top-0 left-0 h-full bg-skyrim-accent opacity-50" style={{ width: `${Math.min(skill.level, 100)}%` }}></div>
                                   </div>
@@ -1061,12 +1061,12 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                             </div>
                        </div>
 
-                       <div className="bg-black/20 p-4 rounded border border-skyrim-border/50 mb-4">
+                       <div className="bg-skyrim-paper/20 p-4 rounded border border-skyrim-border/50 mb-4">
                            <div className="grid grid-cols-12 gap-2 mb-2">
                                <div className="col-span-8">
                                     <label className="text-[10px] uppercase text-gray-500 font-bold">Perk Name</label>
                                     <input 
-                                        className="w-full bg-black/40 border border-skyrim-border p-2 rounded text-sm text-gray-200 focus:border-skyrim-gold focus:outline-none"
+                                        className="w-full bg-skyrim-paper/40 border border-skyrim-border p-2 rounded text-sm text-skyrim-text focus:border-skyrim-gold focus:outline-none"
                                         placeholder="e.g. Juggernaut"
                                         value={newPerkName}
                                         onChange={(e) => setNewPerkName(e.target.value)}
@@ -1089,7 +1089,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                                         type="number"
                                         min="1"
                                         max="5"
-                                        className="w-full bg-black/40 border border-skyrim-border p-2 rounded text-sm text-gray-200 focus:border-skyrim-gold focus:outline-none"
+                                        className="w-full bg-skyrim-paper/40 border border-skyrim-border p-2 rounded text-sm text-skyrim-text focus:border-skyrim-gold focus:outline-none"
                                         value={newPerkRank}
                                         onChange={(e) => setNewPerkRank(parseInt(e.target.value))}
                                     />
@@ -1097,7 +1097,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
                                <div className="col-span-9">
                                     <label className="text-[10px] uppercase text-gray-500 font-bold">Description</label>
                                     <input 
-                                        className="w-full bg-black/40 border border-skyrim-border p-2 rounded text-sm text-gray-200 focus:border-skyrim-gold focus:outline-none"
+                                        className="w-full bg-skyrim-paper/40 border border-skyrim-border p-2 rounded text-sm text-skyrim-text focus:border-skyrim-gold focus:outline-none"
                                         placeholder="Effect description..."
                                         value={newPerkDesc}
                                         onChange={(e) => setNewPerkDesc(e.target.value)}

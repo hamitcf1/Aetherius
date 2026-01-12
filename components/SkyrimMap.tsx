@@ -199,34 +199,34 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
       case 'moderate': return 'text-yellow-400';
       case 'dangerous': return 'text-orange-400';
       case 'deadly': return 'text-red-400';
-      default: return 'text-gray-400';
+      default: return 'text-skyrim-text';
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/95 flex flex-col z-50">
+    <div className="fixed inset-0 bg-skyrim-dark/90 flex flex-col z-50">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-skyrim-border bg-gradient-to-r from-black via-gray-900 to-black">
+      <div className="flex items-center justify-between p-4 border-b border-skyrim-border bg-skyrim-paper">
         <div className="flex items-center gap-3">
           <Compass className="text-skyrim-gold" size={28} />
           <div>
             <h2 className="text-2xl font-serif text-skyrim-gold tracking-wide">Map of Skyrim</h2>
             {currentLocation && (
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-skyrim-text">
                 Current Location: <span className="text-green-400 font-semibold">{currentLocation}</span>
               </p>
             )}
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 bg-black/50 rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-skyrim-paper/50 rounded-lg p-1">
             {['all', 'cities', 'dungeons', 'landmarks', ...(discoveredLocations.length > 0 ? ['discovered'] : [])].map(type => (
               <button
                 key={type}
                 onClick={() => setFilterType(type)}
-                className={`px-3 py-1 rounded text-xs transition-colors ${filterType === type ? 'bg-skyrim-gold text-black font-bold' : 'text-gray-400 hover:text-white'}`}
+                className={`px-3 py-1 rounded text-xs transition-colors ${filterType === type ? 'bg-skyrim-gold text-black font-bold' : 'text-skyrim-text hover:text-white'}`}
               >
                 {type === 'discovered' ? `New (${discoveredLocations.length})` : type.charAt(0).toUpperCase() + type.slice(1)}
               </button>
@@ -235,21 +235,21 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
           <button onClick={() => setShowHolds(!showHolds)} className={`p-2 rounded transition-colors ${showHolds ? 'bg-skyrim-gold/20 text-skyrim-gold' : 'text-gray-500'}`} title="Show Hold Names">
             {showHolds ? <Eye size={18} /> : <EyeOff size={18} />}
           </button>
-          <button onClick={() => setZoom(prev => Math.min(3, prev + 0.2))} className="p-2 bg-black/60 border border-skyrim-gold/50 rounded hover:bg-skyrim-gold/20">
+          <button onClick={() => setZoom(prev => Math.min(3, prev + 0.2))} className="p-2 bg-skyrim-paper/60 border border-skyrim-gold/50 rounded hover:bg-skyrim-gold/20">
             <ZoomIn size={18} className="text-skyrim-gold" />
           </button>
-          <button onClick={() => setZoom(prev => Math.max(0.5, prev - 0.2))} className="p-2 bg-black/60 border border-skyrim-gold/50 rounded hover:bg-skyrim-gold/20">
+          <button onClick={() => setZoom(prev => Math.max(0.5, prev - 0.2))} className="p-2 bg-skyrim-paper/60 border border-skyrim-gold/50 rounded hover:bg-skyrim-gold/20">
             <ZoomOut size={18} className="text-skyrim-gold" />
           </button>
-          <button onClick={() => setShowLabels(!showLabels)} className={`px-3 py-2 border rounded text-sm ${showLabels ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold' : 'border-skyrim-border text-gray-400'}`}>
+          <button onClick={() => setShowLabels(!showLabels)} className={`px-3 py-2 border rounded text-sm ${showLabels ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold' : 'border-skyrim-border text-skyrim-text'}`}>
             Labels
           </button>
           {currentLocationObj && (
-            <button onClick={() => setPan({ x: -(currentLocationObj.x - 50) * zoom * 8, y: -(currentLocationObj.y - 50) * zoom * 6 })} className="p-2 bg-black/60 border border-green-500/50 rounded hover:bg-green-500/20" title="Center on current location">
+            <button onClick={() => setPan({ x: -(currentLocationObj.x - 50) * zoom * 8, y: -(currentLocationObj.y - 50) * zoom * 6 })} className="p-2 bg-skyrim-paper/60 border border-green-500/50 rounded hover:bg-green-500/20" title="Center on current location">
               <Navigation size={18} className="text-green-400" />
             </button>
           )}
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-white ml-2">
+          <button onClick={onClose} className="p-2 text-skyrim-text hover:text-white ml-2">
             <X size={28} />
           </button>
         </div>
@@ -444,7 +444,7 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
                   {isQuest && !isCurrent && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full animate-bounce" />}
                 </div>
                 {showLabels && (location.type === 'city' || isCurrent || isVisited) && (
-                  <span className={`absolute left-full ml-1 text-[10px] whitespace-nowrap font-bold px-1 rounded ${isCurrent ? 'text-green-400 bg-black/90' : isVisited ? 'text-blue-300 bg-black/85' : 'text-gray-200 bg-black/75'}`} style={{ textShadow: '1px 1px 2px black' }}>
+                  <span className={`absolute left-full ml-1 text-[10px] whitespace-nowrap font-bold px-1 rounded ${isCurrent ? 'text-green-400 bg-skyrim-dark/90' : isVisited ? 'text-blue-300 bg-skyrim-dark/85' : 'text-skyrim-text bg-skyrim-dark/75'}`} style={{ textShadow: '1px 1px 2px black' }}>
                     {location.name}
                   </span>
                 )}
@@ -456,7 +456,7 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
 
         {/* Location Details Panel */}
         {selectedLocation && (
-          <div className="absolute bottom-4 left-4 bg-gradient-to-br from-gray-900 to-black border border-skyrim-gold/50 rounded-lg p-4 max-w-md z-40 shadow-2xl">
+          <div className="absolute bottom-4 left-4 bg-skyrim-paper border border-skyrim-gold/50 rounded-lg p-4 max-w-md z-40 shadow-2xl">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
                 {getMarkerIcon(selectedLocation)}
@@ -468,13 +468,13 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
                   </div>
                 </div>
               </div>
-              <button onClick={() => setSelectedLocation(null)} className="text-gray-400 hover:text-white">
+              <button onClick={() => setSelectedLocation(null)} className="text-skyrim-text hover:text-white">
                 <X size={18} />
               </button>
             </div>
             
             {selectedLocation.description && (
-              <p className="text-sm text-gray-300 mb-3 leading-relaxed italic">"{selectedLocation.description}"</p>
+              <p className="text-sm text-skyrim-text mb-3 leading-relaxed italic">"{selectedLocation.description}"</p>
             )}
             
             <div className="flex items-center gap-4 text-xs mb-3">
@@ -499,7 +499,7 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
                 <h4 className="text-xs text-skyrim-gold font-semibold mb-2">📜 Rumors & Knowledge</h4>
                 <ul className="space-y-1.5">
                   {selectedLocation.rumors.map((rumor, idx) => (
-                    <li key={idx} className="text-xs text-gray-400 flex items-start gap-2">
+                    <li key={idx} className="text-xs text-skyrim-text flex items-start gap-2">
                       <span className="text-skyrim-gold/50">•</span>
                       <span className="italic">"{rumor}"</span>
                     </li>
@@ -525,7 +525,7 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
         )}
 
         {/* Legend */}
-        <div className="absolute top-4 right-4 bg-black/90 border border-skyrim-border rounded-lg p-3 text-xs z-30">
+        <div className="absolute top-4 right-4 bg-skyrim-dark/90 border border-skyrim-border rounded-lg p-3 text-xs z-30">
           <h4 className="text-skyrim-gold font-semibold mb-2 flex items-center gap-1">
             <Compass size={12} /> Legend
           </h4>
@@ -534,14 +534,14 @@ export const SkyrimMap: React.FC<SkyrimMapProps> = ({
             <div className="flex items-center gap-2"><div className="w-2 h-2 bg-yellow-400 rounded-full" /><span className="text-yellow-400">Quest Objective</span></div>
             <div className="flex items-center gap-2"><Castle size={12} color="#3b82f6" /><span className="text-blue-400">Visited</span></div>
             <div className="border-t border-skyrim-border my-2" />
-            <div className="flex items-center gap-2"><Castle size={12} color="#d4a44a" /><span className="text-gray-400">City</span></div>
-            <div className="flex items-center gap-2"><Home size={12} color="#8b7355" /><span className="text-gray-400">Town/Village</span></div>
-            <div className="flex items-center gap-2"><Skull size={12} color="#dc2626" /><span className="text-gray-400">Dungeon</span></div>
-            <div className="flex items-center gap-2"><Mountain size={12} color="#a855f7" /><span className="text-gray-400">Landmark</span></div>
+            <div className="flex items-center gap-2"><Castle size={12} color="#d4a44a" /><span className="text-skyrim-text">City</span></div>
+            <div className="flex items-center gap-2"><Home size={12} color="#8b7355" /><span className="text-skyrim-text">Town/Village</span></div>
+            <div className="flex items-center gap-2"><Skull size={12} color="#dc2626" /><span className="text-skyrim-text">Dungeon</span></div>
+            <div className="flex items-center gap-2"><Mountain size={12} color="#a855f7" /><span className="text-skyrim-text">Landmark</span></div>
           </div>
         </div>
 
-        <div className="absolute bottom-4 right-4 bg-black/60 rounded px-3 py-2 text-xs text-gray-500 z-30">
+        <div className="absolute bottom-4 right-4 bg-skyrim-paper/60 rounded px-3 py-2 text-xs text-skyrim-text z-30">
           Drag to pan • Scroll to zoom • Click markers for info
         </div>
       </div>

@@ -71,7 +71,7 @@ export function OnboardingModal(props: {
           <div className="space-y-3">
             <ul className="text-gray-300 text-sm font-sans list-disc pl-5 space-y-1">
               <li><span className="text-gray-200 font-semibold">Hero</span>: character sheet and progression.</li>
-              <li><span className="text-gray-200 font-semibold">Items</span>: inventory and equipment.</li>
+              <li><span className="text-gray-200 font-semibold">Inventory</span>: inventory and equipment.</li>
               <li><span className="text-gray-200 font-semibold">Quests</span>: quests and objectives.</li>
               <li><span className="text-gray-200 font-semibold">Story</span>: chapters and notes (long-term narrative).</li>
               <li><span className="text-gray-200 font-semibold">Journal</span>: first-person log entries.</li>
@@ -151,9 +151,9 @@ export function OnboardingModal(props: {
       <div className="w-full max-w-2xl bg-black/50 border border-skyrim-border rounded-lg shadow-2xl">
         <div className="p-5 sm:p-6 border-b border-skyrim-border flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs uppercase tracking-widest text-gray-400 font-sans">Tutorial</div>
+            <div className="text-xs uppercase tracking-widest text-skyrim-text font-sans">Tutorial</div>
             <h2 className="text-lg sm:text-xl font-serif text-skyrim-gold">{step.title}</h2>
-            <div className="mt-1 text-xs text-gray-400 font-sans">
+            <div className="mt-1 text-xs text-skyrim-text font-sans">
               Step {stepIndex + 1} of {steps.length}
             </div>
           </div>

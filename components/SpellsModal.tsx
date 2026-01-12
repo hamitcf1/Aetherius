@@ -27,7 +27,7 @@ export const SpellsModal: React.FC<SpellsModalProps> = ({ character, onClose, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-skyrim-dark/60 p-4">
       <div className="bg-skyrim-paper border border-skyrim-gold rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-serif text-skyrim-gold flex items-center gap-2"><Zap /> Spells</h3>
@@ -38,11 +38,11 @@ export const SpellsModal: React.FC<SpellsModalProps> = ({ character, onClose, on
           {all.map(s => {
             const learnedFlag = learned.includes(s.id);
             return (
-              <div key={s.id} className={`p-3 rounded border ${learnedFlag ? 'border-skyrim-gold bg-black/40' : 'border-skyrim-border bg-black/30'}`}>
+              <div key={s.id} className={`p-3 rounded border ${learnedFlag ? 'border-skyrim-gold bg-skyrim-paper/40' : 'border-skyrim-border bg-skyrim-paper/30'}`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-bold text-skyrim-gold">{s.name}</div>
-                    <div className="text-xs text-gray-300">{s.description}</div>
+                    <div className="text-xs text-skyrim-text">{s.description}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-sm text-blue-300">Cost: {s.cost}</div>

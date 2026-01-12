@@ -122,11 +122,11 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries, onDeleteE
     <div className="max-w-4xl mx-auto pb-24">
       <div className="mb-8 p-6 bg-skyrim-paper border-y-4 border-skyrim-border text-center">
         <h1 className="text-4xl font-serif text-skyrim-gold mb-2">Adventurer's Journal</h1>
-        <p className="text-gray-500 font-sans text-sm">Thoughts, observations, and discoveries.</p>
+        <p className="text-skyrim-text font-sans text-sm">Thoughts, observations, and discoveries.</p>
         
         {/* Sort controls and entry count */}
         <div className="mt-4 flex items-center justify-center gap-4 text-sm">
-          <span className="text-gray-400">{sortedEntries.length} {sortedEntries.length === 1 ? 'entry' : 'entries'}</span>
+          <span className="text-skyrim-text">{sortedEntries.length} {sortedEntries.length === 1 ? 'entry' : 'entries'}</span>
           <SortSelector currentSort={sortOrder} onSelect={setSortOrder} options={sortOptions} />
         </div>
       </div>
@@ -141,7 +141,7 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries, onDeleteE
             autoCorrect="off"
           />
           <textarea
-            className="w-full bg-black/20 border border-skyrim-border/30 rounded p-4 text-gray-300 font-sans leading-relaxed focus:outline-none focus:border-skyrim-gold/50 h-40"
+            className="w-full bg-skyrim-paper/20 border border-skyrim-border/30 rounded p-4 text-skyrim-text font-sans leading-relaxed focus:outline-none focus:border-skyrim-gold/50 h-40"
             placeholder="Write your thoughts here..."
             value={newEntryContent}
             onChange={(e) => setNewEntryContent(e.target.value)}
@@ -162,12 +162,12 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries, onDeleteE
 
       {/* Search Bar */}
       <div className="mb-6 relative">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-skyrim-text">
               <Search size={18} />
           </div>
           <input 
             type="text" 
-            className="w-full bg-black/40 border border-skyrim-border rounded pl-10 pr-10 py-3 text-gray-300 focus:outline-none focus:border-skyrim-gold"
+            className="w-full bg-skyrim-paper/40 border border-skyrim-border rounded pl-10 pr-10 py-3 text-skyrim-text focus:outline-none focus:border-skyrim-gold"
             placeholder="Search journal entries..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -202,11 +202,11 @@ export const Journal: React.FC<JournalProps> = ({ entries, setEntries, onDeleteE
                                    )}
                                </div>
                            </div>
-                           <button onClick={() => deleteEntry(entry.id)} className="text-gray-600 hover:text-red-500 p-2">
+                           <button onClick={() => deleteEntry(entry.id)} className="text-skyrim-text hover:text-red-500 p-2">
                                <Trash2 size={16} />
                            </button>
                        </div>
-                       <p className="text-gray-400 font-serif whitespace-pre-wrap leading-7">
+                       <p className="text-skyrim-text font-serif whitespace-pre-wrap leading-7">
                            {entry.content}
                        </p>
                    </div>

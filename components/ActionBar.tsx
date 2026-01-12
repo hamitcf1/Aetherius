@@ -194,7 +194,7 @@ const ActionBar: React.FC = () => {
               className={`w-full flex items-center gap-2 px-3 py-2 rounded font-bold ${
                 isFeatureEnabled('photoUpload') 
                   ? 'bg-green-700 text-white cursor-pointer hover:bg-green-600' 
-                  : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
+                  : 'bg-gray-600 text-skyrim-text cursor-not-allowed opacity-60'
               }`}
             >
               <ImageIcon size={16} /> Upload Photo
@@ -217,7 +217,7 @@ const ActionBar: React.FC = () => {
               className={`w-full flex items-center gap-2 px-3 py-2 rounded font-bold ${
                 isFeatureEnabled('exportPDF')
                   ? 'bg-skyrim-gold text-skyrim-dark hover:bg-yellow-400 disabled:opacity-50'
-                  : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
+                  : 'bg-gray-600 text-skyrim-text cursor-not-allowed opacity-60'
               }`}
             >
               <Download size={16} /> {isExporting ? 'Generating...' : 'Export Full Record'}
@@ -258,7 +258,7 @@ const ActionBar: React.FC = () => {
               className={`w-full flex items-center gap-2 px-3 py-2 rounded font-bold ${
                 isFeatureEnabled('aiProfileImage')
                   ? 'bg-skyrim-accent text-white hover:bg-purple-700 disabled:opacity-50'
-                  : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
+                  : 'bg-gray-600 text-skyrim-text cursor-not-allowed opacity-60'
               }`}
             >
               {isGeneratingProfileImage ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
@@ -280,7 +280,7 @@ const ActionBar: React.FC = () => {
                 className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-l font-bold ${
                   isFeatureEnabled('snowEffect')
                     ? (snow ? 'bg-blue-200 text-blue-900' : 'bg-blue-900 text-white hover:bg-blue-800')
-                    : 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
+                    : 'bg-gray-700 text-skyrim-text hover:bg-gray-600'
                 }`}
               >
                 <Snowflake size={16} /> {snow ? 'Disable Snow Effect' : 'Snow Effect'}
@@ -298,7 +298,7 @@ const ActionBar: React.FC = () => {
             {/* Snow intensity options */}
             {snow && showSnowOptions && isFeatureEnabled('snowEffect') && (
               <div className="mt-2 p-2 bg-gray-800 rounded border border-skyrim-border">
-                <div className="text-xs text-gray-400 mb-1">Snow Intensity</div>
+                <div className="text-xs text-skyrim-text mb-1">Snow Intensity</div>
                 <div className="flex flex-wrap gap-1">
                   {SNOW_INTENSITY_OPTIONS.map(opt => (
                     <button
@@ -332,7 +332,7 @@ const ActionBar: React.FC = () => {
                 className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded font-bold transition-colors ${
                   soundEnabled 
                     ? 'bg-green-700 text-white hover:bg-green-600' 
-                    : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                    : 'bg-gray-700 text-skyrim-text hover:bg-gray-600'
                 }`}
                 title={soundEnabled ? 'Disable sound effects' : 'Enable sound effects'}
               >
@@ -344,7 +344,7 @@ const ActionBar: React.FC = () => {
                 className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded font-bold transition-colors ${
                   musicEnabled 
                     ? 'bg-purple-700 text-white hover:bg-purple-600' 
-                    : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                    : 'bg-gray-700 text-skyrim-text hover:bg-gray-600'
                 }`}
                 title={musicEnabled ? 'Disable background music' : 'Enable background music'}
               >
@@ -371,7 +371,7 @@ const ActionBar: React.FC = () => {
 
       {/* Guest Logout Warning Modal */}
       {showLogoutWarning && createPortal(
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[2000] p-4">
+        <div className="fixed inset-0 bg-skyrim-dark/60 flex items-center justify-center z-[2000] p-4">
           <div className="bg-skyrim-paper border-2 border-red-600 rounded-lg shadow-2xl p-6 max-w-md w-full">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-red-900/50 rounded-full flex items-center justify-center">
@@ -380,11 +380,11 @@ const ActionBar: React.FC = () => {
               <h3 className="text-xl font-serif text-red-400">Warning: Guest Account</h3>
             </div>
             
-            <p className="text-gray-300 mb-4">
+            <p className="text-skyrim-text mb-4">
               You are logged in as a <strong className="text-yellow-400">guest</strong>. If you exit now, you will <strong className="text-red-400">permanently lose all your data</strong> including:
             </p>
             
-            <ul className="text-gray-400 text-sm mb-6 space-y-1 ml-4">
+            <ul className="text-skyrim-text text-sm mb-6 space-y-1 ml-4">
               <li>• All characters and their progress</li>
               <li>• Inventory, gold, and items</li>
               <li>• Quest logs and journal entries</li>

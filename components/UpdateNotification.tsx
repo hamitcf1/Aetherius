@@ -73,7 +73,7 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ position = 'bot
               <h4 className="text-skyrim-gold font-serif font-bold text-sm">
                 A New Dawn Breaks Over Skyrim
               </h4>
-              <p className="text-gray-300 text-xs mt-0.5">
+              <p className="text-skyrim-text text-xs mt-0.5">
                 The scrolls have been updated. Save your progress and refresh to receive the latest enhancements.
               </p>
             </div>
@@ -89,7 +89,7 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ position = 'bot
               </button>
               <button
                 onClick={handleDismiss}
-                className="p-1.5 text-gray-400 hover:text-white transition-colors"
+                className="p-1.5 text-skyrim-text hover:text-white transition-colors"
                 title="Dismiss (will remind later)"
               >
                 <X size={18} />

@@ -200,7 +200,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                     <div key={c.id} className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 border transition-all group ${
                                       c.isDead 
                                         ? 'bg-red-950/30 border-red-900/50 opacity-75' 
-                                        : 'bg-black/40 border-skyrim-border hover:border-skyrim-gold hover:bg-black/60'
+                                        : 'bg-skyrim-paper/40 border-skyrim-border hover:border-skyrim-gold hover:bg-skyrim-paper/60'
                                     }`}>
                                       {/* Death Confirmation */}
                                       {confirmDeathCharacter === c.id ? (
@@ -211,7 +211,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                             placeholder="Cause of death (optional)"
                                             value={deathCause}
                                             onChange={e => setDeathCause(e.target.value)}
-                                            className="bg-black/50 border border-red-900 p-2 rounded text-gray-200 text-sm focus:outline-none"
+                                            className="bg-skyrim-paper/50 border border-red-900 p-2 rounded text-skyrim-text text-sm focus:outline-none"
                                           />
                                           <div className="flex gap-2">
                                             <button 
@@ -263,7 +263,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                             type="text" 
                                             value={editingName} 
                                             onChange={e => setEditingName(e.target.value)}
-                                            className="flex-1 bg-black/50 border border-skyrim-gold p-2 rounded text-gray-200 focus:outline-none"
+                                            className="flex-1 bg-skyrim-paper/50 border border-skyrim-gold p-2 rounded text-skyrim-text focus:outline-none"
                                             onKeyDown={e => {
                                               if (e.key === 'Enter' && onUpdateCharacter) {
                                                 onUpdateCharacter(c.id, editingName);
@@ -376,7 +376,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                            </div>
                        ) : creationMode === 'chat' ? (
                            // Chat Interface
-                           <div className="flex flex-col h-[400px] bg-black/30 border border-skyrim-border rounded-lg p-4">
+                           <div className="flex flex-col h-[400px] bg-skyrim-paper/30 border border-skyrim-border rounded-lg p-4">
                                <div className="flex-1 overflow-y-auto space-y-4 mb-4">
                                    {chatHistory.map((msg, idx) => (
                                        <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -396,7 +396,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                                </div>
                                <div className="flex gap-2">
                                    <input 
-                                       className="flex-1 bg-black/50 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold"
+                                       className="flex-1 bg-skyrim-paper/50 border border-skyrim-border p-3 rounded text-skyrim-text focus:outline-none focus:border-skyrim-gold"
                                        placeholder="Reply to the Scribe..."
                                        value={chatInput}
                                        onChange={e => setChatInput(e.target.value)}
@@ -416,11 +416,11 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                            </div>
                        ) : (
                            // Import Interface
-                           <div className="flex flex-col h-[400px] bg-black/30 border border-skyrim-border rounded-lg p-6">
+                           <div className="flex flex-col h-[400px] bg-skyrim-paper/30 border border-skyrim-border rounded-lg p-6">
                                <h4 className="text-skyrim-gold font-serif text-lg mb-2">Import from Text</h4>
-                               <p className="text-gray-400 text-sm mb-4">Paste your character backstory, description, or sheet below. The Scribe will interpret the details and fill in the blanks.</p>
+                               <p className="text-skyrim-text text-sm mb-4">Paste your character backstory, description, or sheet below. The Scribe will interpret the details and fill in the blanks.</p>
                                <textarea 
-                                 className="flex-1 bg-black/50 border border-skyrim-border p-4 rounded text-gray-300 focus:outline-none focus:border-skyrim-gold mb-4 font-sans leading-relaxed resize-none"
+                                 className="flex-1 bg-skyrim-paper/50 border border-skyrim-border p-4 rounded text-skyrim-text focus:outline-none focus:border-skyrim-gold mb-4 font-sans leading-relaxed resize-none"
                                     placeholder="My character is a Nord warrior named Ragnar who despises magic..."
                                     value={importText}
                                     onChange={e => setImportText(e.target.value)}
@@ -451,7 +451,7 @@ export const CharacterSelect: React.FC<CharacterSelectProps> = ({
                              <div className="flex flex-col gap-4">
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                                     <input 
-                          className="col-span-2 sm:col-span-2 bg-black/40 border border-skyrim-border p-3 rounded text-gray-200 focus:outline-none focus:border-skyrim-gold"
+                          className="col-span-2 sm:col-span-2 bg-skyrim-paper/40 border border-skyrim-border p-3 rounded text-skyrim-text focus:outline-none focus:border-skyrim-gold"
                                         placeholder="Character Name"
                                         value={newName}
                                         onChange={e => setNewName(e.target.value)}

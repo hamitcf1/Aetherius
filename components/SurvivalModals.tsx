@@ -69,7 +69,7 @@ export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedr
 
   return (
     <div 
-      className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[70] bg-skyrim-dark/60 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="w-full max-w-md bg-skyrim-paper border border-skyrim-gold rounded-lg shadow-2xl overflow-hidden">
@@ -78,22 +78,22 @@ export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedr
             <Moon className="text-skyrim-gold" size={20} />
             <h2 className="text-lg font-serif text-skyrim-gold">Rest</h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-black/40 rounded">
-            <X size={18} className="text-gray-400 hover:text-white" />
+          <button onClick={onClose} className="p-2 hover:bg-skyrim-paper/40 rounded">
+            <X size={18} className="text-skyrim-text hover:text-white" />
           </button>
         </div>
 
         <div className="p-4 space-y-4">
           {/* Rest Type Selection */}
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-wider text-gray-400 font-bold">Where to rest</label>
+            <label className="text-xs uppercase tracking-wider text-skyrim-text font-bold">Where to rest</label>
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setRestType('outside')}
                 className={`p-3 rounded border flex flex-col items-center gap-2 transition-colors ${
                   restType === 'outside'
                     ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold'
-                    : 'bg-black/30 border-skyrim-border text-gray-400 hover:border-skyrim-border'
+                    : 'bg-skyrim-paper/30 border-skyrim-border text-skyrim-text hover:border-skyrim-border'
                 }`}
               >
                 <TreePine size={20} />
@@ -104,7 +104,7 @@ export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedr
                 className={`p-3 rounded border flex flex-col items-center gap-2 transition-colors ${
                   restType === 'camp'
                     ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold'
-                    : 'bg-black/30 border-skyrim-border text-gray-400 hover:border-skyrim-border'
+                    : 'bg-skyrim-paper/30 border-skyrim-border text-skyrim-text hover:border-skyrim-border'
                 }`}
               >
                 <Tent size={20} />
@@ -120,8 +120,8 @@ export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedr
                   restType === 'inn'
                     ? 'bg-skyrim-gold/20 border-skyrim-gold text-skyrim-gold'
                     : canAffordInn
-                    ? 'bg-black/30 border-skyrim-border text-gray-400 hover:border-skyrim-border'
-                    : 'bg-black/20 border-red-900/30 text-gray-600 cursor-not-allowed'
+                    ? 'bg-skyrim-paper/30 border-skyrim-border text-skyrim-text hover:border-skyrim-border'
+                    : 'bg-skyrim-paper/20 border-red-900/30 text-skyrim-text cursor-not-allowed'
                 }`}
               >
                 <Home size={20} />
@@ -134,19 +134,19 @@ export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedr
           </div>
 
           {/* Rest Quality Info */}
-          <div className="p-3 bg-black/30 border border-skyrim-border rounded">
+          <div className="p-3 bg-skyrim-paper/30 border border-skyrim-border rounded">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-gray-300">{restQuality.label}</span>
+              <span className="text-sm text-skyrim-text">{restQuality.label}</span>
               <span className="text-xs text-green-400">-{restQuality.fatigueReduction} fatigue</span>
             </div>
-            <p className="text-xs text-gray-500">{restQuality.desc}</p>
+            <p className="text-xs text-skyrim-text">{restQuality.desc}</p>
           </div>
 
           {/* Hours Selection */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs uppercase tracking-wider text-gray-400 font-bold">Duration</label>
-              <span className="text-sm text-gray-300 flex items-center gap-1">
+              <label className="text-xs uppercase tracking-wider text-skyrim-text font-bold">Duration</label>
+              <span className="text-sm text-skyrim-text flex items-center gap-1">
                 <Clock size={14} /> {hours} hours
               </span>
             </div>
@@ -156,7 +156,7 @@ export function RestModal({ open, onClose, onRest, gold, hasCampingGear, hasBedr
               max="12"
               value={hours}
               onChange={(e) => setHours(parseInt(e.target.value))}
-              className="w-full h-2 bg-black/40 rounded-lg appearance-none cursor-pointer"
+              className="w-full h-2 bg-skyrim-paper/40 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-xs text-gray-500">
               <span>1h</span>
@@ -223,7 +223,7 @@ export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
 
   return (
     <div 
-      className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[70] bg-skyrim-dark/60 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="w-full max-w-md bg-skyrim-paper border border-skyrim-gold rounded-lg shadow-2xl overflow-hidden">
@@ -232,19 +232,19 @@ export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
             <Apple className="text-skyrim-gold" size={20} />
             <h2 className="text-lg font-serif text-skyrim-gold">Eat</h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-black/40 rounded">
-            <X size={18} className="text-gray-400 hover:text-white" />
+          <button onClick={onClose} className="p-2 hover:bg-skyrim-paper/40 rounded">
+            <X size={18} className="text-skyrim-text hover:text-white" />
           </button>
         </div>
 
         {/* Category Tabs */}
-        <div className="flex border-b border-skyrim-border bg-black/20">
+        <div className="flex border-b border-skyrim-border bg-skyrim-paper/20">
           <button
             onClick={() => setActiveCategory('food')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-colors ${
               activeCategory === 'food'
                 ? 'bg-green-900/30 text-green-400 border-b-2 border-green-500'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-black/20'
+                : 'text-skyrim-text hover:text-skyrim-gold hover:bg-skyrim-paper/20'
             }`}
           >
             <Apple size={16} />
@@ -255,7 +255,7 @@ export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-colors ${
               activeCategory === 'ingredient'
                 ? 'bg-purple-900/30 text-purple-400 border-b-2 border-purple-500'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-black/20'
+                : 'text-skyrim-text hover:text-skyrim-gold hover:bg-skyrim-paper/20'
             }`}
           >
             <Droplets size={16} />
@@ -267,8 +267,8 @@ export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
           {displayItems.length === 0 ? (
             <div className="text-center py-8">
               <Apple size={32} className="mx-auto text-gray-600 mb-3" />
-              <p className="text-gray-400">No {activeCategory === 'food' ? 'food' : 'ingredients'} in your inventory.</p>
-              <p className="text-xs text-gray-500 mt-1">Visit the shop to buy supplies.</p>
+              <p className="text-skyrim-text">No {activeCategory === 'food' ? 'food' : 'ingredients'} in your inventory.</p>
+              <p className="text-xs text-skyrim-text mt-1">Visit the shop to buy supplies.</p>
             </div>
           ) : (
             <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -278,7 +278,7 @@ export function EatModal({ open, onClose, onEat, foodItems }: EatModalProps) {
                   <button
                     key={item.id}
                     onClick={() => handleEat(item)}
-                    className="w-full p-3 bg-black/30 border border-skyrim-border rounded hover:border-skyrim-gold/50 transition-colors text-left flex items-center justify-between"
+                    className="w-full p-3 bg-skyrim-paper/30 border border-skyrim-border rounded hover:border-skyrim-gold/50 transition-colors text-left flex items-center justify-between"
                   >
                     <div>
                       <div className="text-gray-200 font-semibold text-sm">{item.name}</div>
@@ -330,7 +330,7 @@ export function DrinkModal({ open, onClose, onDrink, drinkItems }: DrinkModalPro
 
   return (
     <div 
-      className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[70] bg-skyrim-dark/60 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="w-full max-w-md bg-skyrim-paper border border-skyrim-gold rounded-lg shadow-2xl overflow-hidden">
@@ -339,8 +339,8 @@ export function DrinkModal({ open, onClose, onDrink, drinkItems }: DrinkModalPro
             <Droplets className="text-skyrim-gold" size={20} />
             <h2 className="text-lg font-serif text-skyrim-gold">Drink</h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-black/40 rounded">
-            <X size={18} className="text-gray-400 hover:text-white" />
+          <button onClick={onClose} className="p-2 hover:bg-skyrim-paper/40 rounded">
+            <X size={18} className="text-skyrim-text hover:text-white" />
           </button>
         </div>
 
@@ -348,7 +348,7 @@ export function DrinkModal({ open, onClose, onDrink, drinkItems }: DrinkModalPro
           {availableDrinks.length === 0 ? (
             <div className="text-center py-8">
               <Droplets size={32} className="mx-auto text-gray-600 mb-3" />
-              <p className="text-gray-400">No drinks in your inventory.</p>
+              <p className="text-skyrim-text">No drinks in your inventory.</p>
               <p className="text-xs text-gray-500 mt-1">Visit the shop to buy supplies.</p>
             </div>
           ) : (
@@ -359,11 +359,11 @@ export function DrinkModal({ open, onClose, onDrink, drinkItems }: DrinkModalPro
                   <button
                     key={item.id}
                     onClick={() => handleDrink(item)}
-                    className="w-full p-3 bg-black/30 border border-skyrim-border rounded hover:border-skyrim-gold/50 transition-colors text-left flex items-center justify-between"
+                    className="w-full p-3 bg-skyrim-paper/30 border border-skyrim-border rounded hover:border-skyrim-gold/50 transition-colors text-left flex items-center justify-between"
                   >
                     <div>
-                      <div className="text-gray-200 font-semibold text-sm">{item.name}</div>
-                      <div className="text-gray-500 text-xs">x{item.quantity}</div>
+                      <div className="text-skyrim-text font-semibold text-sm">{item.name}</div>
+                      <div className="text-skyrim-text text-xs">x{item.quantity}</div>
                     </div>
                     <span className="text-blue-400 text-xs">{nutritionDisplay}</span>
                   </button>

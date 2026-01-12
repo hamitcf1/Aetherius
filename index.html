@@ -43,6 +43,7 @@
         --skyrim-accent: #2a3b4c;
       }
       
+      /* Use native system cursors (prefer OS defaults instead of custom PNGs) */
       /* Skyrim-style custom cursors - PNG must be 32x32 max */
       *, *::before, *::after {
         cursor: url('/cursor-default.png') 0 0, auto;
@@ -62,26 +63,26 @@
       }
 
       body {
-        background-color: #050505;
+        background-color: var(--skyrim-dark);
         background-image: url('https://www.transparenttextures.com/patterns/dark-leather.png');
-        color: #d1d1d1;
+        color: var(--skyrim-text);
         overflow-x: hidden;
       }
       html {
         overflow-x: hidden;
       }
-      /* Custom Scrollbar */
+      /* Custom Scrollbar (theme-aware) */
       ::-webkit-scrollbar {
         width: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #1a1a1a; 
+        background: var(--skyrim-paper); 
       }
       ::-webkit-scrollbar-thumb {
-        background: #4a4a4a; 
+        background: var(--skyrim-border); 
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #c0a062; 
+        background: var(--skyrim-gold); 
       }
       /* Theme the browser focus outline and Tailwind ring color (with fallbacks) */
       :root {

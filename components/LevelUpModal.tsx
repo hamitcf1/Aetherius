@@ -37,7 +37,7 @@ export default function LevelUpModal({ open, onClose, onConfirm, characterName, 
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-bold">Health</div>
-                <div className="text-xs text-gray-400">+10 max</div>
+                <div className="text-xs text-skyrim-text">+10 max</div>
               </div>
               {choice === 'health' && <Check size={18} className="text-skyrim-gold" />}
             </div>
@@ -50,7 +50,7 @@ export default function LevelUpModal({ open, onClose, onConfirm, characterName, 
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-bold">Magicka</div>
-                <div className="text-xs text-gray-400">+10 max</div>
+                <div className="text-xs text-skyrim-text">+10 max</div>
               </div>
               {choice === 'magicka' && <Check size={18} className="text-skyrim-gold" />}
             </div>
@@ -63,14 +63,14 @@ export default function LevelUpModal({ open, onClose, onConfirm, characterName, 
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-bold">Stamina</div>
-                <div className="text-xs text-gray-400">+10 max</div>
+                <div className="text-xs text-skyrim-text">+10 max</div>
               </div>
               {choice === 'stamina' && <Check size={18} className="text-skyrim-gold" />}
             </div>
           </button>
         </div>
 
-        <div className="mb-4 text-sm text-gray-300">Selected: <span className="text-skyrim-gold font-bold">{choice.charAt(0).toUpperCase() + choice.slice(1)}</span></div>
+        <div className="mb-4 text-sm text-skyrim-text">Selected: <span className="text-skyrim-gold font-bold">{choice.charAt(0).toUpperCase() + choice.slice(1)}</span></div>
 
         <div className="flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 rounded bg-transparent border border-skyrim-border text-sm">Cancel</button>

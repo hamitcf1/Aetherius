@@ -2935,12 +2935,12 @@ const App: React.FC = () => {
               </div>
               <div className="flex flex-nowrap items-center gap-1 sm:gap-2 relative overflow-hidden">
                 {[
-                    { id: TABS.CHARACTER, icon: User, label: 'Hero' },
-                    { id: TABS.INVENTORY, icon: Package, label: 'Items' },
+                    { id: TABS.INVENTORY, icon: Package, label: 'Inventory' },
+                    { id: TABS.ADVENTURE, icon: Swords, label: 'Adventure' },
                     { id: TABS.QUESTS, icon: Scroll, label: 'Quests' },
+                    { id: TABS.CHARACTER, icon: User, label: 'Hero' },
                     { id: TABS.STORY, icon: Feather, label: 'Story' },
                     { id: TABS.JOURNAL, icon: BookOpen, label: 'Journal' },
-                    { id: TABS.ADVENTURE, icon: Swords, label: 'Adventure' },
                 ].map(tab => (
                   <button
                       key={tab.id}
@@ -2948,7 +2948,7 @@ const App: React.FC = () => {
                     className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded transition-all duration-300 text-sm md:text-base ${
                       activeTab === tab.id 
                           ? 'bg-skyrim-gold text-skyrim-dark font-bold' 
-                          : 'text-gray-400 hover:text-skyrim-gold hover:bg-white/5'
+                          : 'text-skyrim-text hover:text-skyrim-gold hover:bg-white/5'
                       }`}
                   >
                       <tab.icon size={16} />

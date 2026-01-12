@@ -194,13 +194,13 @@ export const RateLimitIndicator: React.FC<RateLimitIndicatorProps> = ({ stats, c
     <div className={`flex items-center gap-3 px-3 py-1.5 rounded border text-xs ${
       isCritical ? 'bg-red-900/50 border-red-700 text-red-300' :
       isWarning ? 'bg-yellow-900/50 border-yellow-700 text-yellow-300' :
-      'bg-gray-900/50 border-skyrim-border text-gray-400'
+      'bg-gray-900/50 border-skyrim-border text-skyrim-text'
     } ${className}`}>
       <Clock size={14} />
       
       <div className="flex items-center gap-1.5">
         <span className="opacity-70">Min:</span>
-        <div className="w-16 h-1.5 bg-black/50 rounded-full overflow-hidden">
+        <div className="w-16 h-1.5 bg-skyrim-paper/50 rounded-full overflow-hidden">
           <div 
             className={`h-full transition-all ${
               minutePercent >= 90 ? 'bg-red-500' :
@@ -215,7 +215,7 @@ export const RateLimitIndicator: React.FC<RateLimitIndicatorProps> = ({ stats, c
 
       <div className="flex items-center gap-1.5">
         <span className="opacity-70">Hour:</span>
-        <div className="w-16 h-1.5 bg-black/50 rounded-full overflow-hidden">
+        <div className="w-16 h-1.5 bg-skyrim-paper/50 rounded-full overflow-hidden">
           <div 
             className={`h-full transition-all ${
               hourPercent >= 90 ? 'bg-red-500' :
@@ -270,7 +270,7 @@ export const EncumbranceIndicator: React.FC<EncumbranceIndicatorProps> = ({
         <span className="text-gray-500 text-xs">lbs</span>
       </div>
       
-      <div className="w-24 h-2 bg-black/50 rounded-full overflow-hidden border border-skyrim-border">
+      <div className="w-24 h-2 bg-skyrim-paper/50 rounded-full overflow-hidden border border-skyrim-border">
         <div 
           className={`h-full transition-all ${
             isOverEncumbered ? 'bg-red-500' :

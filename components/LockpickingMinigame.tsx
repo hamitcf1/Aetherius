@@ -229,10 +229,10 @@ export const LockpickingMinigame: React.FC<LockpickingMinigameProps> = ({
   } : {};
 
   return (
-    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-skyrim-dark/90 flex items-center justify-center z-50">
       <div 
         ref={containerRef}
-        className="bg-gradient-to-b from-gray-900 to-black border-2 border-skyrim-gold/50 rounded-lg p-6 max-w-lg w-full mx-4"
+        className="bg-skyrim-paper border-2 border-skyrim-gold/50 rounded-lg p-6 max-w-lg w-full mx-4"
         style={shakeStyle}
       >
         {/* Header */}
@@ -246,7 +246,7 @@ export const LockpickingMinigame: React.FC<LockpickingMinigameProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-skyrim-text hover:text-white transition-colors"
           >
             <X size={24} />
           </button>
@@ -254,8 +254,8 @@ export const LockpickingMinigame: React.FC<LockpickingMinigameProps> = ({
 
         {/* Lockpick count */}
         <div className="flex items-center gap-2 mb-4 text-sm">
-          <Key size={16} className="text-gray-400" />
-          <span className="text-gray-300">Lockpicks: </span>
+          <Key size={16} className="text-skyrim-text" />
+          <span className="text-skyrim-text">Lockpicks: </span>
           <span className={currentLockpicks <= 2 ? 'text-red-400 font-bold' : 'text-skyrim-gold'}>
             {currentLockpicks}
           </span>
@@ -329,14 +329,14 @@ export const LockpickingMinigame: React.FC<LockpickingMinigameProps> = ({
           gameState === 'success' ? 'text-green-400' :
           gameState === 'broken' ? 'text-red-400' :
           gameState === 'no-picks' ? 'text-orange-400' :
-          'text-gray-300'
+          'text-skyrim-text'
         }`}>
           {message}
         </div>
 
         {/* Controls hint */}
         {gameState === 'playing' && (
-          <div className="text-center text-xs text-gray-500 space-y-1">
+          <div className="text-center text-xs text-skyrim-text space-y-1">
             <p><kbd className="px-2 py-1 bg-gray-800 rounded">←</kbd> <kbd className="px-2 py-1 bg-gray-800 rounded">→</kbd> or <kbd className="px-2 py-1 bg-gray-800 rounded">A</kbd> <kbd className="px-2 py-1 bg-gray-800 rounded">D</kbd> to move pick</p>
             <p>Hold <kbd className="px-2 py-1 bg-gray-800 rounded">SPACE</kbd> to turn the lock</p>
           </div>

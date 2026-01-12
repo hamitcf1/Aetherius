@@ -1516,8 +1516,8 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         
         {/* Clock */}
         <div className="flex items-center gap-2 text-sm">
-          <Clock size={14} className="text-gray-400" />
-          <span className="text-gray-300 font-mono">{formatTime(time.hour, time.minute)}</span>
+          <Clock size={14} className="text-skyrim-text" />
+          <span className="text-skyrim-text font-mono">{formatTime(time.hour, time.minute)}</span>
         </div>
         
         <div className="hidden sm:block h-4 w-px bg-skyrim-gold/30" />
@@ -1525,8 +1525,8 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         {/* Tamrielic Date */}
         <div className="text-xs sm:text-sm text-center sm:text-left">
           <span className="text-skyrim-gold">{tamrielDate.dayName}</span>
-          <span className="text-gray-400">, </span>
-          <span className="text-gray-300">{tamrielDate.dayOfMonth}{getOrdinalSuffix(tamrielDate.dayOfMonth)} of </span>
+          <span className="text-skyrim-text">, </span>
+          <span className="text-skyrim-text">{tamrielDate.dayOfMonth}{getOrdinalSuffix(tamrielDate.dayOfMonth)} of </span>
           <span className="text-skyrim-gold">{tamrielDate.monthName}</span>
           <span className="text-gray-500 text-xs ml-1">4E {tamrielDate.year}</span>
         </div>
@@ -1612,7 +1612,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         <div className="flex gap-1.5">
           <button
             onClick={() => setShowQuestModal(v => !v)}
-            className="px-2 py-1.5 text-gray-400 border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
+            className="px-2 py-1.5 text-skyrim-text border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
             title="Show Quests"
           >
             <Flag size={12} /> Quests
@@ -1640,7 +1640,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
           <button
             onClick={clearChat}
             disabled={messages.length === 0}
-            className="px-2 py-1.5 text-gray-400 border border-skyrim-border rounded hover:text-red-400 hover:border-red-400 transition-colors flex items-center gap-1.5 text-xs disabled:opacity-50"
+            className="px-2 py-1.5 text-skyrim-text border border-skyrim-border rounded hover:text-red-400 hover:border-red-400 transition-colors flex items-center gap-1.5 text-xs disabled:opacity-50"
           >
             <Trash2 size={12} /> Clear
           </button>
@@ -1648,27 +1648,27 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         <div className="flex gap-1.5">
           <button
             onClick={() => setShowSimulationPanel(!showSimulationPanel)}
-            className="px-2 py-1.5 text-gray-400 border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
+            className="px-2 py-1.5 text-skyrim-text border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
           >
             <Users size={12} /> State {showSimulationPanel ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
           </button>
           <button
             onClick={() => setShowEquipment(true)}
-            className="px-2 py-1.5 text-gray-400 border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
+            className="px-2 py-1.5 text-skyrim-text border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
             title="Open Equipment"
           >
             <User size={12} /> Equip
           </button>
           <button
             onClick={() => setShowMap(true)}
-            className="px-2 py-1.5 text-gray-400 border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
+            className="px-2 py-1.5 text-skyrim-text border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
             title="View Skyrim Map"
           >
             <Map size={12} /> Map
           </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="px-2 py-1.5 text-gray-400 border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
+            className="px-2 py-1.5 text-skyrim-text border border-skyrim-border rounded hover:text-skyrim-gold hover:border-skyrim-gold transition-colors flex items-center gap-1.5 text-xs"
           >
             <Settings size={12} /> {showSettings ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
           </button>
@@ -1700,7 +1700,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
 
       {/* Simulation State Panel */}
       {showSimulationPanel && (
-        <div className="mb-4 p-4 bg-black/40 border border-skyrim-border rounded animate-in fade-in">
+        <div className="mb-4 p-4 bg-skyrim-paper/40 border border-skyrim-border rounded animate-in fade-in">
           <h3 className="text-skyrim-gold font-semibold mb-3 flex items-center gap-2">
             <Users size={16} /> Simulation State
           </h3>
@@ -1712,12 +1712,12 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
               <div className="space-y-3 text-sm">
                 {/* Current Scene */}
                 {summary.scene && (
-                  <div className="bg-black/30 p-2 rounded">
-                    <p className="text-gray-400 text-xs uppercase mb-1">Current Scene</p>
-                    <p className="text-gray-200">
+                  <div className="bg-skyrim-paper/30 p-2 rounded">
+                    <p className="text-skyrim-text text-xs uppercase mb-1">Current Scene</p>
+                    <p className="text-skyrim-text">
                       <span className="text-skyrim-gold">{summary.scene.type}</span> at {summary.scene.location}
                     </p>
-                    <p className="text-gray-400 text-xs">
+                    <p className="text-skyrim-text text-xs">
                       Phase: {summary.scene.phase} | Attempts: {summary.scene.attempts}
                     </p>
                     {summary.scene.resolvedTopics.length > 0 && (
@@ -1730,8 +1730,8 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                 
                 {/* Present NPCs */}
                 {summary.npcs.length > 0 && (
-                  <div className="bg-black/30 p-2 rounded">
-                    <p className="text-gray-400 text-xs uppercase mb-1">Present NPCs ({summary.npcCount})</p>
+                  <div className="bg-skyrim-paper/30 p-2 rounded">
+                    <p className="text-skyrim-text text-xs uppercase mb-1">Present NPCs ({summary.npcCount})</p>
                     <div className="space-y-1">
                       {summary.npcs.map((npc, idx) => (
                         <div key={idx} className="flex justify-between items-center">
@@ -1744,7 +1744,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                             npc.disposition === 'wary' ? 'bg-yellow-900/50 text-yellow-400' :
                             npc.disposition === 'friendly' ? 'bg-green-900/50 text-green-400' :
                             npc.disposition === 'allied' ? 'bg-blue-900/50 text-blue-400' :
-                            'bg-gray-700/50 text-gray-400'
+                            'bg-skyrim-dark/50 text-skyrim-text'
                           }`}>
                             {npc.disposition} ({npc.tension}%)
                           </span>
@@ -1756,11 +1756,11 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                 
                 {/* Established Facts */}
                 {summary.factCount > 0 && (
-                  <div className="bg-black/30 p-2 rounded">
-                    <p className="text-gray-400 text-xs uppercase mb-1">Established Facts ({summary.factCount})</p>
+                  <div className="bg-skyrim-paper/30 p-2 rounded">
+                    <p className="text-skyrim-text text-xs uppercase mb-1">Established Facts ({summary.factCount})</p>
                     <div className="space-y-1">
                       {Object.entries(summary.facts).slice(0, 5).map(([key, fact]) => (
-                        <p key={key} className="text-xs text-gray-300">
+                        <p key={key} className="text-xs text-skyrim-text">
                           <span className="text-skyrim-gold">{key}:</span> {fact.value}
                           {fact.disclosedTo.length > 0 && (
                             <span className="text-gray-500 ml-1">(known by {fact.disclosedTo.length})</span>
@@ -1795,7 +1795,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
 
       {/* Equipment Modal */}
       {showEquipment && (
-        <div className="fixed inset-0 bg-black/80 flex items-start justify-center z-50 p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-skyrim-dark/60 flex items-start justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-skyrim-paper border-2 border-skyrim-gold rounded-lg shadow-2xl p-6 w-full max-w-4xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-serif text-skyrim-gold">Equipment</h3>
@@ -1814,18 +1814,18 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
               </div>
 
               <div className="space-y-3">
-                <div className="bg-black/30 p-3 rounded border border-skyrim-border">
-                  <p className="text-gray-300 text-sm mb-2">Inventory</p>
+                <div className="bg-skyrim-paper/30 p-3 rounded border border-skyrim-border">
+                  <p className="text-skyrim-text text-sm mb-2">Inventory</p>
                   <div className="space-y-2 max-h-[48vh] overflow-y-auto pr-2">
                     {localInventory.map(item => (
-                      <div key={item.id} className="flex items-center justify-between p-2 bg-black/40 rounded border border-skyrim-border">
+                      <div key={item.id} className="flex items-center justify-between p-2 bg-skyrim-paper/40 rounded border border-skyrim-border">
                         <div>
-                          <div className="text-skyrim-gold font-semibold">{item.name} <span className="text-xs text-gray-400">x{item.quantity}</span></div>
-                          <div className="text-xs text-gray-400">{item.description}</div>
+                          <div className="text-skyrim-gold font-semibold">{item.name} <span className="text-xs text-skyrim-text">x{item.quantity}</span></div>
+                          <div className="text-xs text-skyrim-text">{item.description}</div>
                           <div className="flex gap-2 mt-1 text-xs">
                             {item.damage ? <span className="text-red-400">Damage: {item.damage}</span> : null}
                             {item.armor ? <span className="text-blue-400">Armor: {item.armor}</span> : null}
-                            {item.slot ? <span className="text-gray-400">Slot: {item.slot}</span> : null}
+                            {item.slot ? <span className="text-skyrim-text">Slot: {item.slot}</span> : null}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1847,19 +1847,19 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
 
             {/* Equip-from-slot modal (sub-modal) */}
             {equipModalOpen && selectedSlot && (
-              <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-60 p-4">
+              <div className="fixed inset-0 bg-skyrim-dark/50 flex items-center justify-center z-60 p-4">
                 <div className="bg-skyrim-paper border-2 border-skyrim-gold rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
                   <h4 className="text-lg font-serif text-skyrim-gold mb-3">Select item for {selectedSlot}</h4>
                   {getEquippableItemsForSlot(selectedSlot).length > 0 ? (
                     <div className="space-y-2">
                       {getEquippableItemsForSlot(selectedSlot).map(it => (
-                        <button key={it.id} onClick={() => { equipItem(it, selectedSlot); setEquipModalOpen(false); setSelectedSlot(null); }} className="w-full p-3 bg-black/40 border border-skyrim-border rounded hover:border-skyrim-gold hover:bg-black/60 transition-colors text-left flex items-center gap-3">
+                        <button key={it.id} onClick={() => { equipItem(it, selectedSlot); setEquipModalOpen(false); setSelectedSlot(null); }} className="w-full p-3 bg-skyrim-paper/40 border border-skyrim-border rounded hover:border-skyrim-gold hover:bg-skyrim-paper/60 transition-colors text-left flex items-center gap-3">
                           <div className="flex-1">
                             <div className="text-skyrim-gold font-serif">{it.name}</div>
-                            <div className="text-xs text-gray-400">{it.description}</div>
+                            <div className="text-xs text-skyrim-text">{it.description}</div>
                           </div>
                           {(it.armor || it.damage) && (
-                            <div className="text-xs text-gray-400">
+                            <div className="text-xs text-skyrim-text">
                               {it.armor && <div>Armor: {it.armor}</div>}
                               {it.damage && <div>Damage: {it.damage}</div>}
                             </div>
@@ -1883,7 +1883,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
 
       {/* Settings Panel */}
       {showSettings && (
-        <div className="flex-shrink-0 mb-2 p-2 bg-black/40 border border-skyrim-border rounded animate-in fade-in">
+        <div className="flex-shrink-0 mb-2 p-2 bg-skyrim-paper/40 border border-skyrim-border rounded animate-in fade-in">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -1891,7 +1891,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
               onChange={() => setAutoApply(!autoApply)}
               className="accent-skyrim-gold w-4 h-4"
             />
-            <span className="text-xs text-gray-300">Auto-apply game changes (items, quests, gold)</span>
+            <span className="text-xs text-skyrim-text">Auto-apply game changes (items, quests, gold)</span>
           </label>
         </div>
       )}
@@ -1899,7 +1899,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       {/* Chat Messages - flex-1 to fill available space */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 min-h-0 bg-black/30 border border-skyrim-border rounded-lg overflow-y-auto scroll-smooth"
+        className="flex-1 min-h-0 bg-skyrim-paper/30 border border-skyrim-border rounded-lg overflow-y-auto scroll-smooth"
       >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-gray-500">
@@ -1959,7 +1959,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                             </button>
                             {/* Hover tooltip showing what will be typed */}
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900/95 border border-skyrim-gold/50 rounded shadow-lg text-xs text-gray-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 max-w-[250px]">
-                              <div className="text-gray-400 text-[10px] mb-1">You will say:</div>
+                              <div className="text-skyrim-text text-[10px] mb-1">You will say:</div>
                               <div className="text-skyrim-gold italic truncate">"{playerText}"</div>
                               {/* Tooltip arrow */}
                               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900/95"></div>
@@ -2017,7 +2017,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                             <span className={`px-2 py-0.5 rounded border ${
                               msg.updates.xpChange > 0 
                                 ? 'text-purple-400 bg-purple-900/20 border-purple-900/30' 
-                                : 'text-gray-400 bg-gray-900/20 border-skyrim-border/30'
+                                : 'text-skyrim-text bg-gray-900/20 border-skyrim-border/30'
                             }`}>
                               {msg.updates.xpChange > 0 ? '+' : ''}{msg.updates.xpChange} XP ✨
                             </span>
@@ -2091,12 +2091,12 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                       
                       {/* Full update panel (only when not auto-apply) */}
                       {!autoApply && (
-                        <div className="mt-2 p-2 bg-black/40 rounded border border-skyrim-border/50 text-xs">
+                        <div className="mt-2 p-2 bg-skyrim-paper/40 rounded border border-skyrim-border/50 text-xs">
                           {msg.updates.newQuests?.length ? (
                             <div className="text-skyrim-gold">+ {msg.updates.newQuests.length} quest(s) started</div>
                           ) : null}
                           {typeof msg.updates.timeAdvanceMinutes === 'number' && msg.updates.timeAdvanceMinutes !== 0 ? (
-                            <div className="text-gray-300">⏳ {msg.updates.timeAdvanceMinutes > 0 ? '+' : ''}{msg.updates.timeAdvanceMinutes} min</div>
+                            <div className="text-skyrim-text">⏳ {msg.updates.timeAdvanceMinutes > 0 ? '+' : ''}{msg.updates.timeAdvanceMinutes} min</div>
                           ) : null}
                           <button
                             onClick={() => applyUpdates(msg.updates!)}
@@ -2132,7 +2132,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
             disabled={loading || messages.length === 0}
             autoCapitalize="none"
             autoCorrect="off"
-            className="flex-1 bg-black/30 border border-skyrim-border rounded p-2 text-sm text-gray-200 placeholder-gray-500 resize-none focus:border-skyrim-gold focus:outline-none disabled:opacity-50 font-sans normal-case"
+            className="flex-1 bg-skyrim-paper/30 border border-skyrim-border rounded p-2 text-sm text-skyrim-text placeholder-gray-500 resize-none focus:border-skyrim-gold focus:outline-none disabled:opacity-50 font-sans normal-case"
             rows={1}
           />
           <button

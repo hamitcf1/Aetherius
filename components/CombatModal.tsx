@@ -804,7 +804,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
 
           {/* Items */}
           <div className="bg-stone-900/60 rounded-lg p-4 border border-green-900/30">
-            <h3 className="text-sm font-bold text-stone-400 mb-3">ITEMS</h3>
+            <h3 className="text-sm font-bold text-stone-400 mb-3">INVENTORY</h3>
             <div className="space-y-2">
               {getUsableItems().length > 0 ? (
                 <>
@@ -893,7 +893,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
 
       {/* Victory overlay */}
       {showVictory && (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-60">
+        <div className="absolute inset-0 bg-skyrim-dark/60 flex items-center justify-center z-60">
           <div className="bg-gradient-to-b from-amber-900/90 to-stone-900/95 rounded-xl p-8 max-w-md text-center border-2 border-amber-500 shadow-2xl">
             <div className="text-6xl mb-4">🏆</div>
             <h2 className="text-3xl font-bold text-amber-100 mb-2">VICTORY!</h2>
@@ -935,7 +935,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
 
       {/* D20 roll visual */}
       <div className="absolute left-1/2 top-16 sm:top-20 transform -translate-x-1/2 z-50 pointer-events-none">
-        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-black/60 border-2 flex items-center justify-center text-xl sm:text-2xl ${rollActor === 'enemy' ? 'border-red-500 text-red-300' : 'border-amber-500 text-amber-200'}`}>
+        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-skyrim-paper/60 border-2 flex items-center justify-center text-xl sm:text-2xl ${rollActor === 'enemy' ? 'border-red-500 text-red-300' : 'border-amber-500 text-amber-200'}`}>
           {showRoll && rollValue ? (
             <span className={`animate-bounce`}>{rollValue}</span>
           ) : (
@@ -972,7 +972,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
 
       {/* Defeat overlay */}
       {showDefeat && (
-        <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-60">
+        <div className="absolute inset-0 bg-skyrim-dark/90 flex items-center justify-center z-60">
           <div className="bg-gradient-to-b from-red-900/90 to-stone-900/95 rounded-xl p-8 max-w-md text-center border-2 border-red-500 shadow-2xl">
             <div className="text-6xl mb-4">💀</div>
             <h2 className="text-3xl font-bold text-red-100 mb-2">DEFEATED</h2>
@@ -998,7 +998,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
               <h4 className="text-sm font-semibold text-stone-300 mb-2">Equip to: {equipSelectedSlot}</h4>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {(localInventory.filter(it => (it.type === 'weapon' || it.type === 'apparel') && (getDefaultSlotForItem(it) === equipSelectedSlot || it.slot === equipSelectedSlot))).map(item => (
-                  <button key={item.id} onClick={() => equipItem(item, equipSelectedSlot)} className="w-full text-left p-3 bg-black/40 border border-skyrim-border rounded hover:border-skyrim-gold transition-colors">
+                  <button key={item.id} onClick={() => equipItem(item, equipSelectedSlot)} className="w-full text-left p-3 bg-skyrim-paper/40 border border-skyrim-border rounded hover:border-skyrim-gold transition-colors">
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="font-semibold text-amber-200">{item.name}</div>
@@ -1016,7 +1016,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
 
       {/* Loot phase UI - shown when lootPhase state is true */}
       {lootPhase && (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-60 p-4">
+        <div className="absolute inset-0 bg-skyrim-dark/60 flex items-center justify-center z-60 p-4">
           <div className="bg-gradient-to-b from-amber-900/90 to-stone-900/95 rounded-xl p-6 max-w-lg w-full text-center border-2 border-amber-500 shadow-2xl">
             <h2 className="text-2xl font-bold text-amber-100 mb-4">Loot Phase</h2>
             <p className="text-stone-300 mb-4">Select items to collect from the fallen enemies:</p>

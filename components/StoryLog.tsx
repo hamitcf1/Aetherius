@@ -791,14 +791,14 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
         
         {/* Sort controls and chapter count */}
         <div className="mt-4 flex items-center justify-center gap-4 text-sm">
-          <span className="text-gray-400">{sortedChapters.length} {sortedChapters.length === 1 ? 'entry' : 'entries'}</span>
+          <span className="text-skyrim-text">{sortedChapters.length} {sortedChapters.length === 1 ? 'entry' : 'entries'}</span>
           <SortSelector currentSort={sortOrder} onSelect={setSortOrder} options={sortOptions} />
         </div>
       </div>
 
       {/* Finalize Modal */}
       {showFinalizeModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-skyrim-dark/60 flex items-center justify-center z-50 p-4">
           <div className="bg-skyrim-paper border-2 border-skyrim-gold rounded-lg shadow-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-serif text-skyrim-gold flex items-center gap-2">
@@ -807,7 +807,7 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
               {!isExportingStory && (
                 <button 
                   onClick={() => setShowFinalizeModal(false)}
-                  className="text-gray-400 hover:text-white"
+                  className="text-skyrim-text hover:text-white"
                 >
                   <X size={20} />
                 </button>
@@ -815,7 +815,7 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
             </div>
 
             {isExportingStory && (
-              <div className="flex items-center gap-3 text-gray-300 mb-4">
+              <div className="flex items-center gap-3 text-skyrim-text mb-4">
                 <Loader2 className="animate-spin text-skyrim-gold" size={20} />
                 <span>{finalizeProgress}</span>
               </div>
@@ -828,9 +828,9 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
             )}
 
             {generatedBook.length > 0 && (
-              <div className="bg-black/40 border border-skyrim-border rounded p-4 mb-4 max-h-[50vh] overflow-y-auto">
-                <p className="text-sm text-gray-400 mb-3">Your Generated Chronicle:</p>
-                <div className="text-gray-300 text-sm whitespace-pre-wrap font-serif space-y-4">
+              <div className="bg-skyrim-paper/40 border border-skyrim-border rounded p-4 mb-4 max-h-[50vh] overflow-y-auto">
+                <p className="text-sm text-skyrim-text mb-3">Your Generated Chronicle:</p>
+                <div className="text-skyrim-text text-sm whitespace-pre-wrap font-serif space-y-4">
                   {generatedBook.map((chapter, idx) => (
                     <div key={idx} className="border-b border-skyrim-border/30 pb-4 last:border-0">
                       {chapter}
@@ -988,17 +988,17 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
               <button 
                   onClick={handleQuickExport}
                   disabled={isExportingStory || sortedChapters.length === 0}
-                  className="py-2 bg-skyrim-dark hover:bg-black text-gray-400 text-sm font-bold rounded flex items-center justify-center gap-2 border border-skyrim-border disabled:opacity-50 transition-colors"
+                  className="py-2 bg-skyrim-dark hover:bg-skyrim-dark/80 text-skyrim-text text-sm font-bold rounded flex items-center justify-center gap-2 border border-skyrim-border disabled:opacity-50 transition-colors"
               >
                   <Download size={16} /> Quick Export (chapters only)
               </button>
           </div>
       ) : (
-          <div className="mb-8 p-4 sm:p-6 bg-black/40 border border-skyrim-border rounded-lg">
+          <div className="mb-8 p-4 sm:p-6 bg-skyrim-paper/40 border border-skyrim-border rounded-lg">
               <h3 className="text-xl font-serif text-skyrim-gold mb-4">New Chapter</h3>
               
               <div className="mb-4">
-                  <label className="text-sm uppercase tracking-wider text-gray-400 font-bold block mb-2">Title</label>
+                  <label className="text-sm uppercase tracking-wider text-skyrim-text font-bold block mb-2">Title</label>
                   <input 
                       type="text"
                       value={chapterTitle}
@@ -1006,24 +1006,24 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
                       placeholder="Chapter title..."
                       autoCapitalize="none"
                       autoCorrect="off"
-                      className="w-full bg-black/50 border border-skyrim-border rounded p-3 text-gray-300 focus:border-skyrim-gold focus:outline-none"
+                      className="w-full bg-skyrim-paper/50 border border-skyrim-border rounded p-3 text-skyrim-text focus:border-skyrim-gold focus:outline-none"
                   />
               </div>
 
               <div className="mb-4">
-                  <label className="text-sm uppercase tracking-wider text-gray-400 font-bold block mb-2">Content</label>
+                  <label className="text-sm uppercase tracking-wider text-skyrim-text font-bold block mb-2">Content</label>
                   <textarea 
                       value={chapterContent}
                       onChange={e => setChapterContent(e.target.value)}
                       placeholder="Write your chapter or use AI..."
                       autoCapitalize="none"
                       autoCorrect="off"
-                      className="w-full bg-black/50 border border-skyrim-border rounded p-3 text-gray-300 focus:border-skyrim-gold focus:outline-none resize-none h-32 font-sans"
+                      className="w-full bg-skyrim-paper/50 border border-skyrim-border rounded p-3 text-skyrim-text focus:border-skyrim-gold focus:outline-none resize-none h-32 font-sans"
                   />
               </div>
 
-              <div className="mb-4 p-2 sm:p-4 bg-black/30 border border-skyrim-border rounded">
-                  <p className="text-xs text-gray-400 mb-3 uppercase tracking-wider font-bold">Or Generate with AI</p>
+              <div className="mb-4 p-2 sm:p-4 bg-skyrim-paper/30 border border-skyrim-border rounded">
+                  <p className="text-xs text-skyrim-text mb-3 uppercase tracking-wider font-bold">Or Generate with AI</p>
                   <div className="flex gap-2">
                       <input 
                           type="text"
@@ -1032,7 +1032,7 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
                           placeholder="Describe what should happen in this chapter..."
                           autoCapitalize="none"
                           autoCorrect="off"
-                          className="flex-1 bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none"
+                          className="flex-1 bg-skyrim-paper/50 border border-skyrim-border rounded p-2 text-skyrim-text text-sm focus:border-skyrim-gold focus:outline-none"
                       />
                       <button 
                           onClick={handleGenerateChapterWithAI}
@@ -1044,8 +1044,8 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
                   </div>
               </div>
 
-              <div className="mb-4 p-2 sm:p-4 bg-black/30 border border-skyrim-border rounded">
-                  <p className="text-xs text-gray-400 mb-3 uppercase tracking-wider font-bold">Add Quest (Optional)</p>
+              <div className="mb-4 p-2 sm:p-4 bg-skyrim-paper/30 border border-skyrim-border rounded">
+                  <p className="text-xs text-skyrim-text mb-3 uppercase tracking-wider font-bold">Add Quest (Optional)</p>
                   <div className="grid gap-3">
                       <input
                           type="text"
@@ -1054,7 +1054,7 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
                           placeholder="Quest title..."
                           autoCapitalize="none"
                           autoCorrect="off"
-                          className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none"
+                          className="w-full bg-skyrim-paper/50 border border-skyrim-border rounded p-2 text-skyrim-text text-sm focus:border-skyrim-gold focus:outline-none"
                       />
                       <input
                           type="text"
@@ -1063,7 +1063,7 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
                           placeholder="Location (optional)..."
                           autoCapitalize="none"
                           autoCorrect="off"
-                          className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none"
+                          className="w-full bg-skyrim-paper/50 border border-skyrim-border rounded p-2 text-skyrim-text text-sm focus:border-skyrim-gold focus:outline-none"
                       />
                       <textarea
                           value={questDescription}
@@ -1071,7 +1071,7 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
                           placeholder="Quest description..."
                           autoCapitalize="none"
                           autoCorrect="off"
-                          className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none resize-none h-20 font-sans"
+                          className="w-full bg-skyrim-paper/50 border border-skyrim-border rounded p-2 text-skyrim-text text-sm focus:border-skyrim-gold focus:outline-none resize-none h-20 font-sans"
                       />
                       <textarea
                           value={questObjectivesText}
@@ -1079,7 +1079,7 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
                           placeholder="Objectives (one per line)..."
                           autoCapitalize="none"
                           autoCorrect="off"
-                          className="w-full bg-black/50 border border-skyrim-border rounded p-2 text-gray-300 text-sm focus:border-skyrim-gold focus:outline-none resize-none h-20 font-sans"
+                          className="w-full bg-skyrim-paper/50 border border-skyrim-border rounded p-2 text-skyrim-text text-sm focus:border-skyrim-gold focus:outline-none resize-none h-20 font-sans"
                       />
                       <button
                           onClick={handleAddQuestFromStory}
@@ -1171,7 +1171,7 @@ Chapter 9: Legacy of ${sourceMaterial.character.name}
                      </div>
                  )}
 
-                 <div className="prose prose-invert prose-p:font-serif prose-p:text-gray-300 prose-p:leading-relaxed max-w-none">
+                 <div className="prose prose-invert prose-p:font-serif prose-p:text-skyrim-text prose-p:leading-relaxed max-w-none">
                      <p className="whitespace-pre-wrap">{chapter.content}</p>
                  </div>
              </div>

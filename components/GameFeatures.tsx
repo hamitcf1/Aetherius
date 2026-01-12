@@ -132,18 +132,18 @@ export const CharacterExportModal: React.FC<CharacterExportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-skyrim-dark/60 flex items-center justify-center z-50 p-4">
       <div className="bg-skyrim-paper border-2 border-skyrim-gold rounded-lg max-w-md w-full p-6">
         <h2 className="text-2xl font-serif text-skyrim-gold mb-4 flex items-center gap-2">
           <Download size={24} />
           Export Character
         </h2>
         
-        <p className="text-gray-300 mb-4">
+        <p className="text-skyrim-text mb-4">
           Export <strong className="text-skyrim-gold">{character.name}</strong> to a JSON file for backup or sharing.
         </p>
         
-        <div className="bg-black/30 rounded p-3 mb-4 text-sm text-gray-400">
+        <div className="bg-skyrim-paper/30 rounded p-3 mb-4 text-sm text-skyrim-text">
           <p>This will include:</p>
           <ul className="list-disc list-inside mt-2 space-y-1">
             <li>Character stats and progression</li>
@@ -225,7 +225,7 @@ export const CharacterImportModal: React.FC<CharacterImportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-skyrim-dark/60 flex items-center justify-center z-50 p-4">
       <div className="bg-skyrim-paper border-2 border-skyrim-gold rounded-lg max-w-md w-full p-6">
         <h2 className="text-2xl font-serif text-skyrim-gold mb-4 flex items-center gap-2">
           <Upload size={24} />
@@ -242,7 +242,7 @@ export const CharacterImportModal: React.FC<CharacterImportModalProps> = ({
         
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="w-full px-4 py-8 border-2 border-dashed border-skyrim-border rounded-lg hover:border-skyrim-gold transition-colors text-gray-400 hover:text-skyrim-gold mb-4"
+          className="w-full px-4 py-8 border-2 border-dashed border-skyrim-border rounded-lg hover:border-skyrim-gold transition-colors text-skyrim-text hover:text-skyrim-gold mb-4"
         >
           <FileJson size={32} className="mx-auto mb-2" />
           Click to select a character file
@@ -377,7 +377,7 @@ export const getWeatherEffects = (weather: WeatherState): {
 export const WeatherIcon: React.FC<{ weather: WeatherType; size?: number }> = ({ weather, size = 16 }) => {
   switch (weather) {
     case 'clear': return <Sun size={size} className="text-yellow-400" />;
-    case 'cloudy': return <Cloud size={size} className="text-gray-400" />;
+    case 'cloudy': return <Cloud size={size} className="text-skyrim-text" />;
     case 'rain': return <CloudRain size={size} className="text-blue-400" />;
     case 'snow': return <CloudSnow size={size} className="text-white" />;
     case 'fog': return <Wind size={size} className="text-gray-300" />;
@@ -389,12 +389,12 @@ export const WeatherDisplay: React.FC<{ weather: WeatherState }> = ({ weather })
   const effects = getWeatherEffects(weather);
   
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-black/30 rounded border border-skyrim-border text-sm">
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-skyrim-paper/30 rounded border border-skyrim-border text-sm">
       <WeatherIcon weather={weather.type} size={18} />
-      <span className="text-gray-300">{effects.description}</span>
-      <span className="text-gray-500">|</span>
-      <Thermometer size={14} className="text-gray-400" />
-      <span className="text-gray-400">{weather.temperature}°</span>
+      <span className="text-skyrim-text">{effects.description}</span>
+      <span className="text-skyrim-text">|</span>
+      <Thermometer size={14} className="text-skyrim-text" />
+      <span className="text-skyrim-text">{weather.temperature}°</span>
     </div>
   );
 };
@@ -430,7 +430,7 @@ export const CompanionCard: React.FC<{
       <div className="flex items-center justify-between mb-2">
         <div>
           <h4 className="font-serif text-skyrim-gold">{companion.name}</h4>
-          <p className="text-xs text-gray-400">{companion.race} {companion.class} • Lv.{companion.level}</p>
+          <p className="text-xs text-skyrim-text">{companion.race} {companion.class} • Lv.{companion.level}</p>
         </div>
         {onDismiss && (
           <button
@@ -446,16 +446,16 @@ export const CompanionCard: React.FC<{
       <div className="space-y-1">
         <div className="flex items-center gap-2">
           <Heart size={12} className="text-red-400" />
-          <div className="flex-1 h-2 bg-black/50 rounded-full overflow-hidden">
+          <div className="flex-1 h-2 bg-skyrim-paper/50 rounded-full overflow-hidden">
             <div 
               className="h-full bg-red-500 transition-all"
               style={{ width: `${healthPercent}%` }}
             />
           </div>
-          <span className="text-xs text-gray-400">{companion.health}/{companion.maxHealth}</span>
+          <span className="text-xs text-skyrim-text">{companion.health}/{companion.maxHealth}</span>
         </div>
         
-        <div className="flex gap-4 text-xs text-gray-400">
+        <div className="flex gap-4 text-xs text-skyrim-text">
           <span className="flex items-center gap-1">
             <Swords size={12} /> {companion.damage}
           </span>
@@ -550,7 +550,7 @@ export const UndoRedoControls: React.FC<{
       <button
         onClick={onUndo}
         disabled={!canUndo}
-        className="p-2 text-gray-400 hover:text-skyrim-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="p-2 text-skyrim-text hover:text-skyrim-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         title="Undo (Ctrl+Z)"
       >
         <Undo2 size={18} />
@@ -558,7 +558,7 @@ export const UndoRedoControls: React.FC<{
       <button
         onClick={onRedo}
         disabled={!canRedo}
-        className="p-2 text-gray-400 hover:text-skyrim-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="p-2 text-skyrim-text hover:text-skyrim-gold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         title="Redo (Ctrl+Y)"
       >
         <Redo2 size={18} />
@@ -566,7 +566,7 @@ export const UndoRedoControls: React.FC<{
       {onShowHistory && (
         <button
           onClick={onShowHistory}
-          className="p-2 text-gray-400 hover:text-skyrim-gold transition-colors"
+          className="p-2 text-skyrim-text hover:text-skyrim-gold transition-colors"
           title="View history"
         >
           <History size={18} />
@@ -721,14 +721,14 @@ export const CharacterTemplateSelector: React.FC<{
   const selected = CHARACTER_TEMPLATES.find(t => t.id === selectedId);
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-skyrim-dark/60 flex items-center justify-center z-50 p-4">
       <div className="bg-skyrim-paper border-2 border-skyrim-gold rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="p-4 border-b border-skyrim-border">
           <h2 className="text-2xl font-serif text-skyrim-gold flex items-center gap-2">
             <UserPlus size={24} />
             Character Templates
           </h2>
-          <p className="text-gray-400 text-sm mt-1">Choose a pre-built character to start your adventure</p>
+          <p className="text-skyrim-text text-sm mt-1">Choose a pre-built character to start your adventure</p>
         </div>
         
         <div className="flex-1 overflow-auto p-4">
@@ -744,10 +744,10 @@ export const CharacterTemplateSelector: React.FC<{
                 }`}
               >
                 <h3 className="font-serif text-skyrim-gold text-lg">{template.name}</h3>
-                <p className="text-gray-400 text-sm mb-2">{template.race} {template.archetype}</p>
+                <p className="text-skyrim-text text-sm mb-2">{template.race} {template.archetype}</p>
                 <p className="text-gray-300 text-sm">{template.description}</p>
                 
-                <div className="mt-3 flex gap-3 text-xs text-gray-400">
+                <div className="mt-3 flex gap-3 text-xs text-skyrim-text">
                   <span className="flex items-center gap-1">
                     <Heart size={12} className="text-red-400" /> {template.stats.health}
                   </span>
@@ -764,7 +764,7 @@ export const CharacterTemplateSelector: React.FC<{
         </div>
         
         {selected && (
-          <div className="p-4 border-t border-skyrim-border bg-black/20">
+          <div className="p-4 border-t border-skyrim-border bg-skyrim-paper/20">
             <p className="text-gray-300 text-sm mb-3">{selected.backstory}</p>
             <div className="flex gap-3">
               <button
@@ -871,6 +871,32 @@ export const COLOR_THEMES: ColorTheme[] = [
       border: '#5a4a3a',
     },
   },
+  {
+    id: 'light',
+    name: 'Light',
+    colors: {
+      primary: '#f0f1f3',
+      secondary: '#e6e9ec',
+      background: '#f7f8fa',
+      paper: '#ffffff',
+      text: '#111827',
+      gold: '#8b5e34',
+      border: '#e5e7eb',
+    },
+  },
+  {
+    id: 'true_dark',
+    name: 'True Dark',
+    colors: {
+      primary: '#050505',
+      secondary: '#0a0a0a',
+      background: '#020202',
+      paper: '#0b0b0b',
+      text: '#e6e6e6',
+      gold: '#c3a36b',
+      border: '#2a2a2a',
+    },
+  }
 ];
 
 export const ThemeSelector: React.FC<{
@@ -884,11 +910,11 @@ export const ThemeSelector: React.FC<{
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-black/30 border border-skyrim-border rounded hover:border-skyrim-gold transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-skyrim-paper/30 border border-skyrim-border rounded hover:border-skyrim-gold transition-colors"
       >
         <Palette size={16} className="text-skyrim-gold" />
-        <span className="text-sm text-gray-300">{current.name}</span>
-        <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="text-sm text-skyrim-text">{current.name}</span>
+        <ChevronDown size={14} className={`text-skyrim-text transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       {isOpen && (
@@ -900,8 +926,8 @@ export const ThemeSelector: React.FC<{
                 onSelect(theme.id);
                 setIsOpen(false);
               }}
-              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-black/30 transition-colors ${
-                theme.id === currentTheme ? 'text-skyrim-gold' : 'text-gray-300'
+              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-skyrim-paper/30 transition-colors ${
+                theme.id === currentTheme ? 'text-skyrim-gold' : 'text-skyrim-text'
               }`}
             >
               <div 
@@ -933,11 +959,11 @@ export const AIModelSelector: React.FC<{
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-black/30 border border-skyrim-border rounded hover:border-skyrim-gold transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-skyrim-paper/30 border border-skyrim-border rounded hover:border-skyrim-gold transition-colors"
       >
         <Cpu size={16} className="text-skyrim-gold" />
-        <span className="text-sm text-gray-300">{current.label}</span>
-        <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="text-sm text-skyrim-text">{current.label}</span>
+        <ChevronDown size={14} className={`text-skyrim-text transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       {isOpen && (
@@ -949,8 +975,8 @@ export const AIModelSelector: React.FC<{
                 onSelect(model.id);
                 setIsOpen(false);
               }}
-              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-black/30 transition-colors ${
-                model.id === currentModel ? 'text-skyrim-gold' : 'text-gray-300'
+              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-skyrim-paper/30 transition-colors ${
+                model.id === currentModel ? 'text-skyrim-gold' : 'text-skyrim-text'
               }`}
             >
               <div className="w-4 h-4 rounded-full border border-skyrim-border/20 bg-gradient-to-r from-blue-500 to-purple-500" />
@@ -982,11 +1008,11 @@ export const SortSelector: React.FC<{
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-black/30 border border-skyrim-border rounded hover:border-skyrim-gold transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-skyrim-paper/30 border border-skyrim-border rounded hover:border-skyrim-gold transition-colors"
       >
         <ArrowUpDown size={16} className="text-skyrim-gold" />
-        <span className="text-sm text-gray-300">{current.label}</span>
-        <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="text-sm text-skyrim-text">{current.label}</span>
+        <ChevronDown size={14} className={`text-skyrim-text transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       {isOpen && (
@@ -998,8 +1024,8 @@ export const SortSelector: React.FC<{
                 onSelect(option.id);
                 setIsOpen(false);
               }}
-              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-black/30 transition-colors ${
-                option.id === currentSort ? 'text-skyrim-gold' : 'text-gray-300'
+              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-skyrim-paper/30 transition-colors ${
+                option.id === currentSort ? 'text-skyrim-gold' : 'text-skyrim-text'
               }`}
             >
               {option.icon && <span className="text-xs">{option.icon}</span>}
@@ -1032,11 +1058,11 @@ export const DropdownSelector: React.FC<{
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 px-3 py-2 bg-black/40 border border-skyrim-border rounded text-gray-200 focus:outline-none focus:border-skyrim-gold transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 bg-skyrim-paper/40 border border-skyrim-border rounded text-skyrim-text focus:outline-none focus:border-skyrim-gold transition-colors"
       >
         {icon && <span className="text-skyrim-gold">{icon}</span>}
         <span className="flex-1 text-left">{current?.label || placeholder}</span>
-        <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`text-skyrim-text transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       {isOpen && (
@@ -1048,8 +1074,8 @@ export const DropdownSelector: React.FC<{
                 onSelect(option.id);
                 setIsOpen(false);
               }}
-              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-black/30 transition-colors ${
-                option.id === currentValue ? 'text-skyrim-gold' : 'text-gray-300'
+              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-skyrim-paper/30 transition-colors ${
+                option.id === currentValue ? 'text-skyrim-gold' : 'text-skyrim-text'
               }`}
             >
               {option.icon && <span className="text-xs">{option.icon}</span>}
@@ -1130,7 +1156,7 @@ export const DifficultySelector: React.FC<{
   
   return (
     <div className="space-y-2">
-      <label className="text-sm text-gray-400">Difficulty</label>
+      <label className="text-sm text-skyrim-text">Difficulty</label>
       <div className="flex flex-wrap gap-2">
         {levels.map(level => {
           const preset = DIFFICULTY_PRESETS[level];
@@ -1141,7 +1167,7 @@ export const DifficultySelector: React.FC<{
               className={`px-3 py-1.5 text-sm rounded capitalize transition-colors ${
                 current === level
                   ? 'bg-skyrim-gold text-skyrim-dark font-bold'
-                  : 'bg-black/30 text-gray-400 hover:text-skyrim-gold border border-skyrim-border'
+                  : 'bg-skyrim-paper/30 text-skyrim-text hover:text-skyrim-gold border border-skyrim-border'
               }`}
             >
               {level}
@@ -1188,7 +1214,7 @@ export const StatusEffectsPanel: React.FC<{
     switch (type) {
       case 'buff': return 'text-green-400 border-green-600 bg-green-900/30';
       case 'debuff': return 'text-red-400 border-red-600 bg-red-900/30';
-      default: return 'text-gray-400 border-skyrim-border bg-gray-900/30';
+      default: return 'text-skyrim-text border-skyrim-border bg-skyrim-paper/30';
     }
   };
 
@@ -1289,10 +1315,10 @@ export const SessionHistoryPanel: React.FC<{
           {sessions.map(session => (
             <div
               key={session.id}
-              className="p-3 bg-black/30 rounded border border-skyrim-border hover:border-skyrim-gold/50 transition-colors"
+              className="p-3 bg-skyrim-paper/30 rounded border border-skyrim-border hover:border-skyrim-gold/50 transition-colors"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-400">{formatDate(session.startTime)}</span>
+                <span className="text-sm text-skyrim-text">{formatDate(session.startTime)}</span>
                 <span className="text-xs text-gray-500">
                   {formatDuration(session.duration)} • {session.messageCount} messages
                 </span>

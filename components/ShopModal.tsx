@@ -462,7 +462,7 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
 
   return (
     <div 
-      className="fixed inset-0 z-[70] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-[70] bg-skyrim-dark/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
       style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -478,24 +478,24 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
             <h2 className="text-lg font-serif text-skyrim-gold">General Goods</h2>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-black/40 rounded border border-skyrim-border">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-skyrim-paper/40 rounded border border-skyrim-border">
               <Coins size={14} className="text-yellow-500" />
               <span className="text-yellow-400 font-bold text-sm">{gold}</span>
             </div>
-            <button onClick={onClose} className="p-1.5 hover:bg-black/40 rounded transition-colors">
-              <X size={18} className="text-gray-400 hover:text-white" />
+            <button onClick={onClose} className="p-1.5 hover:bg-skyrim-paper/40 rounded transition-colors">
+              <X size={18} className="text-skyrim-text hover:text-white" />
             </button>
           </div>
         </div>
 
         {/* Buy/Sell Tabs */}
-        <div className="flex border-b border-skyrim-border/60 bg-black/20 flex-shrink-0">
+        <div className="flex border-b border-skyrim-border/60 bg-skyrim-paper/20 flex-shrink-0">
           <button
             onClick={() => { setMode('buy'); setSearch(''); setCategory('All'); }}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-colors ${
               mode === 'buy'
                 ? 'bg-skyrim-gold/20 text-skyrim-gold border-b-2 border-skyrim-gold'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-black/20'
+                : 'text-skyrim-text hover:text-skyrim-text/80 hover:bg-skyrim-paper/20'
             }`}
           >
             <ArrowDownToLine size={16} />
@@ -507,7 +507,7 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold transition-colors ${
               mode === 'sell'
                 ? 'bg-green-900/30 text-green-400 border-b-2 border-green-500'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-black/20'
+                : 'text-skyrim-text hover:text-skyrim-text/80 hover:bg-skyrim-paper/20'
             } ${!onSell ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <ArrowUpFromLine size={16} />
@@ -516,7 +516,7 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
         </div>
 
         {/* Search & Categories (Buy mode only) */}
-        <div className="px-3 py-2.5 border-b border-skyrim-border/40 bg-black/10 flex-shrink-0 space-y-2">
+        <div className="px-3 py-2.5 border-b border-skyrim-border/40 bg-skyrim-paper/10 flex-shrink-0 space-y-2">
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
@@ -524,7 +524,7 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
               placeholder={mode === 'buy' ? 'Search shop...' : 'Search inventory...'}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-black/40 border border-skyrim-border rounded text-gray-200 placeholder-gray-500 focus:border-skyrim-gold focus:outline-none text-sm"
+              className="w-full pl-8 pr-3 py-1.5 bg-skyrim-paper/40 border border-skyrim-border rounded text-skyrim-text placeholder-gray-500 focus:border-skyrim-gold focus:outline-none text-sm"
             />
           </div>
           {mode === 'buy' && (
@@ -536,7 +536,7 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
                   className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
                     category === cat
                       ? 'bg-skyrim-gold text-skyrim-dark font-bold'
-                      : 'bg-black/30 text-gray-400 hover:text-gray-200 hover:bg-black/50'
+                      : 'bg-skyrim-paper/30 text-skyrim-text hover:text-skyrim-text/80 hover:bg-skyrim-paper/50'
                   }`}
                 >
                   {categoryIcons[cat]}
@@ -563,14 +563,14 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
                   return (
                     <div
                       key={item.id}
-                      className={`px-3 py-2.5 flex items-center gap-3 hover:bg-black/20 transition-colors ${
+                      className={`px-3 py-2.5 flex items-center gap-3 hover:bg-skyrim-paper/20 transition-colors ${
                         !canAfford ? 'opacity-50' : ''
                       }`}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-gray-200 font-medium text-sm truncate">{item.name}</span>
-                          <span className="text-gray-500 text-xs">({item.category})</span>
+                          <span className="text-skyrim-text font-medium text-sm truncate">{item.name}</span>
+                          <span className="text-skyrim-text text-xs">({item.category})</span>
                           {/* Show stats for weapons and armor */}
                           {shouldHaveStats(item.type) && (() => {
                             const stats = getItemStats(item.name, item.type);
@@ -598,17 +598,17 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
                           {item.price}
                         </div>
                         {showQuantityControls && (
-                          <div className="flex items-center bg-black/40 rounded border border-skyrim-border/50">
+                          <div className="flex items-center bg-skyrim-paper/40 rounded border border-skyrim-border/50">
                             <button
                               onClick={() => setQuantity(item.id, qty - 1)}
-                              className="px-1.5 py-0.5 text-gray-400 hover:text-white text-xs"
+                              className="px-1.5 py-0.5 text-skyrim-text hover:text-white text-xs"
                             >
                               -
                             </button>
-                            <span className="w-6 text-center text-gray-200 text-xs">{qty}</span>
+                            <span className="w-6 text-center text-skyrim-text text-xs">{qty}</span>
                             <button
                               onClick={() => setQuantity(item.id, qty + 1)}
-                              className="px-1.5 py-0.5 text-gray-400 hover:text-white text-xs"
+                              className="px-1.5 py-0.5 text-skyrim-text hover:text-white text-xs"
                             >
                               +
                             </button>
@@ -657,11 +657,11 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
                   return (
                     <div
                       key={item.id}
-                      className="px-3 py-2.5 flex items-center gap-3 hover:bg-black/20 transition-colors"
+                      className="px-3 py-2.5 flex items-center gap-3 hover:bg-skyrim-paper/20 transition-colors"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-gray-200 font-medium text-sm truncate">{item.name}</span>
+                          <span className="text-skyrim-text font-medium text-sm truncate">{item.name}</span>
                           <span className="text-gray-500 text-xs">×{item.quantity}</span>
                           {/* Show stats for weapons and armor */}
                           {(item.damage || item.armor) && (
@@ -690,17 +690,17 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
                           {unitPrice}/ea
                         </div>
                         {showQuantityControls && maxQty > 1 && (
-                          <div className="flex items-center bg-black/40 rounded border border-skyrim-border/50">
+                          <div className="flex items-center bg-skyrim-paper/40 rounded border border-skyrim-border/50">
                             <button
                               onClick={() => setQuantity(item.id, qty - 1, maxQty)}
-                              className="px-1.5 py-0.5 text-gray-400 hover:text-white text-xs"
+                              className="px-1.5 py-0.5 text-skyrim-text hover:text-white text-xs"
                             >
                               -
                             </button>
-                            <span className="w-6 text-center text-gray-200 text-xs">{qty}</span>
+                            <span className="w-6 text-center text-skyrim-text text-xs">{qty}</span>
                             <button
                               onClick={() => setQuantity(item.id, qty + 1, maxQty)}
-                              className="px-1.5 py-0.5 text-gray-400 hover:text-white text-xs"
+                              className="px-1.5 py-0.5 text-skyrim-text hover:text-white text-xs"
                             >
                               +
                             </button>
@@ -734,7 +734,7 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
         </div>
 
         {/* Footer */}
-        <div className="px-3 py-2 border-t border-skyrim-border/60 bg-black/20 flex-shrink-0">
+        <div className="px-3 py-2 border-t border-skyrim-border/60 bg-skyrim-paper/20 flex-shrink-0">
           <p className="text-gray-500 text-xs text-center">
             {mode === 'buy' 
               ? `${filteredShopItems.length} items available` 

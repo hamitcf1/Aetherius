@@ -32,8 +32,8 @@ export function OnboardingModal(props: {
             <p className="text-gray-200 font-sans leading-relaxed">
               You are about to run a character-driven Skyrim roleplay campaign. This short tutorial shows the core loop and features.
             </p>
-            <div className="p-3 bg-black/30 border border-skyrim-border rounded">
-              <p className="text-gray-300 text-sm font-sans">
+            <div className="p-3 bg-skyrim-paper/30 border border-skyrim-border rounded">
+              <p className="text-skyrim-text text-sm font-sans">
                 Tip: You can skip anytime with ESC or by clicking outside. The tutorial won't show again after you finish or skip.
               </p>
             </div>
@@ -72,14 +72,14 @@ export function OnboardingModal(props: {
           <div className="space-y-3">
             <ul className="text-gray-300 text-sm font-sans list-disc pl-5 space-y-1">
               <li><span className="text-skyrim-gold font-semibold">Hero</span>: Character sheet, stats, identity, and progression.</li>
-              <li><span className="text-skyrim-gold font-semibold">Items</span>: Inventory management and equipment.</li>
+              <li><span className="text-skyrim-gold font-semibold">Inventory</span>: Inventory management and equipment.</li>
               <li><span className="text-skyrim-gold font-semibold">Quests</span>: Active quests, objectives, and completion tracking.</li>
               <li><span className="text-skyrim-gold font-semibold">Story</span>: Chapters and narrative notes (long-term story).</li>
               <li><span className="text-skyrim-gold font-semibold">Journal</span>: First-person diary entries from your character's view.</li>
               <li><span className="text-skyrim-gold font-semibold">Adventure</span>: The AI Game Master â€“ your main gameplay tab.</li>
             </ul>
-            <div className="p-3 bg-black/30 border border-skyrim-border rounded">
-              <p className="text-gray-300 text-sm font-sans">
+            <div className="p-3 bg-skyrim-paper/30 border border-skyrim-border rounded">
+              <p className="text-skyrim-text text-sm font-sans">
                 Most gameplay happens in <span className="text-skyrim-gold font-semibold">Adventure</span>. Other tabs are your management tools.
               </p>
             </div>
@@ -94,7 +94,7 @@ export function OnboardingModal(props: {
               In Adventure, you speak as your character and the AI Game Master responds with immersive narration.
             </p>
             <ul className="text-gray-300 text-sm font-sans list-disc pl-5 space-y-1">
-              <li>Type what you do or say: <span className="text-gray-400 italic">"I approach the merchant and ask about rumors..."</span></li>
+              <li>Type what you do or say: <span className="text-skyrim-text italic">"I approach the merchant and ask about rumors..."</span></li>
               <li>Click choice buttons when the GM offers dialogue options.</li>
               <li><span className="text-skyrim-gold">Hover over choices</span> to preview what your character will say.</li>
               <li>Game updates (items, gold, quests, time) apply automatically.</li>
@@ -154,25 +154,25 @@ export function OnboardingModal(props: {
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] bg-skyrim-dark/60 backdrop-blur-sm flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Tutorial"
       onClick={(e) => { if (e.target === e.currentTarget) onComplete(); }}
     >
-      <div className="w-full max-w-2xl bg-black/50 border border-skyrim-border rounded-lg shadow-2xl">
+      <div className="w-full max-w-2xl bg-skyrim-paper/50 border border-skyrim-border rounded-lg shadow-2xl">
         <div className="p-5 sm:p-6 border-b border-skyrim-border flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs uppercase tracking-widest text-gray-400 font-sans">Tutorial</div>
+            <div className="text-xs uppercase tracking-widest text-skyrim-text font-sans">Tutorial</div>
             <h2 className="text-lg sm:text-xl font-serif text-skyrim-gold">{step.title}</h2>
-            <div className="mt-1 text-xs text-gray-400 font-sans">
+            <div className="mt-1 text-xs text-skyrim-text font-sans">
               Step {stepIndex + 1} of {steps.length}
             </div>
           </div>
           <button
             type="button"
             onClick={onComplete}
-            className="px-3 py-1 bg-black/30 text-gray-200 border border-skyrim-border rounded hover:bg-black/40 text-sm"
+            className="px-3 py-1 bg-skyrim-paper/30 text-skyrim-text border border-skyrim-border rounded hover:bg-skyrim-paper/40 text-sm"
           >
             Skip
           </button>
@@ -185,7 +185,7 @@ export function OnboardingModal(props: {
             type="button"
             disabled={isFirst}
             onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
-            className="px-4 py-2 bg-black/30 text-gray-200 border border-skyrim-border rounded hover:bg-black/40 disabled:opacity-40 disabled:hover:bg-black/30"
+            className="px-4 py-2 bg-skyrim-paper/30 text-skyrim-text border border-skyrim-border rounded hover:bg-skyrim-paper/40 disabled:opacity-40 disabled:hover:bg-skyrim-paper/30"
           >
             Back
           </button>

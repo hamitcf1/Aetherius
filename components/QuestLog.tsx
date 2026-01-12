@@ -200,7 +200,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
           {!isAdding ? (
               <button 
                   onClick={() => setIsAdding(true)}
-                  className="w-full md:w-auto flex-1 py-4 border-2 border-dashed border-skyrim-border hover:border-skyrim-gold text-gray-400 hover:text-skyrim-gold transition-colors rounded flex items-center justify-center gap-2"
+                  className="w-full md:w-auto flex-1 py-4 border-2 border-dashed border-skyrim-border hover:border-skyrim-gold text-skyrim-text hover:text-skyrim-gold transition-colors rounded flex items-center justify-center gap-2"
               >
                   <Plus size={20} />
                   <span>Inscribe New Quest</span>
@@ -220,7 +220,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
             <div className="mb-6 bg-skyrim-paper border border-skyrim-gold p-6 rounded shadow-lg animate-in fade-in zoom-in-95 duration-200">
                 <div className="grid gap-4">
                     <input 
-                        className="bg-black/30 border border-skyrim-border p-2 rounded text-lg font-serif text-skyrim-gold focus:outline-none focus:border-skyrim-gold"
+                        className="bg-skyrim-paper/30 border border-skyrim-border p-2 rounded text-lg font-serif text-skyrim-gold focus:outline-none focus:border-skyrim-gold"
                         placeholder="Quest Title"
                         value={newTitle}
                         onChange={e => setNewTitle(e.target.value)}
@@ -229,7 +229,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                     />
                      <div className="flex flex-col md:flex-row gap-4">
                         <input 
-                            className="bg-black/30 border border-skyrim-border p-2 rounded flex-1 text-gray-300 focus:outline-none"
+                            className="bg-skyrim-paper/30 border border-skyrim-border p-2 rounded flex-1 text-skyrim-text focus:outline-none"
                             placeholder="Location (Optional)"
                             value={newLocation}
                             onChange={e => setNewLocation(e.target.value)}
@@ -238,7 +238,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                         />
                          <input 
                             type="text"
-                            className="bg-black/30 border border-skyrim-border p-2 rounded flex-1 text-gray-300 focus:outline-none"
+                            className="bg-skyrim-paper/30 border border-skyrim-border p-2 rounded flex-1 text-skyrim-text focus:outline-none"
                             placeholder="Due Date / Deadline (Optional)"
                             value={newDueDate}
                             onChange={e => setNewDueDate(e.target.value)}
@@ -247,7 +247,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                         />
                      </div>
                     <textarea 
-                        className="bg-black/30 border border-skyrim-border p-2 rounded text-gray-300 h-24 focus:outline-none"
+                        className="bg-skyrim-paper/30 border border-skyrim-border p-2 rounded text-skyrim-text h-24 focus:outline-none"
                         placeholder="Description..."
                         value={newDesc}
                         onChange={e => setNewDesc(e.target.value)}
@@ -255,7 +255,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                         autoCorrect="off"
                     />
                     <textarea 
-                        className="bg-black/30 border border-skyrim-border p-2 rounded text-gray-300 h-24 focus:outline-none font-sans"
+                        className="bg-skyrim-paper/30 border border-skyrim-border p-2 rounded text-skyrim-text h-24 focus:outline-none font-sans"
                         placeholder="Objectives (one per line)..."
                         value={newObjectivesText}
                         onChange={e => setNewObjectivesText(e.target.value)}
@@ -263,7 +263,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                         autoCorrect="off"
                     />
                     <div className="flex justify-end gap-3 mt-2">
-                        <button onClick={cancelAdd} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                        <button onClick={cancelAdd} className="px-4 py-2 text-skyrim-text hover:text-white">Cancel</button>
                         <button onClick={addQuest} className="px-6 py-2 bg-skyrim-gold hover:bg-skyrim-goldHover text-skyrim-dark font-bold rounded">Create Quest</button>
                     </div>
                 </div>
@@ -276,7 +276,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                         <div className="flex items-center gap-2">
-                             <h3 className={`text-xl font-serif ${quest.status !== 'active' ? 'text-gray-400 line-through' : 'text-skyrim-gold'}`}>
+                             <h3 className={quest.status !== 'active' ? 'text-xl font-serif text-skyrim-text line-through' : 'text-xl font-serif text-skyrim-gold'}>
                                 {quest.title}
                             </h3>
                             {quest.status === 'failed' && <span className="text-xs bg-red-900 text-red-200 px-2 py-0.5 rounded border border-red-700 uppercase font-bold">Failed</span>}
@@ -286,13 +286,13 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                         {editingQuestId === quest.id ? (
                              <div className="grid grid-cols-2 gap-2 mt-2 max-w-md">
                                  <input 
-                                    className="bg-black/40 border border-skyrim-border rounded px-2 py-1 text-xs text-gray-300" 
+                                    className="bg-skyrim-paper/40 border border-skyrim-border rounded px-2 py-1 text-xs text-skyrim-text" 
                                     value={editLocation} 
                                     onChange={(e) => setEditLocation(e.target.value)} 
                                     placeholder="Location"
                                  />
                                  <input 
-                                    className="bg-black/40 border border-skyrim-border rounded px-2 py-1 text-xs text-gray-300" 
+                                    className="bg-skyrim-paper/40 border border-skyrim-border rounded px-2 py-1 text-xs text-skyrim-text" 
                                     value={editDueDate} 
                                     onChange={(e) => setEditDueDate(e.target.value)} 
                                     placeholder="Due Date"
@@ -324,7 +324,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                                 </button>
                             </>
                         ) : (
-                            <button onClick={() => updateStatus(quest.id, 'active')} className="px-3 py-1 text-xs uppercase font-bold border border-skyrim-border hover:border-skyrim-gold text-gray-400 hover:text-skyrim-gold rounded">
+                            <button onClick={() => updateStatus(quest.id, 'active')} className="px-3 py-1 text-xs uppercase font-bold border border-skyrim-border hover:border-skyrim-gold text-skyrim-text hover:text-skyrim-gold rounded">
                                 Reactivate
                             </button>
                         )}
@@ -348,7 +348,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                 {editingQuestId === quest.id ? (
                     <div className="mb-4 grid gap-3">
                       <textarea 
-                          className="w-full bg-black/40 border border-skyrim-border rounded p-2 text-gray-300 font-sans text-sm h-24"
+                          className="w-full bg-skyrim-paper/40 border border-skyrim-border rounded p-2 text-skyrim-text font-sans text-sm h-24"
                           value={editDesc}
                           onChange={(e) => setEditDesc(e.target.value)}
                           placeholder="Description..."
@@ -356,7 +356,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                           autoCorrect="off"
                       />
                       <textarea
-                          className="w-full bg-black/40 border border-skyrim-border rounded p-2 text-gray-300 font-sans text-sm h-24"
+                          className="w-full bg-skyrim-paper/40 border border-skyrim-border rounded p-2 text-skyrim-text font-sans text-sm h-24"
                           value={editObjectivesText}
                           onChange={(e) => setEditObjectivesText(e.target.value)}
                           placeholder="Objectives (one per line)..."
@@ -365,10 +365,10 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                       />
                     </div>
                 ) : (
-                    <p className="text-gray-400 font-serif mb-4 text-sm whitespace-pre-wrap leading-relaxed">{quest.description}</p>
+                    <p className="text-skyrim-text font-serif mb-4 text-sm whitespace-pre-wrap leading-relaxed">{quest.description}</p>
                 )}
                 
-                <div className="bg-black/20 p-3 rounded">
+                <div className="bg-skyrim-paper/20 p-3 rounded">
                     <div className="space-y-2">
                         {(quest.objectives ?? []).map(obj => (
                             <div key={obj.id} className="flex items-start gap-3 group">
@@ -388,7 +388,7 @@ export const QuestLog: React.FC<QuestLogProps> = ({ quests, setQuests }) => {
                         <div className="mt-3 flex gap-2">
                             <input 
                                 type="text" 
-                                className="flex-1 bg-transparent border-b border-skyrim-border text-xs text-gray-300 p-1 focus:outline-none focus:border-skyrim-gold placeholder-gray-600"
+                                className="flex-1 bg-transparent border-b border-skyrim-border text-xs text-skyrim-text p-1 focus:outline-none focus:border-skyrim-gold placeholder-gray-600"
                                 placeholder="Add objective..."
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {

@@ -161,7 +161,7 @@ export const ConsoleOverlay: React.FC<ConsoleOverlayProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-gray-900 border border-skyrim-border rounded-lg shadow-2xl w-full max-w-4xl h-3/4 flex flex-col">
+      <div className="bg-skyrim-paper border border-skyrim-border rounded-lg shadow-2xl w-full max-w-4xl h-3/4 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-skyrim-border">
           <div className="flex items-center gap-2">
@@ -170,7 +170,7 @@ export const ConsoleOverlay: React.FC<ConsoleOverlayProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-skyrim-text hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -190,7 +190,7 @@ export const ConsoleOverlay: React.FC<ConsoleOverlayProps> = ({
         </div>
 
         {/* Input Area */}
-        <div className="p-4 border-t border-skyrim-border bg-gray-900">
+        <div className="p-4 border-t border-skyrim-border bg-skyrim-paper">
           <div className="flex items-center gap-2">
             <span className="text-green-400 font-mono text-sm">&gt;</span>
             <input
@@ -207,18 +207,18 @@ export const ConsoleOverlay: React.FC<ConsoleOverlayProps> = ({
               spellCheck={false}
               autoComplete="off"
             />
-            <div className="flex gap-1 text-gray-500 text-xs">
+            <div className="flex gap-1 text-skyrim-text text-xs">
               <ChevronUp className="w-3 h-3" />
               <ChevronDown className="w-3 h-3" />
               <span>History</span>
             </div>
           </div>
           {suggestions.length > 0 && (
-            <div className="mt-2 text-xs text-gray-400 font-mono">
+            <div className="mt-2 text-xs text-skyrim-text font-mono">
               Suggestions: {suggestions.slice(0, 4).join('   ')}{suggestions.length > 4 ? ' ...' : ''}
             </div>
           )}
-          <div className="text-xs text-gray-500 mt-2">
+          <div className="text-xs text-skyrim-text mt-2">
             Press Enter to execute, Tab to autocomplete, ESC to close, ↑/↓ for history
           </div>
         </div>
