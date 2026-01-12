@@ -68,8 +68,7 @@ class VersionCheckService {
   };
 
   /**
-   * Check for a new version by fetching the index.html
-   * and comparing build timestamps
+   * Check for a new version by fetching `version.json` relative to the app base
    */
   async checkForUpdate(): Promise<boolean> {
     try {
@@ -80,11 +79,13 @@ class VersionCheckService {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-      // Fetch the main HTML with cache-busting
-      const response = await fetch(`/?_=${Date.now()}`, {
+      // Fetch `version.json` relative to the app base (avoids root/absolute fetches)
+      const url = `${import.meta.env.BASE_URL}version.json?_=${Date.now()}`;
+      const response = await fetch(url, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
+          'Accept': 'application/json',
         },
         signal: controller.signal,
       });
@@ -93,40 +94,32 @@ class VersionCheckService {
 
       if (!response.ok) return false;
 
-      const html = await response.text();
+      const json = await response.json();
+      const serverVersion = typeof json?.version === 'string' ? json.version : null;
 
-      // Look for a version meta tag or script hash
-      // The build process should inject a version/hash
-      const versionMatch = html.match(/data-build-version="([^"]+)"/);
-      const scriptMatch = html.match(/main\.([a-f0-9]+)\.js/);
+      // Compare against acknowledged (stored) version and notify only if different
+      if (!serverVersion) return false;
 
-      let serverVersion: string | null = null;
-
-      if (versionMatch) {
-        serverVersion = versionMatch[1];
-      } else if (scriptMatch) {
-        serverVersion = scriptMatch[1];
+      const storedVersion = localStorage.getItem('aetherius-version');
+      if (!storedVersion) {
+        // Seed acknowledged version to avoid notifying immediately on first run
+        localStorage.setItem('aetherius-version', serverVersion);
+        this.currentVersion = serverVersion;
+        return false;
       }
 
-      // If we can detect a different version
-      if (serverVersion && serverVersion !== this.currentVersion) {
-        // Store the initial version on first check
-        if (!this.hasNewVersion && !localStorage.getItem('aetherius-version')) {
-          localStorage.setItem('aetherius-version', this.currentVersion);
-          return false;
-        }
-
-        const storedVersion = localStorage.getItem('aetherius-version');
-        if (storedVersion && serverVersion !== storedVersion) {
-          this.hasNewVersion = true;
-          this.newVersionInfo = {
-            version: serverVersion,
-            buildTime: Date.now(),
-          };
-          this.notifyCallbacks();
-          return true;
-        }
+      if (serverVersion !== storedVersion) {
+        this.hasNewVersion = true;
+        this.newVersionInfo = {
+          version: serverVersion,
+          buildTime: Date.now(),
+        };
+        this.notifyCallbacks();
+        return true;
       }
+
+
+
 
       return false;
     } catch (error: any) {
@@ -143,31 +136,8 @@ class VersionCheckService {
     }
   }
 
-  /**
-   * Alternative: Use Service Worker for more reliable update detection
-   */
-  async checkServiceWorker(): Promise<boolean> {
-    if (!('serviceWorker' in navigator)) return false;
 
-    try {
-      const registration = await navigator.serviceWorker.getRegistration();
-      if (registration) {
-        await registration.update();
-        if (registration.waiting) {
-          this.hasNewVersion = true;
-          this.newVersionInfo = {
-            version: 'new',
-            buildTime: Date.now(),
-          };
-          this.notifyCallbacks();
-          return true;
-        }
-      }
-    } catch (error) {
-      console.warn('Service worker check failed:', error);
-    }
-    return false;
-  }
+
 
   /**
    * Subscribe to update notifications
