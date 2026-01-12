@@ -2027,10 +2027,10 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       {/* Chat Messages - flex-1 to fill available space */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 min-h-0 bg-skyrim-paper/30 border border-skyrim-border rounded-lg overflow-y-auto scroll-smooth"
+        className={`flex-1 min-h-0 bg-skyrim-paper/30 border border-skyrim-border rounded-lg ${messages.length > 0 ? 'overflow-y-auto' : 'overflow-hidden'} scroll-smooth`}
       >
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-gray-500">
+          <div className="flex flex-col items-center justify-center min-h-[200px] py-12 text-gray-500">
             <Scroll size={40} className="mb-3 opacity-50" />
             <p className="text-center text-sm mb-3">
               {hasEstablishedState ? 'Continue where you left off...' : 'Your adventure awaits...'}
