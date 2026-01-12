@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
   const gemmaApiKey = env.VITE_GEMMA_API_KEY || env.GEMMA_API_KEY || env.gemma_api_key || '';
   
   return {
-    base: '/skyeaetherius/',
+    base: env.VITE_BASE_PATH || '/',
     plugins: [
       react(),
       {

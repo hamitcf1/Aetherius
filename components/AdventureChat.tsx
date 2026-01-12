@@ -575,14 +575,27 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   // TTS playback state
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const audioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
   const [loadingTtsId, setLoadingTtsId] = useState<string | null>(null);
 
   const stopPlayback = useCallback(() => {
+    // Stop any HTMLAudioElement playback
     if (audioRef.current) {
       try { audioRef.current.pause(); } catch {}
       try { audioRef.current.src = ''; } catch {}
       audioRef.current = null;
+    }
+    // Stop any AudioContext-based playback
+    if (audioSourceRef.current) {
+      try { audioSourceRef.current.stop(); } catch {}
+      try { audioSourceRef.current.disconnect(); } catch {}
+      audioSourceRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      try { audioCtxRef.current.close(); } catch {}
+      audioCtxRef.current = null;
     }
     if (audioUrlRef.current) {
       try { URL.revokeObjectURL(audioUrlRef.current); } catch {}
@@ -2085,19 +2098,52 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                               const blob = new Blob([buffer], { type: mimeType || 'audio/wav' });
                               const url = URL.createObjectURL(blob);
                               audioUrlRef.current = url;
-                              const audio = new Audio(url);
-                              audioRef.current = audio;
+
+                              // Prefer a <source> element to allow specifying type and have the browser make a better decoding decision
+                              const audio = new Audio();
+                              const sourceEl = document.createElement('source');
+                              sourceEl.src = url;
+                              if (mimeType) sourceEl.type = mimeType;
+                              audio.appendChild(sourceEl);
 
                               audio.onended = () => stopPlayback();
                               audio.onerror = (e) => {
                                 console.warn('TTS playback error', e);
-                                stopPlayback();
+                                // If playback failed due to unsupported type, attempt AudioContext decode fallback
+                                (async () => {
+                                  try {
+                                    stopPlayback();
+                                    const AudioCtx = (window.AudioContext || (window as any).webkitAudioContext);
+                                    if (!AudioCtx) throw new Error('AudioContext not available');
+                                    const ctx = new AudioCtx();
+                                    audioCtxRef.current = ctx;
+                                    const decoded = await ctx.decodeAudioData(buffer.slice(0));
+                                    const src = ctx.createBufferSource();
+                                    src.buffer = decoded;
+                                    src.connect(ctx.destination);
+                                    audioSourceRef.current = src;
+                                    setPlayingMsgId(msg.id);
+                                    setLoadingTtsId(null);
+                                    src.start();
+                                  } catch (decodeErr) {
+                                    console.warn('AudioContext decode fallback failed:', decodeErr);
+                                    // Offer the user to download the audio as fallback
+                                    setToastMessages(prev => [...prev, { id: Math.random().toString(36).substr(2,9), message: 'TTS produced audio, but your browser could not play it; download available via the console.' , type: 'warning' }]);
+                                  }
+                                })();
                               };
 
                               setPlayingMsgId(msg.id);
                               setLoadingTtsId(null);
                               // Play (user gesture initiated via click)
-                              await audio.play();
+                              try {
+                                await audio.play();
+                                audioRef.current = audio;
+                              } catch (playErr) {
+                                // If initial play fails synchronously, trigger the onerror fallback to try decoding
+                                console.warn('Audio play() failed, attempting decode fallback:', playErr);
+                                audio.onerror?.(playErr as any);
+                              }
                             } catch (err: any) {
                               console.warn('TTS generation/playback failed:', err);
                               setLoadingTtsId(null);

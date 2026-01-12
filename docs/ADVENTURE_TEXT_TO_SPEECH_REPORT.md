@@ -32,6 +32,7 @@
 
 ## Known limitations / edge cases
 - SDK variability: Different @google/genai SDK versions may expose TTS responses in several shapes — the helper contains heuristics to handle common shapes, but rare SDK shapes may require further handling.
+- PCM / L16 responses: Some TTS models return raw linear PCM (`audio/L16;codec=pcm;rate=24000`) as inlineData — the helper detects this pattern and wraps raw PCM data into a WAV container so browsers can play the result.
 - Model availability: If TTS models are not available or API keys lack TTS permissions, generation will fail; errors are logged and the user receives a small toast indicating the failure (quota or permission issues) and the loader stops.
 - Combat/system detection: Implementation excludes messages with `updates.combatStart` or `updates.combatEnd` and basic content heuristics for `system|log|debug|combat` markers, but very unusual system messages embedded in narrative may need additional flagging.
 - No UI to configure voice/model per user — this is intentionally fixed to reduce complexity and avoid consuming extra tokens.

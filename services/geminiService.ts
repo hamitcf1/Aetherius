@@ -596,26 +596,11 @@ export const generateTextToSpeech = async (
           const binary = Uint8Array.from(atob(payload), c => c.charCodeAt(0));
           // If mimeType indicates raw PCM (e.g., audio/L16;codec=pcm;rate=24000), convert to WAV
           if (/L16|pcm/i.test(mimeType)) {
-            const wav = convertRawPcmBase64ToWav(payload, m ? m[0] : mimeType);
-            return { buffer: wav.buffer, mimeType: 'audio/wav' };
+            const wavAb = convertRawPcmBase64ToWav(payload, m ? m[0] : mimeType);
+            return { buffer: wavAb, mimeType: 'audio/wav' };
           }
-          return { buffer: binary.buffer, mimeType };
-        }
-
-        // 2) Some SDKs provide inlineData in candidates parts
-        const parts = resp.candidates?.[0]?.content?.parts || resp.candidates?.[0]?.content || [];
-        for (const part of parts) {
-          if (part.inlineData && part.inlineData.data) {
-            const b64 = part.inlineData.data;
-            const mimeType = part.inlineData.mimeType || 'audio/wav';
-            const binary = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-            // If mimeType is linear PCM, wrap with WAV header
-            if (/L16|pcm/i.test(mimeType)) {
-              const wav = convertRawPcmBase64ToWav(b64, mimeType);
-              return { buffer: wav.buffer, mimeType: 'audio/wav' };
-            }
-            return { buffer: binary.buffer, mimeType };
-          }
+          // Ensure returned ArrayBuffer is tightly sized
+          return { buffer: binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength), mimeType };
         }
 
         // 3) Some SDKs might return an ArrayBuffer directly
@@ -641,10 +626,10 @@ export const generateTextToSpeech = async (
           if (b64) {
             const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
             if (/L16|pcm/i.test(mimeType)) {
-              const wav = convertRawPcmBase64ToWav(b64, mimeType);
-              return { buffer: wav.buffer, mimeType: 'audio/wav' };
+              const wavAb = convertRawPcmBase64ToWav(b64, mimeType);
+              return { buffer: wavAb, mimeType: 'audio/wav' };
             }
-            return { buffer: bin.buffer, mimeType };
+            return { buffer: bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength), mimeType };
           }
         }
 
@@ -679,7 +664,7 @@ export const generateTextToSpeech = async (
 };
 
 // Helper: convert raw PCM base64 data (mime may include sample rate etc) to a WAV ArrayBuffer
-const convertRawPcmBase64ToWav = (b64: string, mimeTypeOrHeader: string) => {
+const convertRawPcmBase64ToWav = (b64: string, mimeTypeOrHeader: string): ArrayBuffer => {
   // Parse mime type like 'audio/L16;codec=pcm;rate=24000'
   const parts = (mimeTypeOrHeader || '').split(/[;\s]+/).map(s => s.trim());
   let sampleRate = 24000;
@@ -689,39 +674,59 @@ const convertRawPcmBase64ToWav = (b64: string, mimeTypeOrHeader: string) => {
   for (const p of parts) {
     const [key, val] = p.split('=');
     if (key === 'rate' || key === 'samplerate') sampleRate = parseInt(val, 10) || sampleRate;
-    if (/L(\d+)/i.test(p)) {
-      const m = p.match(/L(\d+)/i);
-      bitsPerSample = parseInt(m![1], 10) || bitsPerSample;
+    const mL = p.match(/L(\d+)/i);
+    if (mL) {
+      bitsPerSample = parseInt(mL[1], 10) || bitsPerSample;
     }
   }
 
-  const raw = Buffer.from(b64, 'base64');
-  const header = createWavHeader(raw.length, { numChannels, sampleRate, bitsPerSample });
-  return Buffer.concat([header, raw]);
+  const rawStr = atob(b64);
+  const rawLen = rawStr.length;
+  const raw = new Uint8Array(rawLen);
+  for (let i = 0; i < rawLen; i++) raw[i] = rawStr.charCodeAt(i);
+
+  const header = createWavHeaderUint8(rawLen, { numChannels, sampleRate, bitsPerSample });
+
+  const out = new Uint8Array(header.length + raw.length);
+  out.set(header, 0);
+  out.set(raw, header.length);
+  return out.buffer;
 };
 
-// Create WAV header (little-endian PCM)
-const createWavHeader = (dataLength: number, options: { numChannels: number; sampleRate: number; bitsPerSample: number }) => {
+// Create WAV header (little-endian PCM) - returns Uint8Array
+const createWavHeaderUint8 = (dataLength: number, options: { numChannels: number; sampleRate: number; bitsPerSample: number }) => {
   const { numChannels, sampleRate, bitsPerSample } = options;
-  const byteRate = sampleRate * numChannels * bitsPerSample / 8;
-  const blockAlign = numChannels * bitsPerSample / 8;
-  const buffer = Buffer.alloc(44);
+  const byteRate = Math.floor(sampleRate * numChannels * bitsPerSample / 8);
+  const blockAlign = Math.floor(numChannels * bitsPerSample / 8);
+  const buffer = new ArrayBuffer(44);
+  const view = new DataView(buffer);
 
-  buffer.write('RIFF', 0);                      // ChunkID
-  buffer.writeUInt32LE(36 + dataLength, 4);     // ChunkSize
-  buffer.write('WAVE', 8);                      // Format
-  buffer.write('fmt ', 12);                     // Subchunk1ID
-  buffer.writeUInt32LE(16, 16);                 // Subchunk1Size (PCM)
-  buffer.writeUInt16LE(1, 20);                  // AudioFormat (1 = PCM)
-  buffer.writeUInt16LE(numChannels, 22);        // NumChannels
-  buffer.writeUInt32LE(sampleRate, 24);         // SampleRate
-  buffer.writeUInt32LE(byteRate, 28);           // ByteRate
-  buffer.writeUInt16LE(blockAlign, 32);         // BlockAlign
-  buffer.writeUInt16LE(bitsPerSample, 34);      // BitsPerSample
-  buffer.write('data', 36);                     // Subchunk2ID
-  buffer.writeUInt32LE(dataLength, 40);         // Subchunk2Size
+  // RIFF chunk descriptor
+  writeStringToDataView(view, 0, 'RIFF');
+  view.setUint32(4, 36 + dataLength, true);
+  writeStringToDataView(view, 8, 'WAVE');
 
-  return buffer;
+  // fmt subchunk
+  writeStringToDataView(view, 12, 'fmt ');
+  view.setUint32(16, 16, true); // PCM
+  view.setUint16(20, 1, true); // PCM format
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+
+  // data subchunk
+  writeStringToDataView(view, 36, 'data');
+  view.setUint32(40, dataLength, true);
+
+  return new Uint8Array(buffer);
+};
+
+const writeStringToDataView = (view: DataView, offset: number, str: string) => {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i));
+  }
 };
 
 // Export a helper to sanitize narrative text for TTS (removes mechanical references)
