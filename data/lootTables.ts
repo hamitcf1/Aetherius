@@ -51,4 +51,41 @@ export const LOOT_TABLES: Record<string, LootTableEntry[]> = {
   ]
 };
 
+// Rarity multipliers reduce the effective weight of rarer items; bosses will also boost weights of rare/unique entries
+export const RARITY_MULTIPLIER: Record<LootRarity, number> = {
+  common: 1.0,
+  uncommon: 0.7,
+  rare: 0.35,
+  legendary: 0.12
+};
+
+// Boss-specific loot additions (merged into base tables when enemy.isBoss is true)
+export const BOSS_TABLES: Record<string, LootTableEntry[]> = {
+  humanoid: [
+    { id: 'hum_boss_greataxe', name: 'Great Axe', type: 'weapon', description: 'A heavy greataxe dropped by the leader.', weight: 6, minQty: 1, maxQty: 1, rarity: 'rare' },
+    { id: 'hum_boss_gold', name: 'Gold Hoard', type: 'misc', description: 'A larger hoard of coins.', weight: 12, minQty: 100, maxQty: 300, rarity: 'uncommon' },
+    { id: 'hum_boss_ring', name: 'Ring of Valor', type: 'misc', description: 'A finely crafted ring.', weight: 3, minQty: 1, maxQty: 1, rarity: 'legendary' }
+  ],
+  dragon: [
+    { id: 'drg_boss_scale', name: 'Pristine Dragon Scale', type: 'misc', description: 'A shimmering, intact dragon scale.', weight: 6, minQty: 1, maxQty: 2, rarity: 'legendary' },
+    { id: 'drg_boss_essence', name: 'Dragon Essence', type: 'misc', description: 'Condensed draconic power.', weight: 4, minQty: 1, maxQty: 1, rarity: 'rare' }
+  ],
+  daedra: [
+    { id: 'dae_boss_relic', name: 'Daedric Artifact', type: 'misc', description: 'A potent artifact of Daedra.', weight: 3, minQty: 1, maxQty: 1, rarity: 'legendary' }
+  ]
+};
+
+// Return an effective loot table for sampling, applying rarity multipliers and boss boosts where appropriate
+export const getLootTableForEnemy = (type: string, isBoss: boolean = false): LootTableEntry[] => {
+  const base = LOOT_TABLES[type] || [];
+  const bossAdditions = isBoss ? (BOSS_TABLES[type] || []) : [];
+  const merged = [...base, ...bossAdditions];
+
+  return merged.map(entry => {
+    const rarityMult = entry.rarity ? (RARITY_MULTIPLIER[entry.rarity] ?? 1) : 1;
+    const bossBoost = isBoss && !bossAdditions.find(b => b.id === entry.id) ? 1.1 : 1; // slightly increase base table weights for bosses
+    return { ...entry, weight: (entry.weight || 1) * rarityMult * bossBoost } as LootTableEntry;
+  });
+};
+
 export default LOOT_TABLES;

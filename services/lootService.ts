@@ -6,7 +6,7 @@ export const computeEnemyXP = (enemy: CombatEnemy) => {
   return enemy.isBoss ? base * 2 : base;
 };
 
-import LOOT_TABLES, { LootTableEntry } from '../data/lootTables';
+import LOOT_TABLES, { LootTableEntry, getLootTableForEnemy } from '../data/lootTables';
 
 // Helper: pick one item from weighted table
 const pickWeighted = (table: LootTableEntry[], rng = Math.random): LootTableEntry | null => {
@@ -41,8 +41,8 @@ export const generateEnemyLoot = (enemy: CombatEnemy): Array<{ name: string; typ
       }
     });
   } else {
-    // 2) Otherwise sample from LOOT_TABLES by enemy.type
-    const table = LOOT_TABLES[enemy.type] || [];
+    // 2) Otherwise sample from LOOT_TABLES by enemy.type (using effective table with boss overrides)
+    const table = getLootTableForEnemy(enemy.type, !!enemy.isBoss);
     // Attempt multiple picks so enemies can drop several items; number of attempts scales mildly with level
     const attempts = Math.max(1, Math.min(4, Math.floor(1 + (enemy.level || 1) / 3 + (enemy.isBoss ? 1 : 0))));
     for (let i = 0; i < attempts; i++) {
@@ -50,7 +50,9 @@ export const generateEnemyLoot = (enemy: CombatEnemy): Array<{ name: string; typ
       if (!pick) continue;
       const chance = scaledChance(pick, enemy.level || 1, !!enemy.isBoss);
       if (Math.random() * 100 < chance) {
-        const qty = Math.floor(Math.random() * (pick.maxQty || 1 - (pick.minQty || 1) + 1)) + (pick.minQty || 1);
+        const qtyRangeMax = (pick.maxQty || (pick.minQty || 1));
+        const qtyRangeMin = (pick.minQty || 1);
+        const qty = qtyRangeMin + Math.floor(Math.random() * (qtyRangeMax - qtyRangeMin + 1));
         items.push({ name: pick.name, type: pick.type, description: pick.description || '', quantity: qty });
       }
     }
