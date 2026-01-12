@@ -90,7 +90,7 @@ import {
 import { getFoodNutrition, getDrinkNutrition } from './services/nutritionData';
 import { applyStatToVitals } from './services/vitals';
 import { resolvePotionEffect } from './services/potionResolver';
-import { getItemStats, shouldHaveStats } from './services/itemStats';
+import { getItemStats, shouldHaveStats, isValidCoreItem } from './services/itemStats';
 import { updateMusicForContext, AmbientContext, audioService, playMusic } from './services/audioService';
 import { getSkyrimCalendarDate, formatSkyrimDate, formatSkyrimDateShort } from './utils/skyrimCalendar';
 import { getRateLimitStats, generateAdventureResponse } from './services/geminiService';
@@ -1278,22 +1278,79 @@ const App: React.FC = () => {
       setCharacters([...characters, newChar]);
       setDirtyEntities(prev => new Set([...prev, charId]));
 
-      // 2. Inventory
-      if (fullDetails?.inventory) {
-          const itemsWithId = fullDetails.inventory.map(i => ({
-              id: uniqueId(),
-              characterId: charId,
-              name: i.name,
-              type: i.type as any,
-              description: i.description,
-              quantity: i.quantity,
-              equipped: false
-          }));
-          setItems(prev => [...prev, ...itemsWithId as any]);
-          itemsWithId.forEach(item => {
-            setDirtyEntities(prev => new Set([...prev, item.id]));
-          });
-      }
+        // 2. Inventory - validate incoming items against defined set and apply stats
+        if (fullDetails?.inventory) {
+          const validatedMap = new Map<string, InventoryItem>();
+          for (const i of fullDetails.inventory) {
+            const name = (i.name || '').trim();
+            const type = (i.type as InventoryItem['type']) || 'misc';
+
+            // Allow free-form misc items
+            if (type === 'misc') {
+              const key = `${name.toLowerCase()}|misc`;
+              const existing = validatedMap.get(key);
+              if (existing) {
+                existing.quantity += i.quantity || 1;
+              } else {
+                validatedMap.set(key, {
+                  id: uniqueId(),
+                  characterId: charId,
+                  name,
+                  type,
+                  description: i.description || '',
+                  quantity: i.quantity || 1,
+                  equipped: !!(i as any).equipped,
+                  createdAt: Date.now()
+                } as InventoryItem);
+              }
+              continue;
+            }
+
+            // For core items (weapons / apparel) ensure they exist in defined sets
+            if (shouldHaveStats(type) && !isValidCoreItem(name, type)) {
+              // Skip invalid core items (keep console log for debugging)
+              console.warn('Skipping invalid starting item for character:', name, type);
+              continue;
+            }
+
+            // Merge duplicates by name+type
+            const key = `${name.toLowerCase()}|${type}`;
+            const stats = shouldHaveStats(type) ? getItemStats(name, type) : {};
+            const existing = validatedMap.get(key);
+            if (existing) {
+              existing.quantity += i.quantity || 1;
+            } else {
+              // Determine default slot where applicable
+              const itemLike: InventoryItem = {
+                id: uniqueId(),
+                characterId: charId,
+                name,
+                type: type as any,
+                description: i.description || '',
+                quantity: i.quantity || 1,
+                equipped: !!(i as any).equipped,
+                createdAt: Date.now(),
+                ...stats
+              } as InventoryItem;
+
+              // Attempt to assign a default equipment slot for weapons/apparel
+              try {
+                const slot = getDefaultSlotForItem(itemLike);
+                if (slot) itemLike.slot = slot;
+              } catch (e) {
+                // ignore slot assignment errors
+              }
+
+              validatedMap.set(key, itemLike);
+            }
+          }
+
+          const itemsToAdd = Array.from(validatedMap.values());
+          if (itemsToAdd.length > 0) {
+            setItems(prev => [...prev, ...itemsToAdd as any]);
+            itemsToAdd.forEach(item => setDirtyEntities(prev => new Set([...prev, item.id])));
+          }
+        }
 
       // 3. Quests
       if (fullDetails?.quests) {

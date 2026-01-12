@@ -282,3 +282,18 @@ export function getItemStats(itemName: string, itemType?: string): ItemStats {
 export function shouldHaveStats(itemType: string): boolean {
   return itemType === 'weapon' || itemType === 'apparel';
 }
+
+/**
+ * Check if an item name exists in the defined core item sets
+ * Returns true when item is a core weapon or armor with defined stats
+ */
+export function isValidCoreItem(itemName: string, itemType?: string): boolean {
+  const nameLower = itemName.toLowerCase();
+  if (itemType === 'weapon' || !itemType) {
+    if (WEAPON_STATS[nameLower]) return true;
+  }
+  if (itemType === 'apparel' || !itemType) {
+    if (ARMOR_STATS[nameLower]) return true;
+  }
+  return false;
+}

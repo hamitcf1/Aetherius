@@ -6,4 +6,4 @@
 
 - [x] Bugfix: even though the player is equipped with a double hand weapon, off hand is still available to equip weapons, which is not intended. When double handed weapons are equipped, off hand should become unavailable or emptied, and if another weapon is equipped in offhand while double handed weapons are equipped, double handed weapon should be unequipped automatically.
 
-- [ ] When new character is created either with ai scribe chat or import text feature (still ai is used to creat from the provided text) or full random character generation, the items given to the character should be from the available set and defined items with stats except for misc items.
+- [x] When new character is created either with ai scribe chat or import text feature (still ai is used to creat from the provided text) or full random character generation, the items given to the character should be from the available set and defined items with stats except for misc items.

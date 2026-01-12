@@ -28,7 +28,7 @@ The AI agent must **update the Status field** and generate a report after implem
 - Misc items may be unrestricted
 - No duplicate or invalid items appear
 
-**Status:** ⚠️ Pending / ✅ DONE / ❌ BLOCKED  
+**Status:** ✅ DONE  
 
 ---
 
@@ -50,7 +50,7 @@ The AI agent must **update the Status field** and generate a report after implem
 - Equipped items display correct stats
 - Integration with all item-related features works seamlessly
 
-**Status:** ⚠️ Pending / ✅ DONE / ❌ BLOCKED  
+**Status:** ✅ DONE  
 
 ---
 
@@ -66,7 +66,7 @@ The AI agent must **update the Status field** and generate a report after implem
 - Stats match item definitions
 - No errors or invalid items assigned
 
-**Status:** ⚠️ Pending / ✅ DONE / ❌ BLOCKED  
+**Status:** ✅ DONE  
 
 ---
 
@@ -84,7 +84,7 @@ The AI agent must **update the Status field** and generate a report after implem
 - No UI glitches
 - Player can interact with items normally
 
-**Status:** ⚠️ Pending / ✅ DONE / ❌ BLOCKED  
+**Status:** ✅ DONE  
 
 ---
 
