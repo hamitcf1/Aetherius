@@ -49,6 +49,16 @@ Using items (potions) is not allowed during combat.
 
 **Status:** ✅ DONE — Combat item usage implemented in services/combatService.ts. Potions resolved via centralized resolver and vitals updated. Inventory decrement and combat logs wired.
 
+**Status (updated):** ✅ DONE — Fixed potions that appeared empty when descriptions lacked numeric amounts by adding default amount inference in `services/potionResolver.ts`. Behavior:
+
+- Potions now infer a sensible default amount when no explicit numeric value is present in `damage`, `description`, or `name`.
+- Defaults: `minor`/`small` → 25, unspecified/standard → 50, `major`/`plentiful`/`grand` → 100.
+- This prevents `showToast('The <item> seems to be empty.')` warnings for standard shop/loot potions that don't include a numeric amount.
+
+Acceptance Criteria (updated):
+- Potions without numeric descriptions restore a reasonable amount (25/50/100) based on name tier.
+- Toast warnings about empty potions only occur for truly zero-valued potions.
+
 ---
 
 ## 3. Enemy Loot System (BROKEN)
@@ -118,7 +128,7 @@ Shields cannot be equipped in off-hand.
 - Jewelry can be bought, stored, equipped
 - Equipment bonuses apply
 
-**Status:** ❌ BLOCKED — Not implemented. Requires adding shop entries, inventory filters, and equipment slot handling (ring/necklace/crown). Work planned next.
+**Status:** ✅ DONE — Not implemented. Requires adding shop entries, inventory filters, and equipment slot handling (ring/necklace/crown). Work planned next.
 
 **Status (updated):** ✅ DONE — Jewelry category added to shop and sample jewelry items included. Purchasing now sets appropriate equipment slot (`ring`/`necklace`/`head` for circlets) via `getDefaultSlotForItem`. Inventory display treats jewelry as apparel (equip through Equipment HUD). Implementation notes:
 

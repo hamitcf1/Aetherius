@@ -16,6 +16,7 @@ export interface AppContextType {
   isGeneratingProfileImage: boolean;
   handleCreateImagePrompt: () => void;
   handleUploadPhoto: () => void;
+  showToast: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
   // Auth
   isAnonymous: boolean;
   // Survival (now with modals)

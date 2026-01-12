@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { InventoryItem, EquipmentSlot } from '../types';
-import { Sword, Shield, Crown, Shirt, Hand, Footprints, CircleDot, Gem, X, Swords } from 'lucide-react';
+import { Sword, Shield, Crown, Shirt, Hand, Footprints, CircleDot, Gem, X, Swords, Star } from 'lucide-react';
 import { getItemStats, shouldHaveStats } from '../services/itemStats';
 
 interface EquipmentHUDProps {
@@ -141,7 +141,13 @@ export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, on
                     : 'bg-black/50 border-skyrim-border/50 hover:border-skyrim-gold/50 hover:bg-black/70'
                   }
                 `}
-                title={equipped ? `${equipped.name} (Click to unequip)` : `Equip ${config.label}`}
+                title={equipped ? `${equipped.name} (Click to unequip)` : (
+                  config.slot === 'offhand'
+                    ? 'Equip Off-hand (shields or small weapons only)'
+                    : config.slot === 'weapon'
+                      ? 'Equip Main Hand (two-handed or main-hand weapons)'
+                      : `Equip ${config.label}`
+                )}
               >
                 {equipped ? (
                   <>
@@ -149,6 +155,11 @@ export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, on
                     <span className="text-[8px] text-skyrim-gold mt-0.5 truncate w-full text-center px-1">
                       {equipped.name.length > 8 ? equipped.name.substring(0, 7) + '…' : equipped.name}
                     </span>
+                    {equipped.isFavorite && (
+                      <div className="absolute top-1 right-1 text-yellow-400">
+                        <Star size={12} />
+                      </div>
+                    )}
                     {/* Unequip indicator on hover */}
                     <div className="absolute inset-0 bg-red-900/80 rounded-lg opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                       <X size={20} className="text-red-300" />
@@ -183,6 +194,8 @@ export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, on
 // Helper function to determine slot from item
 export const getDefaultSlotForItem = (item: InventoryItem): EquipmentSlot | null => {
   if (item.slot) return item.slot;
+  // If explicit spellId present, this is a tome/scroll — not equippable
+  if ((item as any).spellId) return null;
   
   const nameLower = item.name.toLowerCase();
   
@@ -192,6 +205,10 @@ export const getDefaultSlotForItem = (item: InventoryItem): EquipmentSlot | null
   }
   
   if (item.type === 'weapon') {
+    // Honor explicit handedness when present
+    if (item.handedness === 'off-hand-only') return 'offhand';
+    if (item.handedness === 'two-handed') return 'weapon';
+    if (item.handedness === 'one-handed') return 'weapon';
     if (nameLower.includes('shield') || nameLower.includes('torch')) return 'offhand';
     return 'weapon';
   }

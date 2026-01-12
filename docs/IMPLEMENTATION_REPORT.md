@@ -7,6 +7,8 @@ Summary of changes made against docs/FEATURE_FIX_SPEC.md during this work sessio
 - services/combatService.ts —
   - Reworked `executePlayerAction` 'item' branch to support potions and food during combat. Uses `resolvePotionEffect` and `modifyPlayerCombatStat` to apply effects, decrements inventory, and logs actions.
   - Ensured enemies receive safe defaults (`xpReward`, `goldReward`, `loot`) during `initializeCombat` to avoid empty loot phases.
+- services/potionResolver.ts —
+  - Added default amount inference when potions lack explicit numeric amounts. Infers stat from `subtype`/name and defaults amounts by tier (minor=25, default=50, major=100). Prevents empty-potion warnings and allows standard shop/loot potions to restore vitals.
 
 **Files Inspected (no code changes)**
 - components/CombatModal.tsx — verified onCombatEnd/loot flows.
@@ -17,6 +19,7 @@ Summary of changes made against docs/FEATURE_FIX_SPEC.md during this work sessio
 - Auto-resume adventure after combat end (partial — needs runtime verification).
 - Potion and food usage during combat (done) with inventory mutation and vitals updates.
 - Enemy reward defaults to avoid empty loot (partial — UI verification pending).
+ - Default potion amount inference when no amount provided (done) so potions without numeric descriptions still restore appropriate vitals.
 
 **What remains / Blockers**
 - Level-Up Modal and interactive stat selection (not implemented).
@@ -37,5 +40,3 @@ Summary of changes made against docs/FEATURE_FIX_SPEC.md during this work sessio
 - Changes reuse existing centralized services (`potionResolver`, `vitals`, `geminiService`) to limit surface area.
 
 If you want, I can now run the dev server, exercise the flows, and fix any runtime issues — shall I proceed?
-
--- GitHub Copilot (GPT-5 mini)

@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, EquipmentSlot } from '../types';
-import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent, ArrowUpDown, User, Backpack, Check, ShoppingBag, Weight } from 'lucide-react';
+import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent, ArrowUpDown, User, Backpack, Check, ShoppingBag, Weight, Star } from 'lucide-react';
 import { EquipmentHUD, getDefaultSlotForItem, SLOT_CONFIGS_EXPORT } from './EquipmentHUD';
+import { isTwoHandedWeapon, isShield, canEquipInOffhand, canEquipInMainhand } from '../services/equipment';
 import { ShopModal } from './ShopModal';
+import BlacksmithModal from './BlacksmithModal';
 import { useAppContext } from '../AppContext';
 import { getItemStats, shouldHaveStats } from '../services/itemStats';
 import { EncumbranceIndicator } from './StatusIndicators';
@@ -190,6 +192,12 @@ const InventoryItemCard: React.FC<{
                                 Use
                               </button>
                             )}
+                            <button
+                              onClick={() => onUpdate({ ...item, isFavorite: !item.isFavorite })}
+                              title={item.isFavorite ? 'Unmark Favorite' : 'Mark Favorite'}
+                              className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${item.isFavorite ? 'bg-yellow-500 text-black' : 'bg-black/30 text-gray-300 hover:bg-black/50'}`}>
+                              <Star size={14} />
+                            </button>
                             <button onClick={startEdit} className="px-2 py-1 bg-skyrim-gold/20 text-skyrim-gold rounded text-xs">Edit</button>
                             <button onClick={() => onDeltaQuantity(1)} className="px-2 py-1 bg-green-700/60 text-white rounded text-xs">+1</button>
                             <button onClick={() => onDeltaQuantity(-1)} className="px-2 py-1 bg-red-700/60 text-white rounded text-xs">-1</button>
@@ -209,15 +217,17 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<InventoryItem['type']>('misc');
   const [newDesc, setNewDesc] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | InventoryItem['type']>('all');
+  const [activeTab, setActiveTab] = useState<'all' | InventoryItem['type'] | 'favorites'>('all');
   const [sortOrder, setSortOrder] = useState<'name' | 'type' | 'newest' | 'quantity'>('name');
   const [viewMode, setViewMode] = useState<'inventory' | 'equipment'>('inventory');
   const [equipModalOpen, setEquipModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<EquipmentSlot | null>(null);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [blacksmithOpen, setBlacksmithOpen] = useState(false);
 
-  // Get shop handlers from context
-  const { handleShopPurchase, handleShopSell, characterLevel, handleEatItem, handleDrinkItem } = useAppContext();
+  // Get shop handlers and UI helpers from context
+  const { handleShopPurchase, handleShopSell, characterLevel, handleEatItem, handleDrinkItem, showToast } = useAppContext();
 
   // Calculate total carry weight
   const totalWeight = useMemo(() => {
@@ -230,8 +240,9 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
   const isOverEncumbered = totalWeight > maxCarryWeight;
 
   // Category tabs configuration
-  const CATEGORY_TABS: { key: 'all' | InventoryItem['type']; label: string; icon: React.ReactNode }[] = [
+  const CATEGORY_TABS: any[] = [
     { key: 'all', label: 'All', icon: <Package size={14} /> },
+    { key: 'favorites', label: 'Favorites', icon: <Star size={14} /> },
     { key: 'weapon', label: 'Weapons', icon: <Sword size={14} /> },
     { key: 'apparel', label: 'Apparel', icon: <Shield size={14} /> },
     // Jewelry is treated as apparel; separate Jewelry tab removed to avoid mismatch with item.type
@@ -270,8 +281,10 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
     
     let uniqueItems = Array.from(nameMap.values());
     
-    // Filter by category tab
-    if (activeTab !== 'all') {
+    // Filter by category tab (including favorites)
+    if (activeTab === 'favorites') {
+      uniqueItems = uniqueItems.filter(item => item.isFavorite);
+    } else if (activeTab !== 'all') {
       uniqueItems = uniqueItems.filter(item => item.type === activeTab);
     }
     
@@ -298,6 +311,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
     items.forEach(item => {
       counts[item.type] = (counts[item.type] || 0) + 1;
     });
+    counts['favorites'] = items.filter(i => i.isFavorite).length;
     return counts;
   }, [items]);
 
@@ -352,8 +366,17 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
   const equipItem = (item: InventoryItem, slot?: EquipmentSlot) => {
     const targetSlot = slot || getDefaultSlotForItem(item);
     if (!targetSlot) return;
-    
-    // Unequip any item currently in that slot
+    // Validate equip restrictions
+    if (targetSlot === 'offhand' && isTwoHandedWeapon(item)) {
+      showToast('Cannot equip two-handed weapons in off-hand.', 'warning');
+      return;
+    }
+    if (targetSlot === 'weapon' && isShield(item)) {
+      showToast('Cannot equip shields in main hand.', 'warning');
+      return;
+    }
+
+    // If equipping a two-handed weapon to main hand, auto-unequip any offhand item
     const updatedItems = items.map(i => {
       if (i.id === item.id) {
         return { ...i, equipped: true, slot: targetSlot };
@@ -362,9 +385,13 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
       if (i.equipped && i.slot === targetSlot) {
         return { ...i, equipped: false, slot: undefined };
       }
+      // Auto-unequip offhand when equipping two-handed in main
+      if (targetSlot === 'weapon' && isTwoHandedWeapon(item) && i.equipped && i.slot === 'offhand') {
+        return { ...i, equipped: false, slot: undefined };
+      }
       return i;
     });
-    
+
     setItems(updatedItems);
     setEquipModalOpen(false);
     setSelectedSlot(null);
@@ -389,8 +416,19 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
     return items.filter(item => {
       if (item.equipped) return false;
       if (!slotConfig.allowedTypes.includes(item.type)) return false;
-      
-      // Check if item matches the slot based on name
+
+      // Enforce explicit slot rules for hands/main/offhand
+      if (slot === 'offhand') {
+        return canEquipInOffhand(item);
+      }
+      if (slot === 'weapon') {
+        // Prevent shields in main hand
+        if (isShield(item)) return false;
+        // Allow small weapons and two-handed weapons
+        return canEquipInMainhand(item);
+      }
+
+      // Default fallback: use default slot inference
       const defaultSlot = getDefaultSlotForItem(item);
       return defaultSlot === slot || !defaultSlot;
     });
@@ -479,35 +517,50 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
             Select item for {selectedSlot.charAt(0).toUpperCase() + selectedSlot.slice(1)}
           </h3>
           
-          {getEquippableItemsForSlot(selectedSlot).length > 0 ? (
-            <div className="space-y-2">
-              {getEquippableItemsForSlot(selectedSlot).map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => equipItem(item, selectedSlot)}
-                  className="w-full p-3 bg-black/40 border border-skyrim-border rounded hover:border-skyrim-gold hover:bg-black/60 transition-colors text-left flex items-center gap-3"
-                >
-                  <div className="p-2 rounded-full bg-skyrim-gold/20 text-skyrim-gold">
-                    {getIcon(item.type)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-skyrim-gold font-serif">{item.name}</div>
-                    <div className="text-xs text-gray-400">{item.description}</div>
-                    {(item.armor || item.damage) && (
-                      <div className="flex gap-3 mt-1 text-xs">
-                        {item.armor && <span className="text-blue-400">Armor: {item.armor}</span>}
-                        {item.damage && <span className="text-red-400">Damage: {item.damage}</span>}
+          {
+            (() => {
+              let candidates = getEquippableItemsForSlot(selectedSlot);
+              if (favoritesOnly) candidates = candidates.filter(i => i.isFavorite);
+              if (candidates.length === 0) {
+                return (
+                  <p className="text-gray-500 italic text-center py-4">No suitable items for this slot</p>
+                );
+              }
+
+              return (
+                <div className="space-y-2">
+                  {candidates.map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => equipItem(item, selectedSlot)}
+                      className="w-full p-3 bg-black/40 border border-skyrim-border rounded hover:border-skyrim-gold hover:bg-black/60 transition-colors text-left flex items-center gap-3"
+                    >
+                      <div className="p-2 rounded-full bg-skyrim-gold/20 text-skyrim-gold">
+                        {getIcon(item.type)}
                       </div>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 italic text-center py-4">
-              No suitable items for this slot
-            </p>
-          )}
+                      <div className="flex-1">
+                        <div className="text-skyrim-gold font-serif">{item.name}</div>
+                        <div className="text-xs text-gray-400">{item.description}</div>
+                        {(item.armor || item.damage) && (
+                          <div className="flex gap-3 mt-1 text-xs">
+                            {item.armor && <span className="text-blue-400">Armor: {item.armor}</span>}
+                            {item.damage && <span className="text-red-400">Damage: {item.damage}</span>}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()
+          }
+
+          <div className="mt-3 flex items-center gap-2">
+            <label className="text-sm text-gray-400">Show favorites only</label>
+            <button onClick={() => setFavoritesOnly(v => !v)} className={`px-3 py-1 rounded ${favoritesOnly ? 'bg-yellow-500 text-black' : 'bg-black/30 text-gray-300'}`}>
+              <Star size={14} />
+            </button>
+          </div>
           
           <button
             onClick={() => { setEquipModalOpen(false); setSelectedSlot(null); }}
@@ -546,6 +599,12 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
                 className="px-4 py-2 bg-amber-700 text-white hover:bg-amber-600 transition-colors rounded flex items-center gap-2 font-bold"
             >
                 <ShoppingBag size={18} /> Shop
+            </button>
+            <button 
+              onClick={() => setBlacksmithOpen(true)}
+              className="px-4 py-2 bg-slate-800 text-white hover:bg-slate-700 transition-colors rounded flex items-center gap-2 font-bold"
+            >
+              Blacksmith
             </button>
             <button 
                 onClick={() => setIsAdding(!isAdding)}
@@ -682,6 +741,14 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
       inventory={items}
       onSell={handleShopSell}
       characterLevel={characterLevel}
+    />
+    <BlacksmithModal
+      open={blacksmithOpen}
+      onClose={() => setBlacksmithOpen(false)}
+      items={items}
+      setItems={setItems}
+      gold={gold}
+      setGold={setGold}
     />
     </div>
   );

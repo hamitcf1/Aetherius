@@ -6,6 +6,7 @@ import { RestModal, EatModal, DrinkModal, type RestOptions } from './SurvivalMod
 import { formatSkyrimDateShort } from '../utils/skyrimCalendar';
 import { getItemStats, shouldHaveStats } from '../services/itemStats';
 import { DropdownSelector, getEasterEggName } from './GameFeatures';
+import SpellsModal from './SpellsModal';
 
 interface CharacterSheetProps {
   character: Character;
@@ -189,6 +190,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
   const [perkSort, setPerkSort] = useState<'name' | 'skill'>('skill');
   const [isExporting, setIsExporting] = useState(false);
   const [isGeneratingProfileImage, setIsGeneratingProfileImage] = useState(false);
+  const [spellsOpen, setSpellsOpen] = useState(false);
   
   // Survival modal states
   const [restModalOpen, setRestModalOpen] = useState(false);
@@ -913,6 +915,12 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
             />
           )}
 
+          <div className="flex justify-end mb-4">
+            <button onClick={() => setSpellsOpen(true)} className="px-3 py-1 bg-blue-800 text-white rounded flex items-center gap-2">
+              <Zap /> Spells
+            </button>
+          </div>
+
           <Section title="Identity & Psychology" icon={<User />} defaultOpen={true}>
              <div className="mb-4">
                  <label className="text-sm uppercase tracking-wider text-gray-400 font-bold mb-2 block">Gender</label>
@@ -937,6 +945,9 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
             </div>
             <TextAreaField label="Breaking Point" value={character.breakingPoint} onChange={(v) => updateCharacter('breakingPoint', v)} placeholder="What finally makes them snap?" rows={2} />
           </Section>
+          {spellsOpen && (
+            <SpellsModal character={character} onClose={() => setSpellsOpen(false)} onLearn={() => {}} />
+          )}
           
           <Section title="Talents & Skills" icon={<Sparkles />}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

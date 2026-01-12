@@ -126,12 +126,21 @@ export interface InventoryItem {
   quantity: number;
   equipped: boolean;
   createdAt?: number;
+  // Favorites flag (player-specific)
+  isFavorite?: boolean;
   // Equipment stats
   slot?: EquipmentSlot;
   armor?: number;
   damage?: number;
   weight?: number;
   value?: number;
+  // Upgrade fields for blacksmith system
+  upgradeLevel?: number; // current upgrade tier (0 = base)
+  maxUpgradeLevel?: number; // optional per-item override for max upgrades
+  // Optional explicit hints
+  handedness?: 'one-handed' | 'two-handed' | 'off-hand-only';
+  // If this item represents a spell tome or teaches a spell, set the spell id here
+  spellId?: string;
 }
 
 export interface QuestStep {

@@ -94,6 +94,7 @@ import { getItemStats, shouldHaveStats } from './services/itemStats';
 import { updateMusicForContext, AmbientContext, audioService, playMusic } from './services/audioService';
 import { getSkyrimCalendarDate, formatSkyrimDate, formatSkyrimDateShort } from './utils/skyrimCalendar';
 import { getRateLimitStats, generateAdventureResponse } from './services/geminiService';
+import { learnSpell, getSpellById } from './services/spells';
 import type { ShopItem } from './components/ShopModal';
 import { getDefaultSlotForItem } from './components/EquipmentHUD';
 import type { PreferredAIModel } from './services/geminiService';
@@ -155,8 +156,31 @@ const sanitizeInventoryItem = (item: Partial<InventoryItem>): Partial<InventoryI
   if (clean.weight === undefined || !Number.isFinite(clean.weight)) delete clean.weight;
   if (clean.value === undefined || !Number.isFinite(clean.value)) delete clean.value;
 
-  // Do NOT default potion subtype to 'health' here. Leave subtype undefined so
-  // the centralized resolver can infer or reject it at runtime.
+  // For potions: attempt to infer subtype and numeric amount from name/description
+  // so items added via shop/loot without explicit `damage` still function.
+  if (clean.type === 'potion') {
+    const text = ((clean.description || '') + ' ' + (clean.name || '')).toLowerCase();
+    if (!clean.subtype) {
+      if (text.includes('health') || text.includes('heal')) clean.subtype = 'health';
+      else if (text.includes('magicka') || text.includes('mana')) clean.subtype = 'magicka';
+      else if (text.includes('stamina') || text.includes('endurance')) clean.subtype = 'stamina';
+    }
+    if (clean.damage === undefined || !Number.isFinite(clean.damage)) {
+      const m = text.match(/(-?\d+(?:\.\d+)?)/);
+      if (m) {
+        const parsed = Number(m[1]);
+        if (!Number.isNaN(parsed)) clean.damage = parsed;
+      }
+    }
+  }
+
+  // Ensure favorite flag is boolean and default to false when missing
+  if (clean.isFavorite === undefined || clean.isFavorite === null) {
+    clean.isFavorite = false;
+  } else {
+    clean.isFavorite = !!clean.isFavorite;
+  }
+
   return clean;
 };
 
@@ -1324,14 +1348,48 @@ const App: React.FC = () => {
     
     // Scale by hours (base is 8 hours)
     const scaledReduction = Math.round(fatigueReduction * (options.hours / 8));
-    
+
     // Deduct gold for inn
     const goldChange = options.type === 'inn' && options.innCost ? -options.innCost : 0;
-    
-    handleGameUpdate({ 
-      timeAdvanceMinutes: options.hours * 60, 
+
+    // Determine vitals recovery percent based on rest quality and duration
+    // inn = full (100%), camp = ~75%, outside = ~35% base; scale linearly with hours/8
+    const baseRecover = options.type === 'inn' ? 1.0 : options.type === 'camp' ? 0.75 : 0.35;
+    // Reduce effectiveness if resting while in active combat state
+    const inCombatPenalty = combatState ? 0.5 : 1.0;
+    const recoverPercent = Math.max(0, Math.min(1, baseRecover * (options.hours / 8) * inCombatPenalty));
+
+    // Compute amounts to restore based on max stats and current vitals
+    const max = activeCharacter.stats;
+    const currentVitals = activeCharacter.currentVitals || {
+      currentHealth: activeCharacter.stats.health,
+      currentMagicka: activeCharacter.stats.magicka,
+      currentStamina: activeCharacter.stats.stamina
+    };
+
+    const healthRestore = Math.floor((max.health - (currentVitals.currentHealth || max.health)) * recoverPercent);
+    const magickaRestore = Math.floor((max.magicka - (currentVitals.currentMagicka || max.magicka)) * recoverPercent);
+    const staminaRestore = Math.floor((max.stamina - (currentVitals.currentStamina || max.stamina)) * recoverPercent);
+
+    const vitalsChange: any = {};
+    if (healthRestore > 0) vitalsChange.currentHealth = healthRestore;
+    if (magickaRestore > 0) vitalsChange.currentMagicka = magickaRestore;
+    if (staminaRestore > 0) vitalsChange.currentStamina = staminaRestore;
+
+    // Narrative to record in journal/logs
+    const parts: string[] = [];
+    if (healthRestore > 0) parts.push(`${healthRestore} health`);
+    if (magickaRestore > 0) parts.push(`${magickaRestore} magicka`);
+    if (staminaRestore > 0) parts.push(`${staminaRestore} stamina`);
+    const recoveredText = parts.length ? `Recovered ${parts.join(', ')}.` : 'No vitals recovered.';
+    const combatNote = combatState ? ' Rest was fitful due to nearby dangers.' : '';
+
+    handleGameUpdate({
+      timeAdvanceMinutes: options.hours * 60,
       needsChange: { fatigue: -scaledReduction },
-      goldChange
+      goldChange,
+      vitalsChange,
+      narrative: { title: `Rested for ${options.hours}h`, content: `${recoveredText}${combatNote}` }
     });
   };
 
@@ -1371,10 +1429,9 @@ const App: React.FC = () => {
 
     if (item.type === 'potion') {
       const resolved = resolvePotionEffect(item);
-      if (!resolved.stat) {
-        console.error('[app] Potion stat unresolved for', item.name, 'reason=', resolved.reason);
-        showToast(`The effect of ${item.name} is unclear and it has no effect.`, 'warning');
-      } else {
+
+      // If resolver produced a stat-based effect, apply vitals change
+      if (resolved.stat) {
         const amount = resolved.amount ?? item.damage ?? 0;
         if (!amount || amount <= 0) {
           showToast(`The ${item.name} seems to be empty.`, 'warning');
@@ -1395,6 +1452,61 @@ const App: React.FC = () => {
             showToast(`No effect from ${item.name}.`, 'warning');
           }
         }
+
+      // Non-stat potions: handle known special effects by keyword
+      } else {
+        const name = (item.name || '').toLowerCase();
+        const desc = (item.description || '').toLowerCase();
+
+        // Cure disease / poison
+        if (name.includes('cure') && (name.includes('disease') || desc.includes('disease'))) {
+          handleGameUpdate({ removedItems: [{ name: item.name, quantity: 1 }] });
+          showToast(`Cured diseases.`, 'success');
+        } else if (name.includes('cure') && (name.includes('poison') || desc.includes('poison'))) {
+          handleGameUpdate({ removedItems: [{ name: item.name, quantity: 1 }] });
+          showToast(`Cured poison.`, 'success');
+
+        // Invisibility
+        } else if (name.includes('invis') || name.includes('invisibility') || desc.includes('invisible')) {
+          const durationMatch = desc.match(/(\d+)\s*(seconds|second|s)/);
+          const duration = durationMatch ? Number(durationMatch[1]) : 30;
+          const effect = {
+            id: `potion_invis_${Date.now()}`,
+            name: 'Invisibility',
+            type: 'buff' as const,
+            icon: '👁️‍🗨️',
+            duration,
+            description: `Invisible for ${duration} seconds.`,
+            effects: [] as any[],
+          };
+          setStatusEffects(prev => [...prev, effect as any]);
+          handleGameUpdate({ removedItems: [{ name: item.name, quantity: 1 }] });
+          showToast(`You are invisible for ${duration} seconds.`, 'success');
+
+        // Resistances (e.g., Resist Fire 50% for 60 seconds)
+        } else if (name.includes('resist') || desc.includes('resist')) {
+          const pctMatch = desc.match(/(\d+)%/);
+          const secondsMatch = desc.match(/(\d+)\s*(seconds|second|s)/);
+          const pct = pctMatch ? Number(pctMatch[1]) : undefined;
+          const seconds = secondsMatch ? Number(secondsMatch[1]) : 60;
+          const which = desc.includes('fire') ? 'fire' : desc.includes('frost') ? 'frost' : desc.includes('shock') ? 'shock' : 'unknown';
+          const effect = {
+            id: `potion_resist_${which}_${Date.now()}`,
+            name: `Resist ${which}`,
+            type: 'buff' as const,
+            icon: '🛡️',
+            duration: seconds,
+            description: pct ? `Resist ${pct}% ${which} for ${seconds}s` : `Resist ${which} for ${seconds}s`,
+            effects: pct ? [{ stat: which, modifier: pct }] as any[] : [] as any[],
+          };
+          setStatusEffects(prev => [...prev, effect as any]);
+          handleGameUpdate({ removedItems: [{ name: item.name, quantity: 1 }] });
+          showToast(effect.description, 'success');
+
+        } else {
+          console.error('[app] Potion stat unresolved for', item.name, 'reason=', resolved.reason);
+          showToast(`The effect of ${item.name} is unclear and it has no effect.`, 'warning');
+        }
       }
 
     } else if (item.type === 'food') {
@@ -1410,6 +1522,26 @@ const App: React.FC = () => {
       });
       showToast(`Used ${item.name}`, 'info');
     }
+    // Spell Tome / Book learning support (generic)
+    try {
+      const name = (item.name || '').toLowerCase();
+      const desc = (item.description || '').toLowerCase();
+      if (name.includes('spell tome') || name.includes('tome') || desc.includes('teaches')) {
+        // Try to parse spell id from description: 'teaches: flames' or 'teaches Flames'
+        const m = (item.description || '').match(/teaches[:\s]+([a-zA-Z0-9_\- ]+)/i);
+        let spellId = m ? m[1].trim().toLowerCase().replace(/\s+/g, '_') : 'flames';
+        const spell = getSpellById(spellId) || getSpellById('flames');
+        if (spell) {
+          const learned = learnSpell(currentCharacterId!, spell.id);
+          if (learned) {
+            handleGameUpdate({ removedItems: [{ name: item.name, quantity: 1 }] });
+            showToast(`Learned spell: ${spell.name}`, 'success');
+          } else {
+            showToast(`You already know ${spell.name}.`, 'info');
+          }
+        }
+      }
+    } catch (e) {}
   };
 
   // Shop purchase handler
@@ -1417,7 +1549,7 @@ const App: React.FC = () => {
     if (!currentCharacterId || !activeCharacter) return;
     const totalCost = shopItem.price * quantity;
     if ((activeCharacter.gold || 0) < totalCost) {
-      alert('Not enough gold!');
+      showToast('Not enough gold!', 'error');
       return;
     }
     
@@ -2459,14 +2591,19 @@ const App: React.FC = () => {
           ));
           if (imageUrl) updateCharacter('profileImage', imageUrl);
         } catch (e) {
-          alert('Profile image generation failed.');
+          showToast('Profile image generation failed.', 'error');
         }
       },
       isGeneratingProfileImage: false, // (Optional: implement spinner state if needed)
-      handleCreateImagePrompt: () => {
-        if (!activeCharacter) return;
+      handleCreateImagePrompt: async () => {
+        if (!activeCharacter || !navigator.clipboard) return;
         const prompt = `${getEasterEggName(activeCharacter.name)}, a ${activeCharacter.gender} ${activeCharacter.race} ${activeCharacter.archetype}. ${activeCharacter.identity} ${activeCharacter.psychology} ${activeCharacter.magicApproach}`;
-        window.prompt('Copy this prompt for AI image generation:', prompt);
+        try {
+          await navigator.clipboard.writeText(prompt);
+          showToast('Image prompt copied to clipboard.', 'success');
+        } catch (e) {
+          showToast('Failed to copy prompt to clipboard.', 'warning');
+        }
       },
       handleUploadPhoto: () => {}, // TODO: Implement upload
       // New survival & shop handlers
@@ -2475,6 +2612,7 @@ const App: React.FC = () => {
       handleDrinkItem,
       handleShopPurchase,
       handleShopSell,
+      showToast,
       gold: activeCharacter?.gold || 0,
       inventory: getCharacterItems(),
       hasCampingGear,

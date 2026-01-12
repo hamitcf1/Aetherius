@@ -15,8 +15,10 @@ import {
   CombatActionType
 } from '../types';
 import { getFoodNutrition } from './nutritionData';
+import { isTwoHandedWeapon, isSmallWeapon, isShield } from './equipment';
 import { applyStatToVitals, modifyPlayerCombatStat } from './vitals';
 import { resolvePotionEffect } from './potionResolver';
+import { getLearnedSpellIds, createAbilityFromSpell } from './spells';
 
 // ============================================================================
 // DYNAMIC ENEMY NAME POOLS - For variation
@@ -169,10 +171,21 @@ export const calculatePlayerCombatStats = (
   let magicResist = 0;
 
   // Calculate from equipment
+  let mainWeapon = equippedItems.find(i => i.slot === 'weapon' && i.type === 'weapon');
+  const offhandItem = equippedItems.find(i => i.slot === 'offhand');
+
   equippedItems.forEach(item => {
     if (item.armor) armor += item.armor;
-    if (item.damage) weaponDamage = Math.max(weaponDamage, item.damage);
   });
+
+  if (mainWeapon && mainWeapon.damage) {
+    weaponDamage = mainWeapon.damage;
+  } else {
+    // fallback to highest-damage equipped item
+    equippedItems.forEach(item => {
+      if (item.damage) weaponDamage = Math.max(weaponDamage, item.damage);
+    });
+  }
 
   // Skill bonuses
   const getSkillLevel = (name: string) => 
@@ -243,6 +256,19 @@ const generatePlayerAbilities = (
     cost: 10, // stamina
     description: 'A basic attack with your equipped weapon.'
   });
+
+  // Off-hand attack if dual-wielding a small weapon
+  const offhandWeapon = equipment.find(i => i.equipped && i.slot === 'offhand' && i.type === 'weapon');
+  if (offhandWeapon && isSmallWeapon(offhandWeapon)) {
+    abilities.push({
+      id: 'offhand_attack',
+      name: `Off-hand: ${offhandWeapon.name}`,
+      type: 'melee',
+      damage: Math.max(5, Math.floor((offhandWeapon.damage || 6) * 0.6)),
+      cost: 8,
+      description: `A quick off-hand strike with ${offhandWeapon.name}.`
+    });
+  }
 
   // Power Attack (if stamina > 25 and weapon skill > 20)
   const weaponSkill = Math.max(getSkillLevel('One-Handed'), getSkillLevel('Two-Handed'));
@@ -355,6 +381,17 @@ const generatePlayerAbilities = (
       description: 'A carefully aimed arrow for extra damage.',
       effects: [{ type: 'damage', value: Math.floor(archerySkill * 0.2), chance: 100 }]
     });
+  }
+
+  // Learned spells (from spells registry) -> turn into abilities
+  try {
+    const learned = getLearnedSpellIds(character.id || '');
+    learned.forEach(spellId => {
+      const ab = createAbilityFromSpell(spellId);
+      if (ab) abilities.push(ab as any);
+    });
+  } catch (e) {
+    // If anything goes wrong reading spells, ignore — spells are optional
   }
 
   return abilities;
