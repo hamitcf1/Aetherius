@@ -55,13 +55,13 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm, onF
 
   return (
     <ModalWrapper open={open} onClose={onClose} preventOutsideClose>
-      <div className="w-[760px] max-h-[80vh] overflow-auto bg-skyrim-paper p-6 rounded border border-skyrim-border">
+      <div className="w-full max-w-[760px] h-[min(90vh,calc(100vh-2rem))] sm:max-h-[80vh] overflow-auto bg-skyrim-paper p-4 sm:p-6 rounded border border-skyrim-border">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-skyrim-gold">Perk Tree</h3>
           <div className="text-sm text-gray-300">Available Points: <span className="font-bold text-skyrim-gold">{availablePoints}</span></div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {defs.map(def => {
             const st = statusOf(def);
             const curr = currentPerkRank(character, def.id);
@@ -89,7 +89,7 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm, onF
           })}
         </div>
 
-        <div className="mt-4 p-4 bg-black/30 border border-skyrim-border rounded">
+        <div className="mt-4 p-3 bg-black/30 border border-skyrim-border rounded">
           {selected ? (
             (() => {
               const def = defs.find(d => d.id === selected)!;
@@ -157,7 +157,7 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm, onF
           )}
         </div>
 
-        <div className="flex items-center justify-between mt-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mt-4 gap-3">
           <div className="text-sm text-gray-300">Staged: <span className="text-skyrim-gold font-bold">{stagedCount}</span> / {availablePoints}</div>
           <div className="flex gap-2">
             <button onClick={() => { setStagedMap({}); setSelected(null); onClose(); }} className="px-4 py-2 rounded border border-skyrim-border">Cancel</button>

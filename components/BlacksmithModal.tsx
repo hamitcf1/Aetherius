@@ -48,7 +48,7 @@ export function BlacksmithModal({ open, onClose, items, setItems, gold, setGold 
 
   return (
     <ModalWrapper open={open} onClose={onClose} zIndex="z-[80]">
-      <div className="bg-skyrim-paper border-2 border-skyrim-border rounded-lg p-6 w-[720px] max-w-full max-h-[80vh] overflow-hidden">
+      <div className="bg-skyrim-paper border-2 border-skyrim-border rounded-lg p-4 sm:p-6 w-full max-w-[720px] h-[min(92vh,calc(100vh-2rem))] sm:max-h-[80vh] overflow-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-serif text-skyrim-gold">Blacksmith</h2>
           <div className="flex items-center gap-2 text-sm text-gray-200">
@@ -56,8 +56,8 @@ export function BlacksmithModal({ open, onClose, items, setItems, gold, setGold 
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-1">
             <h3 className="text-sm text-gray-400 mb-2">Eligible Items</h3>
             <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
               {eligible.map(it => (
@@ -78,11 +78,11 @@ export function BlacksmithModal({ open, onClose, items, setItems, gold, setGold 
             </div>
           </div>
 
-          <div className="col-span-2">
+          <div className="md:col-span-2">
             <h3 className="text-sm text-gray-400 mb-2">Details</h3>
             {!selected && <div className="text-gray-500 italic">Select an item to view upgrade options.</div>}
             {selected && (
-              <div className="bg-black/30 p-4 rounded border border-skyrim-border">
+              <div className="bg-black/30 p-3 sm:p-4 rounded border border-skyrim-border">
                 <div className="flex items-start gap-4">
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
@@ -137,7 +137,7 @@ export function BlacksmithModal({ open, onClose, items, setItems, gold, setGold 
                   </div>
                 </div>
 
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-col sm:flex-row gap-2">
                   <button onClick={handleConfirm} className="px-4 py-2 bg-skyrim-gold text-skyrim-dark rounded font-bold">Confirm Upgrade</button>
                   <button onClick={onClose} className="px-4 py-2 bg-gray-600 text-white rounded">Cancel</button>
                 </div>
