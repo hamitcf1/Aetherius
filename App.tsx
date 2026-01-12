@@ -3067,7 +3067,7 @@ const App: React.FC = () => {
             character={activeCharacter}
             inventory={getCharacterItems()}
             initialCombatState={combatState}
-            onCombatEnd={(result, rewards, finalVitals, timeAdvanceMinutes) => {
+            onCombatEnd={(result, rewards, finalVitals, timeAdvanceMinutes, combatResult) => {
               setCombatState(null);
               updateMusicForContext({ inCombat: false, mood: result === 'victory' ? 'triumphant' : 'peaceful' });
               if (result === 'victory' && rewards) {
@@ -3143,12 +3143,17 @@ const App: React.FC = () => {
                   } catch (e) {
                     aiContextObj = {};
                   }
-                  aiContextObj.combatOutcome = {
-                    result,
-                    rewards: rewards || null,
-                    finalVitals: finalVitals || null,
-                    timeAdvanceMinutes: timeAdvanceMinutes || null
-                  };
+                  // Prefer the full combatResult when available (stronger context)
+                  if (combatResult) {
+                    aiContextObj.combatResult = combatResult;
+                  } else {
+                    aiContextObj.combatOutcome = {
+                      result,
+                      rewards: rewards || null,
+                      finalVitals: finalVitals || null,
+                      timeAdvanceMinutes: timeAdvanceMinutes || null
+                    };
+                  }
                   const resp = await generateAdventureResponse(playerInput, JSON.stringify(aiContextObj), `Continue the adventure and branch according to combat outcome. Do not grant duplicate rewards.`);
                   // Apply generated updates to game state so the adventure continues
                   if (resp) handleGameUpdate(resp);

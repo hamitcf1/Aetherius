@@ -37,7 +37,7 @@ interface CombatModalProps {
     xp: number;
     gold: number;
     items: Array<{ name: string; type: string; description: string; quantity: number }>;
-  }, finalVitals?: { health: number; magicka: number; stamina: number }, timeAdvanceMinutes?: number) => void;
+  }, finalVitals?: { health: number; magicka: number; stamina: number }, timeAdvanceMinutes?: number, combatResult?: any) => void;
   onNarrativeUpdate?: (narrative: string) => void;
   onInventoryUpdate?: (items: InventoryItem[] | Array<{ name: string; quantity: number }>) => void;
   showToast?: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
@@ -326,11 +326,21 @@ export const CombatModal: React.FC<CombatModalProps> = ({
           // For victory we enter loot phase and wait until loot is finalized before showing victory
           // Fled or surrendered - end immediately
           if (combatState.result !== 'victory') {
+            const builtCombatResult = combatState.combatResult || {
+              id: combatState.id || `combat_${Date.now()}`,
+              result: combatState.result || 'unresolved',
+              winner: combatState.result === 'defeat' ? 'enemy' : 'unresolved',
+              survivors: combatState.enemies.filter(e => e.currentHealth > 0).map(e => ({ id: e.id, name: e.name, currentHealth: e.currentHealth })),
+              playerStatus: { currentHealth: playerStats.currentHealth, currentMagicka: playerStats.currentMagicka, currentStamina: playerStats.currentStamina, isAlive: playerStats.currentHealth > 0 },
+              rewards: combatState.rewards || undefined,
+              timestamp: Date.now()
+            };
+
             onCombatEnd(combatState.result, undefined, {
               health: playerStats.currentHealth,
               magicka: playerStats.currentMagicka,
               stamina: playerStats.currentStamina
-            });
+            }, undefined, builtCombatResult);
           }
         }
         setIsAnimating(false);
@@ -407,12 +417,12 @@ export const CombatModal: React.FC<CombatModalProps> = ({
         // Attach combatResult to state for observability
         setCombatState(prev => ({ ...prev, combatResult } as any));
 
-        // Propagate final result so App can apply narrative and auto-resume
+        // Propagate final result so App can apply narrative and auto-resume (include full combatResult)
         onCombatEnd && onCombatEnd('victory', newState.rewards, {
           health: playerStats.currentHealth,
           magicka: playerStats.currentMagicka,
           stamina: playerStats.currentStamina
-        }, Math.max(0, Math.round((newState.combatElapsedSec || 0) / 60)));
+        }, Math.max(0, Math.round((newState.combatElapsedSec || 0) / 60)), combatResult);
       } catch (e) {
         // Fallback: if finalize fails, open the normal loot modal so the player can continue manually
         console.error('Auto-finalize loot failed, falling back to manual loot phase:', e);
@@ -667,11 +677,20 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   // Close defeat screen
   const handleDefeatClose = () => {
     const minutes = Math.max(1, Math.ceil((combatState.combatElapsedSec || 0) / 60));
+    const builtCombatResult = combatState.combatResult || {
+      id: combatState.id || `combat_${Date.now()}`,
+      result: 'defeat' as const,
+      winner: 'enemy' as const,
+      survivors: combatState.enemies.filter(e => e.currentHealth > 0).map(e => ({ id: e.id, name: e.name, currentHealth: e.currentHealth })),
+      playerStatus: { currentHealth: 0, currentMagicka: playerStats.currentMagicka, currentStamina: playerStats.currentStamina, isAlive: false },
+      rewards: combatState.rewards || undefined,
+      timestamp: Date.now()
+    };
     onCombatEnd('defeat', undefined, {
       health: 0,
       magicka: playerStats.currentMagicka,
       stamina: playerStats.currentStamina
-    }, minutes);
+    }, minutes, builtCombatResult);
   };
 
   const isPlayerTurn = combatState.currentTurnActor === 'player' && combatState.active;

@@ -100,6 +100,19 @@
       *, *::before, *::after {
         border-color: var(--skyrim-border, #4a4a4a) !important;
       }
+
+      /* Ensure form controls follow the project theme (fix white backgrounds) */
+      input[type="text"], input[type="password"], input[type="email"], input[type="number"], input[type="search"], textarea, select, [contenteditable="true"] {
+        background-color: var(--skyrim-paper) !important;
+        color: var(--skyrim-text) !important;
+        border-color: var(--skyrim-border) !important;
+        -webkit-text-fill-color: var(--skyrim-text) !important;
+      }
+      input::placeholder, textarea::placeholder {
+        color: rgba(209,209,209,0.55) !important;
+      }
+      textarea { resize: vertical; }
+      input[disabled], textarea[disabled], [contenteditable="false"] { opacity: 0.6; }
     </style>
   <script type="importmap">
 {
