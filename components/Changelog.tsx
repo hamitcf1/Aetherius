@@ -18,6 +18,18 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.5.2',
+    date: '2026-01-12',
+    title: 'Bonfire (Rest) menu + rest handling fixes',
+    changes: [
+      { type: 'feature', text: 'Bonfire Menu: Prepare & Rest overlay — equipment staging, apply changes, and confirm rest' },
+      { type: 'fix', text: 'AdventureChat: detect rest actions and open Bonfire preview instead of auto-applying; fixed try/catch flow' },
+      { type: 'fix', text: 'BonfireMenu: fixed TypeScript typing (Map generics) to resolve compile errors' },
+      { type: 'improvement', text: 'Bonfire accessible from Hero Menu and Adventure Chat; staged changes reversible until applied' },
+      { type: 'fix', text: 'Build & lint cleanups following recent edits' },
+    ]
+  },
+  {
     version: '0.5.1',
     date: '2026-01-12',
     title: 'Bug fixes, type-safety and responsive UI updates',
