@@ -47,34 +47,34 @@ const DEFAULT_CONFIG: AudioConfig = {
 
 // Sound effect paths (to be populated with actual sound files)
 const SOUND_EFFECTS: Record<SoundEffect, string | null> = {
-  purchase: '/audio/sfx/purchase.mp3',       // drop at public/audio/sfx/
-  sell: '/audio/sfx/sell.mp3',
-  gold_gain: '/audio/sfx/gold_gain.mp3',
-  gold_spend: '/audio/sfx/gold_spend.mp3',
-  item_pickup: '/audio/sfx/item_pickup.mp3',
-  item_equip: '/audio/sfx/item_equip.mp3',
-  item_unequip: '/audio/sfx/item_unequip.mp3',
-  level_up: '/audio/sfx/level_up.mp3',
-  quest_complete: '/audio/sfx/quest_complete.mp3',
-  quest_start: '/audio/sfx/quest_start.mp3',
-  eat: '/audio/sfx/eat.mp3',
-  drink: '/audio/sfx/drink.mp3',
-  rest: '/audio/sfx/rest.mp3',
-  menu_open: '/audio/sfx/menu_open.mp3',
-  menu_close: '/audio/sfx/menu_close.mp3',
-  button_click: '/audio/sfx/button_click.mp3',
-  error: '/audio/sfx/error.mp3',
-  success: '/audio/sfx/success.mp3',
+  purchase: './audio/sfx/purchase.mp3',       // drop at public./audio/sfx/
+  sell: './audio/sfx/sell.mp3',
+  gold_gain: './audio/sfx/gold_gain.mp3',
+  gold_spend: './audio/sfx/gold_spend.mp3',
+  item_pickup: './audio/sfx/item_pickup.mp3',
+  item_equip: './audio/sfx/item_equip.mp3',
+  item_unequip: './audio/sfx/item_unequip.mp3',
+  level_up: './audio/sfx/level_up.mp3',
+  quest_complete: './audio/sfx/quest_complete.mp3',
+  quest_start: './audio/sfx/quest_start.mp3',
+  eat: './audio/sfx/eat.mp3',
+  drink: './audio/sfx/drink.mp3',
+  rest: './audio/sfx/rest.mp3',
+  menu_open: './audio/sfx/menu_open.mp3',
+  menu_close: './audio/sfx/menu_close.mp3',
+  button_click: './audio/sfx/button_click.mp3',
+  error: './audio/sfx/error.mp3',
+  success: './audio/sfx/success.mp3',
 };
 
 // Music track paths (to be populated with actual music files)
 const MUSIC_TRACKS: Record<MusicTrack, string | null> = {
-  main_menu: '/audio/music/main_menu.mp3',
-  exploration: '/audio/music/exploration.mp3',
-  tavern: '/audio/music/tavern.mp3',
-  combat: '/audio/music/combat.mp3',
-  peaceful: '/audio/music/peaceful.mp3',
-  night: '/audio/music/night.mp3',
+  main_menu: './audio/music/main_menu.mp3',
+  exploration: './audio/music/exploration.mp3',
+  tavern: './audio/music/tavern.mp3',
+  combat: './audio/music/combat.mp3',
+  peaceful: './audio/music/peaceful.mp3',
+  night: './audio/music/night.mp3',
 };
 
 class AudioService {

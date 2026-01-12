@@ -3131,13 +3131,18 @@ const App: React.FC = () => {
               }
 
               // Emit a CombatResolved event (for subscribers wanting a deterministic signal)
-              try {
-                const { emitCombatResolved } = await import('./services/events');
-                emitCombatResolved({ result, rewards, finalVitals, timeAdvanceMinutes, combatResult });
-              } catch (e) {
-                // non-fatal - continue
-                console.warn('Failed to emit CombatResolved event:', e);
-              }
+              // Fire-and-forget dynamic import to emit CombatResolved without making onCombatEnd async
+              import('./services/events')
+                .then(m => {
+                  try {
+                    m.emitCombatResolved({ result, rewards, finalVitals, timeAdvanceMinutes, combatResult });
+                  } catch (e) {
+                    console.warn('Failed to emit CombatResolved event (subscriber error):', e);
+                  }
+                })
+                .catch(e => {
+                  console.warn('Failed to import Combat events module:', e);
+                });
 
               // Automatically resume the adventure by asking the Game Master to continue
               (async () => {

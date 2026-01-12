@@ -165,7 +165,7 @@ Violations must be blocked at output validation.
 
 **Simulation:** ✅ Added `scripts/simulate_adventure_sanitize.js` and `npm run simulate:adventure` to demonstrate: a simulated AI response that attempted to award gold/XP and items is rejected (validation errors) and the narrative numeric deltas are sanitized to neutral phrases.
 
-**Event Emitter:** ✅ Added lightweight `services/events.ts` with `subscribeToCombatResolved` / `emitCombatResolved`; `App.tsx` now emits `CombatResolved` when combat ends.
+**Event Emitter:** ✅ Added lightweight `services/events.ts` with `subscribeToCombatResolved` / `emitCombatResolved`; `App.tsx` now emits `CombatResolved` when combat ends, and `AdventureChat` subscribes to narrate confirmed combat outcomes (narrative-only).
 
 ---
 

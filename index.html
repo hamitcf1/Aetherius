@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Skyrim Aetherius</title>
-    <link rel="icon" type="image/svg+xml" href="/public/skyrim-favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="./public/skyrim-favicon.svg" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -46,14 +46,14 @@
       /* Use native system cursors (prefer OS defaults instead of custom PNGs) */
       /* Skyrim-style custom cursors - PNG must be 32x32 max */
       *, *::before, *::after {
-        cursor: url('/cursor-default.png') 0 0, auto;
+        cursor: url('./cursor-default.png') 0 0, auto;
       }
       
       a, button, [role="button"], 
       input[type="submit"], input[type="button"], input[type="reset"],
       select, .cursor-pointer, [onclick], label, summary,
       [tabindex]:not([tabindex="-1"]) {
-        cursor: url('/cursor-pointer.png') 6 0, pointer !important;
+        cursor: url('./cursor-pointer.png') 6 0, pointer !important;
       }
       
       input[type="text"], input[type="password"], input[type="email"], 
@@ -132,7 +132,7 @@
 </head>
   <body>
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-  <script type="module" src="/console-demo.js"></script>
+  <script type="module" src="./index.tsx"></script>
+  <script type="module" src="./console-demo.js"></script>
 </body>
 </html>

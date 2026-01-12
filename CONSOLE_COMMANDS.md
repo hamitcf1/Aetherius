@@ -200,4 +200,4 @@ The demo commands are loaded automatically. If you need to modify or extend them
 - Batch operations
 - Performance testing tools
 - Automated test suites</content>
-<parameter name="filePath">c:\Users\hamit\Desktop\skyrim-aetherius\Aetherius\CONSOLE_COMMANDS.md
+<parameter name="filePath">./CONSOLE_COMMANDS.md
