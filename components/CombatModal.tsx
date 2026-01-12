@@ -24,6 +24,7 @@ import {
 } from '../services/combatService';
 import { LootModal } from './LootModal';
 import { populatePendingLoot, finalizeLoot } from '../services/lootService';
+import { BASE_PATH } from '../services/basePath';
 import { getEasterEggName } from './GameFeatures';
 import { EquipmentHUD, getDefaultSlotForItem } from './EquipmentHUD';
 import ModalWrapper from './ModalWrapper';
@@ -522,9 +523,9 @@ export const CombatModal: React.FC<CombatModalProps> = ({
 
         try {
           if (last.isCrit) {
-            new Audio('./audio/sfx/crit_player.mp3').play().catch(() => {});
+            new Audio(`${BASE_PATH}/audio/sfx/crit_player.mp3`).play().catch(() => {});
           } else {
-            new Audio('./audio/sfx/hit_player.mp3').play().catch(() => {});
+            new Audio(`${BASE_PATH}/audio/sfx/hit_player.mp3`).play().catch(() => {});
           }
         } catch (e) {}
       }
@@ -662,9 +663,9 @@ export const CombatModal: React.FC<CombatModalProps> = ({
       // Play hit or crit sound if available
       try {
         if (last.isCrit) {
-          new Audio('./audio/sfx/crit.mp3').play().catch(() => {});
+          new Audio(`${BASE_PATH}/audio/sfx/crit.mp3`).play().catch(() => {});
         } else {
-          new Audio('./audio/sfx/hit.mp3').play().catch(() => {});
+          new Audio(`${BASE_PATH}/audio/sfx/hit.mp3`).play().catch(() => {});
         }
       } catch (e) {}
     }
