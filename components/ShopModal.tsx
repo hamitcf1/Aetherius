@@ -13,6 +13,7 @@ export interface ShopItem {
   price: number;
   category: string;
   requiredLevel?: number; // Optional level requirement to unlock item in shop
+  subtype?: 'health' | 'magicka' | 'stamina';
 }
 
 // Comprehensive Skyrim-themed shop inventory

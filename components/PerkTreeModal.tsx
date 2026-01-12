@@ -32,7 +32,7 @@ function prerequisitesMet(char: Character, def: PerkDef) {
   });
 }
 
-export default function PerkTreeModal({ open, onClose, character, onConfirm }: Props) {
+export default function PerkTreeModal({ open, onClose, character, onConfirm, onForceUnlock }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   // staged map: perkId -> stagedRanks
   const [stagedMap, setStagedMap] = useState<Record<string, number>>({});
@@ -40,7 +40,7 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm }: P
   const defs = useMemo(() => PERK_DEFINITIONS, []);
 
   const availablePoints = character.perkPoints || 0;
-  const stagedCount = Object.values(stagedMap).reduce((s, v) => s + (v || 0), 0);
+  const stagedCount = Object.values(stagedMap as Record<string, number>).reduce((s: number, v: number) => s + (v || 0), 0);
   const remainingPoints = Math.max(0, availablePoints - stagedCount);
 
   const statusOf = (def: PerkDef) => {

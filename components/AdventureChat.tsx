@@ -3,6 +3,8 @@ import { MinimalQuestModal } from './MinimalQuestModal';
 import { Character, InventoryItem, CustomQuest, JournalEntry, StoryChapter, GameStateUpdate } from '../types';
 import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X, AlertTriangle, Users, Sun, Moon, Sunrise, Sunset, Clock, Map, Lock, Key, Flag } from 'lucide-react';
 import { EquipmentHUD, getDefaultSlotForItem, SLOT_CONFIGS_EXPORT } from './EquipmentHUD';
+import { isShield, isTwoHandedWeapon } from '../services/equipment';
+import { useAppContext } from '../AppContext';
 import { LockpickingMinigame, LockDifficulty } from './LockpickingMinigame';
 import { SkyrimMap, findLocationByName } from './SkyrimMap';
 import { ThinkingBubble } from './ThinkingBubble';
@@ -529,6 +531,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   story,
   onUpdateState
 }) => {
+  const { showToast } = useAppContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);

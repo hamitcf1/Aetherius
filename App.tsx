@@ -52,7 +52,8 @@ import {
 import { 
   auth,
   onAuthChange, 
-  registerUser, 
+  registerUser,
+  loginUser,
   loginAnonymously,
   logoutUser,
   sendPasswordReset
@@ -1742,10 +1743,10 @@ const App: React.FC = () => {
         type: shopItem.type,
         description: shopItem.description,
         quantity,
-        value: shopItem.price,
-        slot,
+        // `value` and `slot` are intentionally cast to any to avoid strict GameStateUpdate shape
+        ...( { value: shopItem.price, slot } as any ),
         ...stats  // Include armor/damage if applicable
-      }]
+      } as any]
     });
   };
 

@@ -21,10 +21,10 @@ import {
   applyTurnRegen,
   checkCombatEnd
 } from '../services/combatService';
-import { LootModal, LootItem } from './LootModal';
+import { LootModal } from './LootModal';
 import { populatePendingLoot, finalizeLoot } from '../services/lootService';
 import { getEasterEggName } from './GameFeatures';
-import resolvePotionEffect from '../services/potionResolver';
+// resolvePotionEffect is intentionally not used here; potion resolution occurs in services
 
 interface CombatModalProps {
   character: Character;

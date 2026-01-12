@@ -7,7 +7,7 @@ export const computeEnemyXP = (enemy: CombatEnemy) => {
 };
 
 // Generate loot for an enemy based on its loot table
-export const generateEnemyLoot = (enemy: CombatEnemy): Array<{ name: string; type: string; description?: string; quantity: number }> => {
+export const generateEnemyLoot = (enemy: CombatEnemy): Array<{ name: string; type: string; description: string; quantity: number }> => {
   if (!enemy.loot || enemy.loot.length === 0) return [];
 
   return enemy.loot
@@ -15,7 +15,7 @@ export const generateEnemyLoot = (enemy: CombatEnemy): Array<{ name: string; typ
     .map(item => ({
       name: item.name,
       type: item.type,
-      description: item.description,
+      description: item.description || '',
       quantity: item.quantity,
     }));
 };
@@ -40,9 +40,9 @@ export const finalizeLoot = (
   state: CombatState,
   selectedItems: Array<{ name: string; quantity: number }> | null,
   currentInventory: InventoryItem[]
-): { newState: CombatState; updatedInventory: InventoryItem[]; grantedXp: number; grantedGold: number; grantedItems: Array<{ name: string; type: string; description?: string; quantity: number }> } => {
+): { newState: CombatState; updatedInventory: InventoryItem[]; grantedXp: number; grantedGold: number; grantedItems: Array<{ name: string; type: string; description: string; quantity: number }> } => {
   let newState = { ...state };
-  const grantedItems: Array<{ name: string; type: string; description?: string; quantity: number }> = [];
+  const grantedItems: Array<{ name: string; type: string; description: string; quantity: number }> = [];
   let updatedInventory = [...currentInventory];
 
   if (!newState.pendingRewards) newState.pendingRewards = { xp: 0, gold: 0, items: [] };
@@ -60,7 +60,7 @@ export const finalizeLoot = (
     });
 
     const qty = sel.quantity || 1;
-    grantedItems.push({ name: sel.name, type: meta?.type || 'misc', description: meta?.description, quantity: qty });
+    grantedItems.push({ name: sel.name, type: meta?.type || 'misc', description: meta?.description || '', quantity: qty });
 
     // Add to inventory (merge by name)
     const idx = updatedInventory.findIndex(it => it.name === sel.name);

@@ -15,8 +15,8 @@ import {
   CombatActionType
 } from '../types';
 import { getFoodNutrition } from './nutritionData';
-import { isTwoHandedWeapon, isSmallWeapon, isShield } from './equipment';
-import { applyStatToVitals, modifyPlayerCombatStat } from './vitals';
+import { isSmallWeapon } from './equipment';
+import { modifyPlayerCombatStat } from './vitals';
 import { resolvePotionEffect } from './potionResolver';
 import { getLearnedSpellIds, createAbilityFromSpell } from './spells';
 
@@ -147,13 +147,20 @@ const computeDamageFromNat = (
 const validateShieldEquipping = (equipment: InventoryItem[]): InventoryItem[] => {
   return equipment.map(item => {
     const nameLower = (item.name || '').toLowerCase();
-    const looksLikeShield = item.type === 'shield' || nameLower.includes('shield');
+    const looksLikeShield = nameLower.includes('shield') || (item.slot === 'offhand' && (item.armor ?? 0) > 0);
     if (looksLikeShield && item.slot !== 'offhand') {
       console.warn(`Invalid shield slot detected for ${item.name}. Forcing to off-hand.`);
       return { ...item, slot: 'offhand' };
     }
     return item;
   });
+};
+
+const computeEnemyXP = (enemy: Partial<CombatEnemy> | CombatEnemy): number => {
+  const lvl = (enemy.level || 1);
+  const base = Math.max(1, Math.floor(lvl * 10));
+  const bonus = enemy.damage ? Math.floor((enemy.damage || 0) / 2) : 0;
+  return Math.max(5, base + bonus);
 };
 
 export const calculatePlayerCombatStats = (
@@ -1155,6 +1162,8 @@ interface BaseEnemyTemplate {
 
 const BASE_ENEMY_TEMPLATES: Record<string, BaseEnemyTemplate> = {
   bandit: {
+    baseName: 'Bandit',
+    type: 'humanoid',
     baseLevel: 5,
     baseHealth: 50,
     baseArmor: 15,
