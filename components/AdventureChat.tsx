@@ -2079,10 +2079,10 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                               // Ensure only one playback at a time
                               stopPlayback();
 
-                              // Generate audio (ArrayBuffer)
-                              const buffer = await generateTextToSpeech(ttsText, { preferredModel: 'gemini-2.5-flash-tts', format: 'mp3' });
+                              // Generate audio (buffer + mime)
+                              const { buffer, mimeType } = await generateTextToSpeech(ttsText, { preferredModel: 'gemini-2.5-flash-preview-tts', format: 'wav' });
 
-                              const blob = new Blob([buffer], { type: 'audio/mpeg' });
+                              const blob = new Blob([buffer], { type: mimeType || 'audio/wav' });
                               const url = URL.createObjectURL(blob);
                               audioUrlRef.current = url;
                               const audio = new Audio(url);

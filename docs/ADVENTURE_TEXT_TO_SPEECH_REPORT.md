@@ -16,7 +16,7 @@
 ## Playback logic
 - On click:
   1. Sanitize visible narrative text with `sanitizeTextForTTS` (removes mechanical patterns, UI labels, code fences).
-  2. Call `generateTextToSpeech(text, { preferredModel: 'gemini-2.5-flash-tts' })` which returns an ArrayBuffer.
+  2. Call `generateTextToSpeech(text, { preferredModel: 'gemini-2.5-flash-preview-tts' })` which returns a `{ buffer: ArrayBuffer, mimeType: string }` pair; the app constructs a Blob with the provided mime type and plays it.
   3. Create a temporary Blob URL and create an `HTMLAudioElement` to play it.
   4. Ensure only one playback exists at a time by stopping any current audio before starting a new one.
   5. Revoke Blob URL and clear audio references on end/error/stop.

@@ -515,7 +515,7 @@ const getClientForModel = (modelId: string, specificKey?: string): GoogleGenAI =
 export const generateTextToSpeech = async (
   text: string,
   options?: { preferredModel?: string, voice?: string, format?: 'mp3' | 'wav' }
-): Promise<ArrayBuffer> => {
+): Promise<{ buffer: ArrayBuffer; mimeType: string }> => {
   const modelsToTry = (options?.preferredModel ? [options.preferredModel, ...TTS_MODELS] : TTS_MODELS).filter(Boolean);
 
   const errors: any[] = [];
@@ -550,20 +550,30 @@ export const generateTextToSpeech = async (
                    await (ai as any).audio?.speech?.generate?.({ model, voice, input: text, format });
           } catch (e) {
             console.warn('[GeminiService][TTS] audio.speech alternative calls failed:', e?.message || e);
+            // If the error indicates permission/forbidden, mark key exhausted to avoid retrying immediately
+            if (e?.message && /permission|forbidden|reported as leaked|permission_denied|403/i.test(String(e.message))) {
+              if (apiKey) markKeyExhausted(apiKey);
+            }
           }
         }
 
-        // Still no resp? Try model.generateContent variant with audio config (some runtimes support inline audio)
+        // Still no resp? Try models.generateContent variant with AUDIO response modality (some TTS models require AUDIO-only requests)
         if (!resp) {
           try {
-            const attempt = await (ai as any).models?.generateContent?.({
-              model,
-              contents: text,
-              config: { audioConfig: { voice, format } }
-            });
+            // Some SDK versions expect an object with parts or contents array and explicit responseModalities
+            const payload = { model, contents: [{ text }], config: { responseModalities: ['AUDIO'], audioConfig: { voice, format } } };
+            const attempt = await (ai as any).models?.generateContent?.(payload as any);
             resp = attempt;
           } catch (e) {
-            console.warn('[GeminiService][TTS] models.generateContent audioConfig attempt failed:', e?.message || e);
+            console.warn('[GeminiService][TTS] models.generateContent audioConfig attempt failed:', JSON.stringify(e?.response || e?.message || e));
+            // If model doesn't support generateContent for AUDIO, or API returns 404/400, mark accordingly
+            if (e?.response?.status === 404 || String(e?.message || '').toLowerCase().includes('not found')) {
+              // Model not found for this endpoint - try next model
+            }
+            if (e?.response?.status === 403 || /reported as leaked/i.test(String(e?.message || ''))) {
+              // Permissions issue: mark this key exhausted
+              if (apiKey) markKeyExhausted(apiKey);
+            }
           }
         }
 
@@ -576,14 +586,20 @@ export const generateTextToSpeech = async (
         // Helpful debug log to inspect resp shape when empty-ish
         console.debug('[GeminiService][TTS] received resp:', resp);
 
-        // 1) Some SDKs return base64 string in `audio` or `data` or `base64`
+        // 1) Some SDKs return base64 string in `audio` or `data` or `base64` (top-level)
         const base64 = resp.audio || resp.data || resp.base64 || resp.audioContent;
         if (typeof base64 === 'string') {
-          // Strip data url if present
-          const m = base64.match(/^data:audio\/[^;]+;base64,(.*)$/);
-          const payload = m ? m[1] : base64;
+          const m = base64.match(/^data:audio\/([^;]+);base64,(.*)$/);
+          let mimeType = 'audio/mpeg';
+          const payload = m ? m[2] : base64;
+          if (m && m[1]) mimeType = `audio/${m[1]}`;
           const binary = Uint8Array.from(atob(payload), c => c.charCodeAt(0));
-          return binary.buffer;
+          // If mimeType indicates raw PCM (e.g., audio/L16;codec=pcm;rate=24000), convert to WAV
+          if (/L16|pcm/i.test(mimeType)) {
+            const wav = convertRawPcmBase64ToWav(payload, m ? m[0] : mimeType);
+            return { buffer: wav.buffer, mimeType: 'audio/wav' };
+          }
+          return { buffer: binary.buffer, mimeType };
         }
 
         // 2) Some SDKs provide inlineData in candidates parts
@@ -591,31 +607,44 @@ export const generateTextToSpeech = async (
         for (const part of parts) {
           if (part.inlineData && part.inlineData.data) {
             const b64 = part.inlineData.data;
+            const mimeType = part.inlineData.mimeType || 'audio/wav';
             const binary = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-            return binary.buffer;
+            // If mimeType is linear PCM, wrap with WAV header
+            if (/L16|pcm/i.test(mimeType)) {
+              const wav = convertRawPcmBase64ToWav(b64, mimeType);
+              return { buffer: wav.buffer, mimeType: 'audio/wav' };
+            }
+            return { buffer: binary.buffer, mimeType };
           }
         }
 
         // 3) Some SDKs might return an ArrayBuffer directly
         if (resp.arrayBuffer && typeof resp.arrayBuffer === 'function') {
-          return await resp.arrayBuffer();
+          const ab = await resp.arrayBuffer();
+          return { buffer: ab, mimeType: 'audio/wav' };
         }
         if (resp.arrayBuffer && resp.arrayBuffer instanceof ArrayBuffer) {
-          return resp.arrayBuffer as ArrayBuffer;
+          return { buffer: resp.arrayBuffer as ArrayBuffer, mimeType: 'audio/wav' };
         }
 
         // 4) Some SDKs might return `data` as Uint8Array
         if (resp.data && (resp.data instanceof Uint8Array || resp.data instanceof ArrayBuffer)) {
-          return resp.data instanceof Uint8Array ? resp.data.buffer : resp.data as ArrayBuffer;
+          const ab = resp.data instanceof Uint8Array ? resp.data.buffer : resp.data as ArrayBuffer;
+          return { buffer: ab, mimeType: 'audio/wav' };
         }
 
         // 5) Occasionally responses include `candidates` with `audio` fields
         const candidateAudio = (resp.candidates || []).flatMap((c: any) => c.content?.parts || []).find((p: any) => p.inlineData || p.audio);
         if (candidateAudio) {
           const b64 = candidateAudio.inlineData?.data || candidateAudio.audio;
+          const mimeType = candidateAudio.inlineData?.mimeType || 'audio/wav';
           if (b64) {
             const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-            return bin.buffer;
+            if (/L16|pcm/i.test(mimeType)) {
+              const wav = convertRawPcmBase64ToWav(b64, mimeType);
+              return { buffer: wav.buffer, mimeType: 'audio/wav' };
+            }
+            return { buffer: bin.buffer, mimeType };
           }
         }
 
@@ -623,9 +652,17 @@ export const generateTextToSpeech = async (
         console.warn('[GeminiService][TTS] Unknown TTS response format:', resp);
         throw new Error('Unknown TTS response format');
       } catch (err: any) {
+        const msg = String(err?.message || err || '');
         // mark exhausted keys on quota errors
         if (isQuotaError(err)) {
           if (apiKey) markKeyExhausted(apiKey);
+        }
+        // mark exhausted if key reported leaked / permission denied
+        if (/reported as leaked|permission_denied|permission denied|forbidden|403/i.test(msg)) {
+          if (apiKey) {
+            markKeyExhausted(apiKey);
+            console.warn(`[GeminiService][TTS] Marking key ...${apiKey.slice(-4)} exhausted due to permission/leak error: ${msg}`);
+          }
         }
         errors.push(err);
         // try next key
@@ -639,6 +676,52 @@ export const generateTextToSpeech = async (
   const errMsg = last?.message || JSON.stringify(last) || 'Unknown TTS error';
   console.error('[GeminiService][TTS] All models/keys failed:', errMsg);
   throw new Error(`TTS generation failed: ${errMsg}`);
+};
+
+// Helper: convert raw PCM base64 data (mime may include sample rate etc) to a WAV ArrayBuffer
+const convertRawPcmBase64ToWav = (b64: string, mimeTypeOrHeader: string) => {
+  // Parse mime type like 'audio/L16;codec=pcm;rate=24000'
+  const parts = (mimeTypeOrHeader || '').split(/[;\s]+/).map(s => s.trim());
+  let sampleRate = 24000;
+  let bitsPerSample = 16;
+  let numChannels = 1;
+
+  for (const p of parts) {
+    const [key, val] = p.split('=');
+    if (key === 'rate' || key === 'samplerate') sampleRate = parseInt(val, 10) || sampleRate;
+    if (/L(\d+)/i.test(p)) {
+      const m = p.match(/L(\d+)/i);
+      bitsPerSample = parseInt(m![1], 10) || bitsPerSample;
+    }
+  }
+
+  const raw = Buffer.from(b64, 'base64');
+  const header = createWavHeader(raw.length, { numChannels, sampleRate, bitsPerSample });
+  return Buffer.concat([header, raw]);
+};
+
+// Create WAV header (little-endian PCM)
+const createWavHeader = (dataLength: number, options: { numChannels: number; sampleRate: number; bitsPerSample: number }) => {
+  const { numChannels, sampleRate, bitsPerSample } = options;
+  const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+  const blockAlign = numChannels * bitsPerSample / 8;
+  const buffer = Buffer.alloc(44);
+
+  buffer.write('RIFF', 0);                      // ChunkID
+  buffer.writeUInt32LE(36 + dataLength, 4);     // ChunkSize
+  buffer.write('WAVE', 8);                      // Format
+  buffer.write('fmt ', 12);                     // Subchunk1ID
+  buffer.writeUInt32LE(16, 16);                 // Subchunk1Size (PCM)
+  buffer.writeUInt16LE(1, 20);                  // AudioFormat (1 = PCM)
+  buffer.writeUInt16LE(numChannels, 22);        // NumChannels
+  buffer.writeUInt32LE(sampleRate, 24);         // SampleRate
+  buffer.writeUInt32LE(byteRate, 28);           // ByteRate
+  buffer.writeUInt16LE(blockAlign, 32);         // BlockAlign
+  buffer.writeUInt16LE(bitsPerSample, 34);      // BitsPerSample
+  buffer.write('data', 36);                     // Subchunk2ID
+  buffer.writeUInt32LE(dataLength, 40);         // Subchunk2Size
+
+  return buffer;
 };
 
 // Export a helper to sanitize narrative text for TTS (removes mechanical references)
