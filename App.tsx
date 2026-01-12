@@ -2975,8 +2975,8 @@ const App: React.FC = () => {
         )}
 
         {/* Main Content Area */}
-        <main className={`pt-24 px-2 sm:px-4 ${activeTab === TABS.ADVENTURE ? 'h-screen overflow-hidden' : 'min-h-screen pb-20'}`}>
-          <div className={`max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ${activeTab === TABS.ADVENTURE ? 'h-[calc(100vh-6rem)] overflow-hidden' : ''}`}>
+        <main className={`pt-24 px-2 sm:px-4 ${activeTab === TABS.ADVENTURE ? 'min-h-screen' : 'min-h-screen pb-20'}`}>
+          <div className={`max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ${activeTab === TABS.ADVENTURE ? 'min-h-[calc(100vh-6rem)]' : ''}`}>
             {activeTab === TABS.CHARACTER && activeCharacter && (
               <CharacterSheet 
                 character={activeCharacter} 

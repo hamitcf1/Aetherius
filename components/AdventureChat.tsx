@@ -541,6 +541,37 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [showQuestModal, setShowQuestModal] = useState(false);
   const [toastMessages, setToastMessages] = useState<{ id: string; message: string; type: string }[]>([]);
+
+  // Message collapse: show only the last N turns by default to avoid a very long page
+  const [collapsedMessages, setCollapsedMessages] = useState<boolean>(true);
+  const MAX_TURNS_VISIBLE = 2; // user requested: show no more than 2 turns by default
+  // Compute visible messages based on turns when collapsed
+  const visibleMessages = React.useMemo(() => {
+    if (!collapsedMessages) return messages;
+    // Find the index of the (MAX_TURNS_VISIBLE)-th last player message
+    let playerSeen = 0;
+    let startIndex = 0;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'player') {
+        playerSeen++;
+        if (playerSeen >= MAX_TURNS_VISIBLE) {
+          startIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (playerSeen === 0) {
+      // No player messages; show last few messages as fallback but still compact
+      return messages.slice(Math.max(0, messages.length - 4));
+    }
+
+    // Return messages from found startIndex to end
+    return messages.slice(startIndex);
+  }, [messages, collapsedMessages]);
+
+  // Number of hidden messages when collapsed
+  const hiddenMessageCount = Math.max(0, messages.length - visibleMessages.length);
     // Show toast notification for new quest
     useEffect(() => {
       if (!messages.length) return;
@@ -982,7 +1013,7 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     // Small delay to ensure content is rendered before scrolling
     const timer = setTimeout(scrollToBottom, 50);
     return () => clearTimeout(timer);
-  }, [messages]);
+  }, [messages, collapsedMessages]); // also scroll when collapsing/expanding messages so view stays consistent
 
   // XP threshold for leveling - 100 XP per level
   const XP_PER_LEVEL = 100;
@@ -2044,7 +2075,29 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
           </div>
         ) : (
           <div className="p-3 space-y-3">
-            {messages.map((msg) => (
+            {/* Collapsed view control */}
+            {hiddenMessageCount > 0 && collapsedMessages && (
+              <div className="flex justify-center mb-2">
+                <button
+                  className="px-3 py-1 text-xs bg-gray-800/60 border border-skyrim-border rounded text-gray-300 hover:bg-gray-700/80"
+                  onClick={() => setCollapsedMessages(false)}
+                >
+                  Show older messages ({hiddenMessageCount})
+                </button>
+              </div>
+            )}
+            {!collapsedMessages && hiddenMessageCount > 0 && (
+              <div className="flex justify-center mb-2">
+                <button
+                  className="px-3 py-1 text-xs bg-gray-800/60 border border-skyrim-border rounded text-gray-300 hover:bg-gray-700/80"
+                  onClick={() => setCollapsedMessages(true)}
+                >
+                  Collapse messages
+                </button>
+              </div>
+            )}
+
+            {visibleMessages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex gap-2 ${msg.role === 'player' ? 'flex-row-reverse' : ''}`}
