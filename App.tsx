@@ -98,6 +98,7 @@ import { getRateLimitStats, generateAdventureResponse } from './services/geminiS
 import { learnSpell, getSpellById } from './services/spells';
 import type { ShopItem } from './components/ShopModal';
 import { getDefaultSlotForItem } from './components/EquipmentHUD';
+import { filterDuplicateTransactions } from './services/transactionLedger';
 import type { PreferredAIModel } from './services/geminiService';
 import type { UserSettings } from './services/firestore';
 import LevelUpModal from './components/LevelUpModal';
@@ -1995,14 +1996,33 @@ const App: React.FC = () => {
           (updates?.characterUpdates && Object.keys(updates.characterUpdates).length) ||
           (updates?.vitalsChange && Object.keys(updates.vitalsChange).length)
       );
+      // Filter duplicate transactions (e.g., combat rewards already applied)
+      let processedUpdates = updates as any;
+      if (updates.transactionId) {
+        const { filteredUpdate, wasFiltered, reason } = filterDuplicateTransactions(updates as any);
+        if (wasFiltered) {
+          console.log(`[TransactionLedger] Filtered duplicate update: ${reason}`);
+        }
+        processedUpdates = filteredUpdate;
+      }
+
       if (!hasAnyUpdate) return;
 
       // 0a. Character detail updates (hero sheet fields)
+      // Use the processed updates (duplicate filtering may have removed some fields)
+      updates = processedUpdates;
+
       if (updates.characterUpdates && Object.keys(updates.characterUpdates).length) {
         setCharacters(prev => prev.map(c => {
           if (c.id !== currentCharacterId) return c;
           const updatedChar = { ...c };
           const cu = updates.characterUpdates!;
+          // Merge completedCombats if provided (helps persist combat completion across sessions)
+          if (cu.completedCombats && Array.isArray(cu.completedCombats) && cu.completedCombats.length) {
+            const existing = new Set(updatedChar.completedCombats || []);
+            cu.completedCombats.forEach((id: string) => existing.add(id));
+            updatedChar.completedCombats = Array.from(existing);
+          }
           if (cu.identity !== undefined) updatedChar.identity = cu.identity;
           if (cu.psychology !== undefined) updatedChar.psychology = cu.psychology;
           if (cu.breakingPoint !== undefined) updatedChar.breakingPoint = cu.breakingPoint;
@@ -2582,7 +2602,7 @@ const App: React.FC = () => {
       if (existing) {
         newPerks = newPerks.map(p => p.id === perkId ? { ...p, rank: (p.rank || 0) + 1 } : p);
       } else {
-        newPerks.push({ id: def.id, name: def.name, skill: def.skill || '', rank: 1, description: def.description });
+        newPerks.push({ id: def.id, name: def.name, skill: def.skill || '', rank: 1, mastery: 0, description: def.description });
       }
       pts = Math.max(0, pts - 1);
       setDirtyEntities(d => new Set([...d, c.id]));
@@ -2603,6 +2623,37 @@ const App: React.FC = () => {
       const nextPerks = (c.perks || []).slice();
 
       for (const [id, wantCount] of Object.entries(counts)) {
+        // Support mastery tokens encoded as "<perkId>::MASTER"
+        if (id.includes('::MASTER')) {
+          const baseId = id.split('::')[0];
+          const def = PERK_DEFINITIONS.find(d => d.id === baseId);
+          if (!def) continue;
+          const existing = nextPerks.find(p => p.id === baseId);
+          const currRank = existing?.rank || 0;
+          const max = def.maxRank || 1;
+          // only allow mastering when at max rank
+          if (currRank >= max) {
+            // increment mastery counter (no perk point cost)
+            let found = false;
+            for (let i = 0; i < nextPerks.length; i++) {
+              if (nextPerks[i].id === baseId) {
+                nextPerks[i] = { ...nextPerks[i], rank: 0, mastery: (nextPerks[i].mastery || 0) + wantCount };
+                found = true;
+                break;
+              }
+            }
+            if (!found) {
+              nextPerks.push({ id: def.id, name: def.name, skill: def.skill || '', rank: 0, mastery: wantCount, description: def.description });
+            }
+            // apply a small mastery bonus to stats
+            if (def.effect && def.effect.type === 'stat') {
+              const key = def.effect.key as keyof typeof updatedStats;
+              const bonus = Math.ceil((def.effect.amount || 0) * 0.5 * (def.maxRank || 1)) * (wantCount || 1);
+              updatedStats = { ...updatedStats, [key]: (updatedStats as any)[key] + bonus };
+            }
+          }
+          continue;
+        }
         if (pts <= 0) break;
         const def = PERK_DEFINITIONS.find(d => d.id === id);
         if (!def) continue;
@@ -2621,7 +2672,7 @@ const App: React.FC = () => {
               if (nextPerks[i].id === id) { nextPerks[i] = { ...nextPerks[i], rank: (nextPerks[i].rank || 0) + 1 }; break; }
             }
           } else {
-            nextPerks.push({ id: def.id, name: def.name, skill: def.skill || '', rank: 1, description: def.description });
+            nextPerks.push({ id: def.id, name: def.name, skill: def.skill || '', rank: 1, mastery: 0, description: def.description });
           }
           currRank += 1;
           applied += 1;
@@ -2660,7 +2711,7 @@ const App: React.FC = () => {
       if (existing) {
         newPerks = newPerks.map(p => p.id === perkId ? { ...p, rank: (p.rank || 0) + 1 } : p);
       } else {
-        newPerks.push({ id: def.id, name: def.name, skill: def.skill || '', rank: 1, description: def.description });
+        newPerks.push({ id: def.id, name: def.name, skill: def.skill || '', rank: 1, mastery: 0, description: def.description });
       }
 
       pts = Math.max(0, pts - 3);
@@ -2979,11 +3030,15 @@ const App: React.FC = () => {
                 handleGameUpdate({
                   narrative: {
                     title: 'Victory!',
-                    content: `You have emerged victorious from combat! Gained ${rewards.xp} experience${rewards.gold > 0 ? ` and ${rewards.gold} gold` : ''}.`
+                    content: `You have emerged victorious from combat! Gained ${rewards.xp} experience${rewards.gold > 0 ? ` and ${rewards.gold} gold` : ''}. Loot has been collected.`
                   },
                   xpChange: rewards.xp,
                   goldChange: rewards.gold,
                   newItems: rewards.items.length > 0 ? rewards.items : undefined,
+                  transactionId: (rewards as any).transactionId,
+                  characterUpdates: {
+                    completedCombats: (rewards as any).combatId ? [(rewards as any).combatId] : []
+                  },
                   vitalsChange: finalVitals ? {
                     currentHealth: finalVitals.health - (activeCharacter.currentVitals?.currentHealth ?? activeCharacter.stats.health),
                     currentMagicka: finalVitals.magicka - (activeCharacter.currentVitals?.currentMagicka ?? activeCharacter.stats.magicka),
@@ -3035,9 +3090,9 @@ const App: React.FC = () => {
               (async () => {
                 try {
                   const outcomeText = result === 'victory' ? 'You were victorious.' : result === 'defeat' ? 'You were defeated.' : result === 'fled' ? 'You fled the battle.' : result === 'surrendered' ? 'You surrendered.' : 'Combat ended.';
-                  const playerInput = `Combat concluded. Outcome: ${outcomeText} Resume the adventure from here, branching the story appropriately for the outcome and present the next narrative and choices.`;
+                  const playerInput = `Combat concluded. Outcome: ${outcomeText} Resume the adventure from here, branching the story appropriately for the outcome and present the next narrative and choices. NOTE: Combat rewards have already been applied (loot and XP). Do NOT re-award items, gold, or experience in your response; instead summarize rewards and continue the story.`;
                   const aiContext = getAIContext();
-                  const resp = await generateAdventureResponse(playerInput, aiContext, `Continue the adventure and branch according to combat outcome.`);
+                  const resp = await generateAdventureResponse(playerInput, aiContext, `Continue the adventure and branch according to combat outcome. Do not grant duplicate rewards.`);
                   // Apply generated updates to game state so the adventure continues
                   if (resp) handleGameUpdate(resp);
                 } catch (e) {
@@ -3048,8 +3103,13 @@ const App: React.FC = () => {
             onNarrativeUpdate={(narrative) => {
               console.log('[Combat Narrative]', narrative);
             }}
-            onInventoryUpdate={(removedItems) => {
-              handleGameUpdate({ removedItems });
+            onInventoryUpdate={(itemsOrRemoved) => {
+              if (Array.isArray(itemsOrRemoved) && itemsOrRemoved.length > 0 && (itemsOrRemoved[0] as any).id) {
+                // full inventory snapshot or new items
+                handleGameUpdate({ newItems: itemsOrRemoved as any });
+              } else {
+                handleGameUpdate({ removedItems: itemsOrRemoved as any });
+              }
             }}
             showToast={showToast}
           />

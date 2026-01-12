@@ -36,6 +36,8 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm, onF
   const [selected, setSelected] = useState<string | null>(null);
   // staged map: perkId -> stagedRanks
   const [stagedMap, setStagedMap] = useState<Record<string, number>>({});
+  // staged mastery flags: perkId -> true when player intends to master on confirm
+  const [stagedMaster, setStagedMaster] = useState<Record<string, boolean>>({});
 
   const defs = useMemo(() => PERK_DEFINITIONS, []);
 
@@ -75,7 +77,7 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm, onF
                     <div>
                       <div className="text-sm font-bold">{def.name}</div>
                       <div className="text-xs text-gray-400">{def.skill || ''}</div>
-                      <div className="text-xs text-gray-400">Rank: {curr + stagedCountFor}/{max}</div>
+                      <div className="text-xs text-gray-400">Rank: {curr + stagedCountFor}/{max} {((character.perks || []).find(p => p.id === def.id)?.mastery || 0) > 0 && <span className="ml-2 text-[10px] px-2 py-0.5 bg-skyrim-gold/20 text-skyrim-gold rounded-full border border-skyrim-border">MASTERED x{(character.perks || []).find(p => p.id === def.id)?.mastery}</span>}</div>
                     </div>
                     <div className="ml-2">
                       {st === 'unlocked' && <Check className="text-green-400" />}
@@ -97,6 +99,7 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm, onF
               const curr = currentPerkRank(character, def.id);
               const max = def.maxRank || 1;
               const stagedCountFor = stagedFor(def.id);
+              const currMastery = (character.perks || []).find(p => p.id === def.id)?.mastery || 0;
               const canStage = st === 'available' && remainingPoints > 0 && (curr + stagedCountFor) < max;
               return (
                 <div>
@@ -109,6 +112,7 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm, onF
                   </div>
                   <p className="mt-2 text-sm text-gray-300">{def.description}</p>
                   <div className="mt-2 text-xs text-gray-400">Current Rank: {curr} / {max}</div>
+                  {currMastery > 0 && <div className="mt-1 text-xs text-skyrim-gold">Mastery: x{currMastery} — grants additional bonus</div>}
                       {def.effect && def.effect.type === 'stat' && (
                         (() => {
                           const perRank = def.effect ? def.effect.amount : 0;
@@ -137,6 +141,7 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm, onF
                       if (next[def.id] === 0) delete next[def.id];
                       return next;
                     })} className={`px-3 py-2 rounded ${stagedCountFor ? 'border border-skyrim-gold text-skyrim-gold' : 'bg-black/20 text-gray-400 border border-skyrim-border'}`}>Undo</button>
+                    <button disabled={curr < max || !!stagedMaster[def.id]} onClick={() => setStagedMaster(s => ({ ...s, [def.id]: true }))} className={`px-3 py-2 rounded ${curr >= max && !stagedMaster[def.id] ? 'bg-blue-700 text-white' : 'bg-black/20 text-gray-400 border border-skyrim-border'}`}>Master</button>
                         <button onClick={() => setSelected(null)} className="px-3 py-2 rounded border border-skyrim-border">Close</button>
                         {st === 'locked' && (
                           <button
@@ -160,18 +165,23 @@ export default function PerkTreeModal({ open, onClose, character, onConfirm, onF
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mt-4 gap-3">
           <div className="text-sm text-gray-300">Staged: <span className="text-skyrim-gold font-bold">{stagedCount}</span> / {availablePoints}</div>
           <div className="flex gap-2">
-            <button onClick={() => { setStagedMap({}); setSelected(null); onClose(); }} className="px-4 py-2 rounded border border-skyrim-border">Cancel</button>
-            <button disabled={stagedCount === 0} onClick={() => {
+            <button onClick={() => { setStagedMap({}); setStagedMaster({}); setSelected(null); onClose(); }} className="px-4 py-2 rounded border border-skyrim-border">Cancel</button>
+            <button disabled={stagedCount === 0 && Object.values(stagedMaster).filter(Boolean).length === 0} onClick={() => {
               // expand stagedMap into array of ids (allow duplicates per rank)
               const expanded: string[] = [];
               for (const k of Object.keys(stagedMap)) {
                 const count = stagedMap[k] || 0;
                 for (let i = 0; i < count; i++) expanded.push(k);
               }
+              // Append master tokens for any staged mastery
+              for (const k of Object.keys(stagedMaster)) {
+                if (stagedMaster[k]) expanded.push(`${k}::MASTER`);
+              }
               onConfirm(expanded);
               setStagedMap({});
+              setStagedMaster({});
               setSelected(null);
-            }} className={`px-4 py-2 rounded ${stagedCount>0 ? 'bg-skyrim-gold text-black' : 'bg-black/20 text-gray-400 border border-skyrim-border'}`}>Confirm Unlocks</button>
+            }} className={`px-4 py-2 rounded ${stagedCount>0 || Object.values(stagedMaster).filter(Boolean).length>0 ? 'bg-skyrim-gold text-black' : 'bg-black/20 text-gray-400 border border-skyrim-border'}`}>Confirm Unlocks</button>
           </div>
         </div>
       </div>

@@ -40,6 +40,8 @@ export interface Perk {
   name: string;
   skill: string;
   rank: number;
+  // Number of times this perk has been mastered/prestiged
+  mastery?: number;
   description: string;
 }
 
@@ -112,6 +114,8 @@ export interface Character {
   // Narrative
   backstory: string;
   lastPlayed: number;
+  // Completed combat IDs (persisted) for deduplication and replay prevention
+  completedCombats?: string[];
 }
 
 export type EquipmentSlot = 'head' | 'chest' | 'hands' | 'feet' | 'weapon' | 'offhand' | 'ring' | 'necklace';
@@ -349,6 +353,8 @@ export interface GameStateUpdate {
     forcedBehavior?: string;
     longTermEvolution?: string;
     backstory?: string;
+    // Track completed combat IDs to persist that rewards were applied
+    completedCombats?: string[];
   };
 
   // ============================================================================
@@ -518,11 +524,18 @@ export interface CombatState {
   survivalDelta?: Partial<SurvivalNeeds>;
   // Combat result when finished
   result?: 'victory' | 'defeat' | 'fled' | 'surrendered';
+  // Unique combat id (helps deduplication and tracking across systems)
+  id?: string;
+  // Whether this combat has completed and rewards were applied
+  completed?: boolean;
+  rewardsApplied?: boolean;
   rewards?: {
     xp: number;
     gold: number;
     items: Array<{ name: string; type: string; description: string; quantity: number }>;
-  };
+    transactionId?: string;
+    combatId?: string;
+  }; 
 }
 
 export interface CombatLogEntry {

@@ -36,6 +36,8 @@ export const populatePendingLoot = (state: CombatState): CombatState => {
 
 // Finalize loot: apply selected items to player's inventory atomically and mark rewards
 // selectedItems: Array of { name, quantity }
+import { getTransactionLedger } from './transactionLedger';
+
 export const finalizeLoot = (
   state: CombatState,
   selectedItems: Array<{ name: string; quantity: number }> | null,
@@ -84,12 +86,22 @@ export const finalizeLoot = (
   const grantedXp = Math.max(0, newState.pendingRewards?.xp || 0);
   const grantedGold = Math.max(0, newState.pendingRewards?.gold || 0);
 
-  // Mark rewards applied
-  newState.rewards = { xp: grantedXp, gold: grantedGold, items: grantedItems };
+  // Mark rewards applied and persist transaction id so external systems can deduplicate
+  const txnId = getTransactionLedger().generateTransactionId();
+  newState.rewards = { xp: grantedXp, gold: grantedGold, items: grantedItems, transactionId: txnId, combatId: newState.id };
   newState.result = 'victory';
+  newState.rewardsApplied = true;
+  newState.completed = true;
   newState.lootPending = false;
   newState.pendingLoot = [];
   newState.pendingRewards = undefined;
+
+  // Record transaction to ledger so duplicate AI responses won't re-grant the same rewards
+  getTransactionLedger().recordTransaction(txnId, {
+    goldAmount: grantedGold,
+    xpAmount: grantedXp,
+    items: grantedItems.map(i => ({ name: i.name, quantity: i.quantity, added: true }))
+  });
 
   return { newState, updatedInventory, grantedXp, grantedGold, grantedItems };
 };

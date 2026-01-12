@@ -446,6 +446,7 @@ export const initializeCombat = (
     : ['player', ...initializedEnemies.map(e => e.id)];
 
   return {
+    id: `combat_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
     active: true,
     // Mark combat start time for duration-based effects
     combatStartTime: Date.now(),
@@ -579,6 +580,21 @@ export const executePlayerAction = (
       
       if (!target) {
         narrative = 'No valid target!';
+        break;
+      }
+
+      // Prevent acting on defeated enemies
+      if (target.currentHealth <= 0) {
+        narrative = `${target.name} is already defeated!`;
+        newState.combatLog.push({
+          turn: newState.turn,
+          actor: 'player',
+          action: ability.name,
+          target: target.name,
+          damage: 0,
+          narrative,
+          timestamp: Date.now()
+        });
         break;
       }
 
@@ -823,15 +839,15 @@ export const executeEnemyTurn = (
     return { newState, newPlayerStats, narrative: '' };
   }
 
-  // Process enemy status effects
+  // Process enemy status effects (dot and stun). Use a loop so we can early-return on stun, and still decrement durations.
+  let isStunned = false;
   if (enemy.activeEffects && enemy.activeEffects.length > 0) {
-    enemy.activeEffects.forEach(ae => {
+    for (const ae of enemy.activeEffects) {
       if (ae.effect.type === 'dot') {
         const dotDamage = ae.effect.value;
         enemy.currentHealth = Math.max(0, enemy.currentHealth - dotDamage);
-      }
-      if (ae.effect.type === 'stun' && ae.turnsRemaining > 0) {
-        // Enemy is stunned, skip turn
+      } else if (ae.effect.type === 'stun' && ae.turnsRemaining > 0) {
+        // Enemy is stunned; record it and log
         newState.combatLog.push({
           turn: newState.turn,
           actor: enemy.name,
@@ -839,13 +855,19 @@ export const executeEnemyTurn = (
           narrative: `${enemy.name} is stunned and cannot act!`,
           timestamp: Date.now()
         });
-        return { newState, newPlayerStats, narrative: `${enemy.name} is stunned!` };
+        isStunned = true;
       }
-    });
-    // Decrement effect durations
+    }
+
+    // Decrement effect durations (applies even if stunned)
     enemy.activeEffects = enemy.activeEffects
       .map(ae => ({ ...ae, turnsRemaining: ae.turnsRemaining - 1 }))
       .filter(ae => ae.turnsRemaining > 0);
+
+    // If stunned, skip the rest of this turn
+    if (isStunned) {
+      return { newState, newPlayerStats, narrative: `${enemy.name} is stunned and skips their turn.` };
+    }
   }
 
   // Choose ability based on behavior

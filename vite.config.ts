@@ -33,6 +33,23 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       assetsDir: 'assets',
       emptyOutDir: true,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id) return undefined;
+            if (id.includes('node_modules')) {
+              if (id.includes('jspdf')) return 'vendor-jspdf';
+              if (id.includes('html2canvas')) return 'vendor-html2canvas';
+              if (id.includes('purify.es') || id.includes('purify')) return 'vendor-purify';
+              if (id.includes('lucide-react')) return 'vendor-icons';
+              if (id.includes('/react/') || id.includes('/react-dom/')) return 'vendor-react';
+              if (id.includes('@google') || id.includes('gpt')) return 'vendor-ai';
+              // fallback vendor chunk
+              return 'vendor';
+            }
+          }
+        }
+      }
     },
     define: {
       'process.env.API_KEY': JSON.stringify(geminiApiKey),

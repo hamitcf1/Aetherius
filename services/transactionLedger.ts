@@ -12,8 +12,9 @@
 
 interface Transaction {
   id: string;
-  type: 'gold' | 'items' | 'mixed';
+  type: 'gold' | 'items' | 'xp' | 'mixed';
   goldAmount?: number;
+  xpAmount?: number;
   items?: Array<{ name: string; quantity: number; added: boolean }>;
   timestamp: number;
   characterId: string;
@@ -49,20 +50,23 @@ class TransactionLedger {
     transactionId: string,
     details: {
       goldAmount?: number;
+      xpAmount?: number;
       items?: Array<{ name: string; quantity: number; added: boolean }>;
     }
   ): void {
     if (!this.characterId) return;
     
     let type: Transaction['type'] = 'mixed';
-    if (details.goldAmount && !details.items?.length) type = 'gold';
-    else if (!details.goldAmount && details.items?.length) type = 'items';
+    if (details.goldAmount && !details.items?.length && !details.xpAmount) type = 'gold';
+    else if (!details.goldAmount && details.items?.length && !details.xpAmount) type = 'items';
+    else if (!details.goldAmount && !details.items?.length && details.xpAmount) type = 'xp';
     
     this.completedTransactions.set(transactionId, {
       id: transactionId,
       type,
       goldAmount: details.goldAmount,
       items: details.items,
+      xpAmount: details.xpAmount,
       timestamp: Date.now(),
       characterId: this.characterId
     });
@@ -101,6 +105,24 @@ class TransactionLedger {
     }
 
     // Should apply this gold change
+    return { apply: true, reason: 'valid' };
+  }
+
+  shouldApplyXpChange(
+    xpChange: number | undefined,
+    transactionId?: string
+  ): { apply: boolean; reason: string } {
+    if (typeof xpChange !== 'number' || xpChange === 0) return { apply: false, reason: 'no_change' };
+    if (transactionId && this.hasTransaction(transactionId)) return { apply: false, reason: 'duplicate_transaction' };
+    return { apply: true, reason: 'valid' };
+  }
+
+  shouldApplyItems(
+    items: Array<any> | undefined,
+    transactionId?: string
+  ): { apply: boolean; reason: string } {
+    if (!items || !items.length) return { apply: false, reason: 'no_change' };
+    if (transactionId && this.hasTransaction(transactionId)) return { apply: false, reason: 'duplicate_transaction' };
     return { apply: true, reason: 'valid' };
   }
 
@@ -151,6 +173,7 @@ export function getTransactionLedger(): TransactionLedger {
 export function filterDuplicateTransactions(
   update: {
     goldChange?: number;
+    xpChange?: number;
     transactionId?: string;
     isPreview?: boolean;
     newItems?: Array<any>;
@@ -162,33 +185,52 @@ export function filterDuplicateTransactions(
   reason: string;
 } {
   const ledger = getTransactionLedger();
-  const result = ledger.shouldApplyGoldChange(
-    update.goldChange,
-    update.transactionId,
-    update.isPreview
-  );
 
-  if (!result.apply && update.goldChange) {
-    // Remove the gold change but keep other updates
-    const { goldChange, ...rest } = update;
-    
-    return {
-      filteredUpdate: rest,
-      wasFiltered: true,
-      reason: result.reason
-    };
+  // Check gold
+  const goldRes = ledger.shouldApplyGoldChange(update.goldChange, update.transactionId, update.isPreview);
+  // Check xp
+  const xpRes = ledger.shouldApplyXpChange(update.xpChange, update.transactionId);
+  // Check items
+  const itemsRes = ledger.shouldApplyItems(update.newItems, update.transactionId);
+
+  let filtered = { ...update };
+  let wasFiltered = false;
+  let reasons: string[] = [];
+
+  if (!goldRes.apply && update.goldChange) {
+    // Remove gold
+    const { goldChange, ...rest } = filtered as any;
+    filtered = rest as any;
+    wasFiltered = true;
+    reasons.push(goldRes.reason || 'gold_filtered');
   }
 
-  // If applying, record the transaction
-  if (result.apply && update.transactionId) {
+  if (!xpRes.apply && update.xpChange) {
+    const { xpChange, ...rest } = filtered as any;
+    filtered = rest as any;
+    wasFiltered = true;
+    reasons.push(xpRes.reason || 'xp_filtered');
+  }
+
+  if (!itemsRes.apply && update.newItems) {
+    const { newItems, ...rest } = filtered as any;
+    filtered = rest as any;
+    wasFiltered = true;
+    reasons.push(itemsRes.reason || 'items_filtered');
+  }
+
+  // If any of them will be applied, record the transaction to avoid duplicates
+  if (!wasFiltered && update.transactionId) {
     ledger.recordTransaction(update.transactionId, {
-      goldAmount: update.goldChange
+      goldAmount: update.goldChange,
+      xpAmount: update.xpChange,
+      items: update.newItems?.map((i: any) => ({ name: i.name, quantity: i.quantity, added: true })) || []
     });
   }
 
   return {
-    filteredUpdate: update,
-    wasFiltered: false,
-    reason: 'applied'
+    filteredUpdate: filtered,
+    wasFiltered,
+    reason: wasFiltered ? reasons.join(',') : 'applied'
   };
 }

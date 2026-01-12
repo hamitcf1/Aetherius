@@ -11,7 +11,8 @@ import {
   CombatEnemy,
   CombatAbility,
   PlayerCombatStats,
-  CombatActionType
+  CombatActionType,
+  EquipmentSlot
 } from '../types';
 import {
   calculatePlayerCombatStats,
@@ -24,6 +25,8 @@ import {
 import { LootModal } from './LootModal';
 import { populatePendingLoot, finalizeLoot } from '../services/lootService';
 import { getEasterEggName } from './GameFeatures';
+import { EquipmentHUD, getDefaultSlotForItem } from './EquipmentHUD';
+import ModalWrapper from './ModalWrapper';
 // resolvePotionEffect is intentionally not used here; potion resolution occurs in services
 
 interface CombatModalProps {
@@ -36,7 +39,7 @@ interface CombatModalProps {
     items: Array<{ name: string; type: string; description: string; quantity: number }>;
   }, finalVitals?: { health: number; magicka: number; stamina: number }, timeAdvanceMinutes?: number) => void;
   onNarrativeUpdate?: (narrative: string) => void;
-  onInventoryUpdate?: (removedItems: Array<{ name: string; quantity: number }>) => void;
+  onInventoryUpdate?: (items: InventoryItem[] | Array<{ name: string; quantity: number }>) => void;
   showToast?: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
 }
 
@@ -241,6 +244,45 @@ export const CombatModal: React.FC<CombatModalProps> = ({
   const [lootPhase, setLootPhase] = useState(false);
   const [lootItems, setLootItems] = useState<Array<{ name: string; quantity: number }>>([]);
 
+  // Equipment modal local state (allows opening equipment while combat is active)
+  const [equipModalOpen, setEquipModalOpen] = useState(false);
+  const [equipSelectedSlot, setEquipSelectedSlot] = useState<EquipmentSlot | null>(null);
+  const [localInventory, setLocalInventory] = useState<InventoryItem[]>(inventory);
+
+  useEffect(() => {
+    // Keep local inventory in sync with prop
+    setLocalInventory(inventory);
+  }, [inventory]);
+
+  // If the currently selected target dies, auto-select the next alive enemy
+  useEffect(() => {
+    if (selectedTarget) {
+      const tgt = combatState.enemies.find(e => e.id === selectedTarget);
+      if (!tgt || tgt.currentHealth <= 0) {
+        const firstAlive = combatState.enemies.find(e => e.currentHealth > 0);
+        setSelectedTarget(firstAlive ? firstAlive.id : null);
+      }
+    }
+  }, [combatState.enemies, selectedTarget]);
+
+  const equipItem = (item: InventoryItem, slot: EquipmentSlot) => {
+    const updated = localInventory.map(it => {
+      if (it.id === item.id) return { ...it, equipped: true, slot };
+      if (it.equipped && it.slot === slot && it.id !== item.id) return { ...it, equipped: false, slot: undefined };
+      return it;
+    });
+    setLocalInventory(updated);
+    onInventoryUpdate && onInventoryUpdate(updated as InventoryItem[]);
+    setPlayerStats(calculatePlayerCombatStats(character, updated));
+    setEquipSelectedSlot(null);
+  };
+
+  const unequipItem = (item: InventoryItem) => {
+    const updated = localInventory.map(it => it.id === item.id ? { ...it, equipped: false, slot: undefined } : it);
+    setLocalInventory(updated);
+    onInventoryUpdate && onInventoryUpdate(updated as InventoryItem[]);
+    setPlayerStats(calculatePlayerCombatStats(character, updated));
+  };
   // Auto-select first alive enemy
   useEffect(() => {
     if (!selectedTarget) {
@@ -279,28 +321,29 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     if (combatState.result) {
       setIsAnimating(true);
       setTimeout(() => {
-        if (combatState.result === 'victory') {
-          setShowVictory(true);
-        } else if (combatState.result === 'defeat') {
+        if (combatState.result === 'defeat') {
           setShowDefeat(true);
         } else {
+          // For victory we enter loot phase and wait until loot is finalized before showing victory
           // Fled or surrendered - end immediately
-          onCombatEnd(combatState.result, undefined, {
-            health: playerStats.currentHealth,
-            magicka: playerStats.currentMagicka,
-            stamina: playerStats.currentStamina
-          });
+          if (combatState.result !== 'victory') {
+            onCombatEnd(combatState.result, undefined, {
+              health: playerStats.currentHealth,
+              magicka: playerStats.currentMagicka,
+              stamina: playerStats.currentStamina
+            });
+          }
         }
         setIsAnimating(false);
       }, 1500);
     }
   }, [combatState.result]);
 
-  // Trigger onCombatEnd for victory or defeat
+  // For defeat, call onCombatEnd; for victory we wait until loot is finalized and the player closes the victory screen
   useEffect(() => {
-    if (showVictory || showDefeat) {
+    if (showDefeat) {
       onCombatEnd(
-        showVictory ? 'victory' : 'defeat',
+        'defeat',
         combatState.rewards,
         {
           health: playerStats.currentHealth,
@@ -309,7 +352,7 @@ export const CombatModal: React.FC<CombatModalProps> = ({
         }
       );
     }
-  }, [showVictory, showDefeat]);
+  }, [showDefeat]);
 
   // Live combat timer display (reads combatStartTime from combatState)
   useEffect(() => {
@@ -344,33 +387,19 @@ export const CombatModal: React.FC<CombatModalProps> = ({
     );
 
     setCombatState(newState);
-    onInventoryUpdate?.(grantedItems);
+    // Persist updated inventory snapshot
+    onInventoryUpdate && onInventoryUpdate(updatedInventory);
     showToast?.(`Loot collected: ${grantedItems.map(item => item.name).join(', ')}`, 'success');
     setLootPhase(false);
-    const minutes = Math.max(1, Math.ceil((combatState.combatElapsedSec || 0) / 60));
-    onCombatEnd('victory', { xp: grantedXp, gold: grantedGold, items: grantedItems }, undefined, minutes);
+
+    // Show victory overlay in UI; actual onCombatEnd will be triggered when user closes the victory modal
+    setShowVictory(true);
   };
 
   // When entering loot phase, keep combat UI open and show LootModal
   const handleLootConfirm = (selected: Array<{ name: string; quantity: number }>) => {
-    const res = finalizeLoot(combatState, selected.length ? selected : null, inventory);
-    setCombatState(res.newState);
-    setPlayerStats(prev => ({ ...prev }));
-    // Notify parent about new items so it may persist inventory changes
-    if (onInventoryUpdate && res.grantedItems.length > 0) {
-      onInventoryUpdate(res.grantedItems.map(i => ({ name: i.name, quantity: i.quantity })));
-    }
-    // After finalizing loot, trigger onCombatEnd with rewards
-    if (res.newState.result === 'victory') {
-      setTimeout(() => {
-        const minutes = Math.max(1, Math.ceil((res.newState.combatElapsedSec || combatState.combatElapsedSec || 0) / 60));
-        onCombatEnd('victory', res.newState.rewards, {
-          health: playerStats.currentHealth,
-          magicka: playerStats.currentMagicka,
-          stamina: playerStats.currentStamina
-        }, minutes);
-      }, 300);
-    }
+    // Funnel through the single finalize implementation to keep behavior consistent
+    handleFinalizeLoot(selected.length ? selected : null);
   };
 
   const handleLootCancel = () => {
@@ -746,7 +775,12 @@ export const CombatModal: React.FC<CombatModalProps> = ({
         <div className="w-full lg:w-1/4 space-y-4">
           {/* Abilities */}
           <div className="bg-stone-900/60 rounded-lg p-4 border border-amber-900/30">
-            <h3 className="text-sm font-bold text-stone-400 mb-3">ABILITIES</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-stone-400">ABILITIES</h3>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setEquipModalOpen(true)} className="px-2 py-1 text-xs rounded bg-blue-800 hover:bg-blue-700">Equipment</button>
+              </div>
+            </div>
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {playerStats.abilities.map(ability => (
                 <ActionButton
@@ -950,6 +984,32 @@ export const CombatModal: React.FC<CombatModalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Equipment modal (non-blocking) */}
+      <ModalWrapper open={equipModalOpen} onClose={() => { setEquipModalOpen(false); setEquipSelectedSlot(null); }} preventOutsideClose={false}>
+        <div className="w-[760px] max-w-full bg-stone-900/95 rounded-lg p-4 border border-stone-700">
+          <h3 className="text-lg font-bold text-amber-100 mb-3">Equipment</h3>
+          <EquipmentHUD items={localInventory} onUnequip={(it) => unequipItem(it)} onEquipFromSlot={(slot) => setEquipSelectedSlot(slot)} />
+          {equipSelectedSlot && (
+            <div className="mt-4">
+              <h4 className="text-sm font-semibold text-stone-300 mb-2">Equip to: {equipSelectedSlot}</h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {(localInventory.filter(it => (it.type === 'weapon' || it.type === 'apparel') && (getDefaultSlotForItem(it) === equipSelectedSlot || it.slot === equipSelectedSlot))).map(item => (
+                  <button key={item.id} onClick={() => equipItem(item, equipSelectedSlot)} className="w-full text-left p-3 bg-black/40 border border-skyrim-border rounded hover:border-skyrim-gold transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-amber-200">{item.name}</div>
+                        <div className="text-xs text-stone-400">{item.type} {item.damage ? `• ⚔ ${item.damage}` : ''} {item.armor ? `• 🛡 ${item.armor}` : ''}</div>
+                      </div>
+                      <div className="text-xs text-stone-400">{item.equipped && item.slot === equipSelectedSlot ? 'Equipped' : 'Equip'}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </ModalWrapper>
 
       {/* Loot phase UI - shown when lootPhase state is true */}
       {lootPhase && (
