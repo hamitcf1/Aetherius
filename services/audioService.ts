@@ -193,6 +193,22 @@ class AudioService {
     }
 
     try {
+      // Pre-flight check: try to fetch HEAD to validate content-type and availability
+      (async () => {
+        try {
+          const res = await fetch(path, { method: 'HEAD' });
+          const ct = res.headers.get('content-type') || '';
+          if (!res.ok) {
+            console.warn(`Music "${track}" resource fetch failed: ${res.status} ${res.statusText}`);
+          } else if (!ct.includes('audio')) {
+            console.warn(`Music "${track}" appears to be served as '${ct}' and may not be playable.`);
+          }
+        } catch (e) {
+          // Network or CORS issues will surface here; we still attempt playback as a fallback
+          console.warn(`Music "${track}" HEAD check failed:`, e);
+        }
+      })();
+
       this.musicAudio = new Audio(path);
       this.musicAudio.loop = true;
       this.currentTrack = track;

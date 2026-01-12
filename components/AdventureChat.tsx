@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MinimalQuestModal } from './MinimalQuestModal';
 import { Character, InventoryItem, CustomQuest, JournalEntry, StoryChapter, GameStateUpdate } from '../types';
-import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X, AlertTriangle, Users, Sun, Moon, Sunrise, Sunset, Clock, Map, Lock, Key, Flag } from 'lucide-react';
+import { Send, Loader2, Swords, User, Scroll, RefreshCw, Trash2, Settings, ChevronDown, ChevronUp, X, AlertTriangle, Users, Sun, Moon, Sunrise, Sunset, Clock, Map, Lock, Key, Flag, Volume, Play, Pause } from 'lucide-react';
+import { generateTextToSpeech, sanitizeTextForTTS } from '../services/geminiService';
 import { EquipmentHUD, getDefaultSlotForItem, SLOT_CONFIGS_EXPORT } from './EquipmentHUD';
 import { isShield, isTwoHandedWeapon } from '../services/equipment';
 import { useAppContext } from '../AppContext';
@@ -570,6 +571,31 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
   const [localInventory, setLocalInventory] = useState<InventoryItem[]>(inventory || []);
   const [simulationWarnings, setSimulationWarnings] = useState<string[]>([]);
   const [rateLimitStats, setRateLimitStats] = useState(getRateLimitStats());
+
+  // TTS playback state
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
+  const [loadingTtsId, setLoadingTtsId] = useState<string | null>(null);
+
+  const stopPlayback = useCallback(() => {
+    if (audioRef.current) {
+      try { audioRef.current.pause(); } catch {}
+      try { audioRef.current.src = ''; } catch {}
+      audioRef.current = null;
+    }
+    if (audioUrlRef.current) {
+      try { URL.revokeObjectURL(audioUrlRef.current); } catch {}
+      audioUrlRef.current = null;
+    }
+    setPlayingMsgId(null);
+    setLoadingTtsId(null);
+  }, []);
+
+  useEffect(() => {
+    // Stop playback when navigating away/unmount
+    return () => stopPlayback();
+  }, [stopPlayback]);
   
   // Lockpicking state
   const [showLockpicking, setShowLockpicking] = useState(false);
@@ -2025,6 +2051,78 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
                   }`}>
                     <p className="whitespace-pre-wrap font-serif text-sm leading-relaxed">{msg.content}</p>
                   </div>
+
+                  {/* TTS Speaker icon for GM narrative-only messages */}
+                  {msg.role === 'gm' && (
+                    // Exclude combat/system logs from TTS
+                    !msg.updates?.combatStart && !msg.updates?.combatEnd && !/^[\[]?(system|log|debug|combat)[\]]?/i.test(msg.content) && (
+                      <div className="mt-1 flex items-center gap-2">
+                        <button
+                          onClick={async () => {
+                            try {
+                              // Toggle stop if currently playing this message
+                              if (playingMsgId === msg.id) {
+                                stopPlayback();
+                                return;
+                              }
+
+                              // Start TTS generation & playback
+                              setLoadingTtsId(msg.id);
+
+                              // Sanitize visible narrative text
+                              const ttsText = sanitizeTextForTTS(msg.content || '');
+                              if (!ttsText) {
+                                setLoadingTtsId(null);
+                                return;
+                              }
+
+                              // Ensure only one playback at a time
+                              stopPlayback();
+
+                              // Generate audio (ArrayBuffer)
+                              const buffer = await generateTextToSpeech(ttsText, { preferredModel: 'gemini-2.5-flash-tts', format: 'mp3' });
+
+                              const blob = new Blob([buffer], { type: 'audio/mpeg' });
+                              const url = URL.createObjectURL(blob);
+                              audioUrlRef.current = url;
+                              const audio = new Audio(url);
+                              audioRef.current = audio;
+
+                              audio.onended = () => stopPlayback();
+                              audio.onerror = (e) => {
+                                console.warn('TTS playback error', e);
+                                stopPlayback();
+                              };
+
+                              setPlayingMsgId(msg.id);
+                              setLoadingTtsId(null);
+                              // Play (user gesture initiated via click)
+                              await audio.play();
+                            } catch (err: any) {
+                              console.warn('TTS generation/playback failed:', err);
+                              setLoadingTtsId(null);
+                              setPlayingMsgId(null);
+
+                              // Show user-facing toast for quota/permission errors or generic failure
+                              const msg = String(err?.message || err || 'Text-to-speech generation failed');
+                              const key = msg.toLowerCase();
+                              if (key.includes('quota') || key.includes('429') || key.includes('resource_exhausted')) {
+                                setToastMessages(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), message: 'TTS unavailable: API quota exceeded. Please try again later.', type: 'warning' }]);
+                              } else if (key.includes('permission') || key.includes('access denied') || key.includes('permission_denied') || key.includes('403')) {
+                                setToastMessages(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), message: 'TTS unavailable: API permission denied. Check API key permissions.', type: 'error' }]);
+                              } else {
+                                setToastMessages(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), message: 'TTS failed to generate audio.', type: 'error' }]);
+                              }
+                            }
+                          }}
+                          className="px-2 py-1 rounded bg-skyrim-paper/20 border border-skyrim-border text-xs text-skyrim-gold hover:bg-skyrim-paper/40 flex items-center gap-2"
+                        >
+                          {loadingTtsId === msg.id ? <Loader2 size={14} /> : (playingMsgId === msg.id ? <Pause size={14} /> : <Volume size={14} />)}
+                          <span className="sr-only">Play narration</span>
+                        </button>
+                      </div>
+                    )
+                  )}
 
                   {/* Clickable dialogue choices */}
                   {msg.role === 'gm' && Array.isArray(msg.updates?.choices) && (msg.updates?.choices?.length || 0) > 0 && (

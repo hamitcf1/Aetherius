@@ -35,6 +35,10 @@ const IMAGE_MODEL_FALLBACK_CHAIN: AvailableModel[] = [
   'gemini-3-flash',
 ];
 
+// ========== TTS MODELS (explicitly allowed for TTS)
+const TTS_MODELS = ['gemini-2.5-flash-tts', 'gemini-2.5-flash-preview-tts'];
+
+
 export type PreferredAIModel = AvailableModel;
 
 export const PREFERRED_AI_MODELS: Array<{ id: PreferredAIModel; label: string }> = [
@@ -504,6 +508,148 @@ const getClientForModel = (modelId: string, specificKey?: string): GoogleGenAI =
   }
   
   return clientCache.get(key)!;
+};
+
+// ========== Text-to-Speech (TTS) helper
+// Uses Gemini TTS models (allowed list above). Returns an ArrayBuffer containing audio (mp3 or wav depending on model/default).
+export const generateTextToSpeech = async (
+  text: string,
+  options?: { preferredModel?: string, voice?: string, format?: 'mp3' | 'wav' }
+): Promise<ArrayBuffer> => {
+  const modelsToTry = (options?.preferredModel ? [options.preferredModel, ...TTS_MODELS] : TTS_MODELS).filter(Boolean);
+
+  const errors: any[] = [];
+
+  for (const model of modelsToTry) {
+    // Try all available keys for this model
+    const allKeys = getAllApiKeys();
+    for (const apiKey of allKeys) {
+      if (!apiKey || exhaustedApiKeys.has(apiKey)) continue;
+      try {
+        const ai = getClientForModel(model, apiKey);
+        // Use any available audio API; fall back to several likely response shapes
+        // Using `any` because library surface may differ by runtime version
+        const voice = options?.voice || 'Kore';
+        const format = options?.format || 'mp3';
+
+        // Attempt typical method; different SDK versions might expose different methods
+        // Primary attempt via common SDK path
+        let resp = null;
+        try {
+          resp = await (ai as any).audio?.speech?.create?.({ model, voice, input: text, format });
+        } catch (e) {
+          // swallow to try alternative shapes below while preserving error
+          console.warn('[GeminiService][TTS] primary audio.speech.create failed:', e?.message || e);
+        }
+
+        // If response is empty, try alternative call shapes (SDK versions differ)
+        if (!resp) {
+          try {
+            // Some SDKs expose `audio.speech.synthesize` or `audio.speech.generate`
+            resp = await (ai as any).audio?.speech?.synthesize?.({ model, voice, input: text, format }) ||
+                   await (ai as any).audio?.speech?.generate?.({ model, voice, input: text, format });
+          } catch (e) {
+            console.warn('[GeminiService][TTS] audio.speech alternative calls failed:', e?.message || e);
+          }
+        }
+
+        // Still no resp? Try model.generateContent variant with audio config (some runtimes support inline audio)
+        if (!resp) {
+          try {
+            const attempt = await (ai as any).models?.generateContent?.({
+              model,
+              contents: text,
+              config: { audioConfig: { voice, format } }
+            });
+            resp = attempt;
+          } catch (e) {
+            console.warn('[GeminiService][TTS] models.generateContent audioConfig attempt failed:', e?.message || e);
+          }
+        }
+
+        if (!resp) {
+          // Dump last attempted model/key info for debugging without exposing keys
+          console.warn('[GeminiService][TTS] Empty TTS response for model', model);
+          throw new Error('Empty TTS response');
+        }
+
+        // Helpful debug log to inspect resp shape when empty-ish
+        console.debug('[GeminiService][TTS] received resp:', resp);
+
+        // 1) Some SDKs return base64 string in `audio` or `data` or `base64`
+        const base64 = resp.audio || resp.data || resp.base64 || resp.audioContent;
+        if (typeof base64 === 'string') {
+          // Strip data url if present
+          const m = base64.match(/^data:audio\/[^;]+;base64,(.*)$/);
+          const payload = m ? m[1] : base64;
+          const binary = Uint8Array.from(atob(payload), c => c.charCodeAt(0));
+          return binary.buffer;
+        }
+
+        // 2) Some SDKs provide inlineData in candidates parts
+        const parts = resp.candidates?.[0]?.content?.parts || resp.candidates?.[0]?.content || [];
+        for (const part of parts) {
+          if (part.inlineData && part.inlineData.data) {
+            const b64 = part.inlineData.data;
+            const binary = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+            return binary.buffer;
+          }
+        }
+
+        // 3) Some SDKs might return an ArrayBuffer directly
+        if (resp.arrayBuffer && typeof resp.arrayBuffer === 'function') {
+          return await resp.arrayBuffer();
+        }
+        if (resp.arrayBuffer && resp.arrayBuffer instanceof ArrayBuffer) {
+          return resp.arrayBuffer as ArrayBuffer;
+        }
+
+        // 4) Some SDKs might return `data` as Uint8Array
+        if (resp.data && (resp.data instanceof Uint8Array || resp.data instanceof ArrayBuffer)) {
+          return resp.data instanceof Uint8Array ? resp.data.buffer : resp.data as ArrayBuffer;
+        }
+
+        // 5) Occasionally responses include `candidates` with `audio` fields
+        const candidateAudio = (resp.candidates || []).flatMap((c: any) => c.content?.parts || []).find((p: any) => p.inlineData || p.audio);
+        if (candidateAudio) {
+          const b64 = candidateAudio.inlineData?.data || candidateAudio.audio;
+          if (b64) {
+            const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+            return bin.buffer;
+          }
+        }
+
+        // If we reach here, response didn't contain an audio payload we understand
+        console.warn('[GeminiService][TTS] Unknown TTS response format:', resp);
+        throw new Error('Unknown TTS response format');
+      } catch (err: any) {
+        // mark exhausted keys on quota errors
+        if (isQuotaError(err)) {
+          if (apiKey) markKeyExhausted(apiKey);
+        }
+        errors.push(err);
+        // try next key
+        continue;
+      }
+    }
+  }
+
+  // If we reach here, all attempts failed
+  const last = errors[errors.length - 1];
+  const errMsg = last?.message || JSON.stringify(last) || 'Unknown TTS error';
+  console.error('[GeminiService][TTS] All models/keys failed:', errMsg);
+  throw new Error(`TTS generation failed: ${errMsg}`);
+};
+
+// Export a helper to sanitize narrative text for TTS (removes mechanical references)
+export const sanitizeTextForTTS = (text: string): string => {
+  const { sanitized } = sanitizeNarrativeMechanics(text);
+  // Strip markdown code fences, choice markers and extraneous UI labels
+  let cleaned = (sanitized || '').replace(/^```[\s\S]*?```$/gm, '');
+  cleaned = cleaned.replace(/\[[^\]]+\]/g, ''); // remove [labels]
+  // remove lines starting with choice markers like "1)" or "- "
+  cleaned = cleaned.split('\n').filter(l => !/^\s*[-*\d+\.)]/.test(l)).join('\n');
+  return cleaned.trim();
 };
 
 const isQuotaError = (error: any): boolean => {
