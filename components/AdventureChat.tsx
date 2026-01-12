@@ -1207,32 +1207,40 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
       // Auto-apply game state changes if enabled
       // Filter out duplicate/preview transactions to prevent double-charging
       if (autoApply && result) {
-        // Detect and apply proper rest logic for adventure chat
-        // If this looks like a rest action, open the Bonfire menu for player confirmation instead of auto-applying
+        // Detect rest logic but ONLY open Bonfire when the PLAYER explicitly requested rest (or the GM included '@bonfire').
+        // This prevents Bonfire from appearing on arbitrary GM responses.
         const processedResult = processRestLogicForAdventure(result, gmMessage.content, inventory);
         let skipAutoApply = false;
 
         if (processedResult && processedResult.timeAdvanceMinutes) {
-          // Determine rest type by inspecting content (same heuristics as before)
-          let restType: 'outside' | 'camp' | 'inn' = 'outside';
-          const contentLower = gmMessage.content.toLowerCase();
-          if (contentLower.includes('inn') || contentLower.includes('bed')) restType = 'inn';
-          else if (contentLower.includes('camp') || contentLower.includes('tent')) restType = 'camp';
-          const hours = Math.max(1, Math.min(12, Math.round((processedResult.timeAdvanceMinutes || 480) / 60)));
+          const contentLower = (gmMessage.content || '').toLowerCase();
+          const hasBonfireTag = contentLower.includes('@bonfire') || (Array.isArray(result?.tags) && result!.tags!.includes('bonfire')) || (result?.narrative?.content && String(result.narrative.content).toLowerCase().includes('@bonfire'));
 
-          // Open bonfire menu with a preview — player must confirm
-          if (openBonfireMenu) {
-            try {
-              openBonfireMenu({ type: restType, hours });
-              skipAutoApply = true;
-            } catch (e) {
-              // ignore any opener errors and fall back to normal processing
+          // Check if the player's last message explicitly requested rest/sleep/camp
+          const playerRequestedRest = /\b(rest|sleep|make camp|camp|bed down|lie down)\b/i.test(playerMessage.content || '');
+
+          // Only open Bonfire if the player requested rest (preferred), or there is an explicit tag
+          if (playerRequestedRest || hasBonfireTag) {
+            // Determine rest type by inspecting content (same heuristics as before)
+            let restType: 'outside' | 'camp' | 'inn' = 'outside';
+            if (contentLower.includes('inn') || contentLower.includes('bed')) restType = 'inn';
+            else if (contentLower.includes('camp') || contentLower.includes('tent')) restType = 'camp';
+            const hours = Math.max(1, Math.min(12, Math.round((processedResult.timeAdvanceMinutes || 480) / 60)));
+
+            // Open bonfire menu with a preview — player must confirm
+            if (openBonfireMenu) {
+              try {
+                openBonfireMenu({ type: restType, hours });
+                skipAutoApply = true;
+              } catch (e) {
+                // ignore any opener errors and fall back to normal processing
+              }
             }
           }
         }
 
         if (skipAutoApply) {
-          console.log('[Bonfire] Rest detected; opened Bonfire menu and skipped auto-apply.');
+          console.log('[Bonfire] Rest detected (explicit player request or tag); opened Bonfire menu and skipped auto-apply.');
           return; // don't apply any auto-update now — user will confirm via Bonfire UI
         }
 

@@ -320,6 +320,8 @@ export interface GameStateUpdate {
   // Transaction tracking - prevents duplicate charges
   transactionId?: string;  // Unique ID for this specific transaction
   isPreview?: boolean;     // If true, this response is showing OPTIONS, not executing a transaction
+  // Optional tags emitted by AI/narrative to signal special handling (e.g., 'bonfire')
+  tags?: string[];
   
   // Dialogue choices to present as clickable options
   choices?: Array<{ 

@@ -2915,6 +2915,9 @@ const App: React.FC = () => {
         hasCampingGear={hasCampingGear}
         hasBedroll={hasBedroll}
         previewOptions={restPreviewOptions}
+        characterId={currentCharacterId}
+        character={activeCharacter}
+        onApplyPerks={(perkIds) => applyPerks(perkIds)}
       />
       <div className="min-h-screen bg-skyrim-dark text-skyrim-text font-sans selection:bg-skyrim-gold selection:text-skyrim-dark">
         {/* Status Indicators */}
