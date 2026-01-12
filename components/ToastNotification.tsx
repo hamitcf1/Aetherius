@@ -3,7 +3,11 @@
 export interface ToastMessage {
   id: string;
   message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type?: 'info' | 'success' | 'warning' | 'error';
+  // Optional overrides for color and stat metadata
+  color?: string;
+  stat?: 'health' | 'magicka' | 'stamina' | 'food' | string;
+  amount?: number;
 }
 
 const toastColors: Record<string, string> = {
@@ -11,6 +15,11 @@ const toastColors: Record<string, string> = {
   success: '#2ecc40',
   warning: '#ffb700',
   error: '#ff3b30',
+  // semantic stat colors (fallbacks)
+  health: '#ff3b30',
+  stamina: '#2ecc40',
+  magicka: '#2d72fc',
+  food: '#ffb347',
 };
 
 import React, { useEffect, useRef } from 'react';
@@ -55,13 +64,13 @@ export const ToastNotification: React.FC<{
       gap: '12px',
       pointerEvents: 'none',
     }}>
-      {messages.map(({ id, message, type }) => (
+      {messages.map(({ id, message, type, color, stat, amount }) => (
         <div
           key={id}
           style={{
             minWidth: 240,
             maxWidth: 400,
-            background: toastColors[type] || toastColors.info,
+            background: color || toastColors[stat || (type as string)] || toastColors[type || 'info'],
             color: '#fff',
             borderRadius: 8,
             boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
@@ -84,7 +93,13 @@ export const ToastNotification: React.FC<{
             if ((e.key === 'Enter' || e.key === ' ') && onClose) onClose(id);
           }}
         >
-          <span>{message}</span>
+          <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {/* show small stat badge if available */}
+            {stat && typeof amount === 'number' ? (
+              <span style={{ fontWeight: 700, marginRight: 6 }}>{`+${amount} ${stat}`}</span>
+            ) : null}
+            <span>{message}</span>
+          </span>
           {onClose && (
             <button
               style={{

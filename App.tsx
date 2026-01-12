@@ -268,7 +268,7 @@ const App: React.FC = () => {
   const [consoleKeyBuffer, setConsoleKeyBuffer] = useState('');
 
   // Toast Notifications
-  const [toastMessages, setToastMessages] = useState<Array<{ id: string; message: string; type: 'info' | 'success' | 'warning' | 'error' }>>([]);
+  const [toastMessages, setToastMessages] = useState<Array<{ id: string; message: string; type?: 'info' | 'success' | 'warning' | 'error'; color?: string; stat?: string; amount?: number }>>([]);
   const handleToastClose = useCallback((id: string) => {
     setToastMessages(prev => prev.filter(t => t.id !== id));
   }, []);
@@ -315,14 +315,56 @@ const App: React.FC = () => {
   }>(null);
 
   // Toast notification helper
-  const showToast = useCallback((message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
-    console.log('showToast called:', message, type);
+  const showToast = useCallback((message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info', opts?: { color?: string; stat?: string; amount?: number }) => {
+    console.log('showToast called:', message, type, opts);
     const id = uniqueId();
-    setToastMessages(prev => [...prev.slice(-4), { id, message, type }]);
+    setToastMessages(prev => {
+      // prevent exact duplicate messages with same color/stat
+      if (prev.find(p => p.message === message && (p.color || p.stat) === (opts?.color || opts?.stat))) return prev;
+      const next = [...prev.slice(-3), { id, message, type, color: opts?.color, stat: opts?.stat, amount: opts?.amount }];
+      return next;
+    });
     setTimeout(() => {
       setToastMessages(prev => prev.filter(t => t.id !== id));
     }, 4000);
   }, []);
+
+  // Map stat to a representative color (hex)
+  const getStatColor = (stat?: string) => {
+    switch ((stat || '').toLowerCase()) {
+      case 'health': return '#ff3b30';
+      case 'stamina': return '#2ecc40';
+      case 'magicka': return '#2d72fc';
+      case 'food': return '#ffb347';
+      default: return undefined;
+    }
+  };
+
+  // Try to parse vitals-like effects from a consumable item (food/drink)
+  const parseConsumableVitals = (item: any) : Array<{ stat: 'health' | 'magicka' | 'stamina'; amount: number }> => {
+    const out: Array<{ stat: 'health' | 'magicka' | 'stamina'; amount: number }> = [];
+    if (!item) return out;
+    // 1) explicit numeric damage and subtype
+    if (typeof item.damage === 'number' && item.damage > 0 && typeof item.subtype === 'string') {
+      const s = item.subtype.toLowerCase();
+      if (s === 'health' || s === 'magicka' || s === 'stamina') {
+        out.push({ stat: s as any, amount: Math.floor(item.damage) });
+        return out;
+      }
+    }
+
+    // 2) parse description/name text for patterns like 'restores 20 health' or 'heals 20 health'
+    const text = ((item.description || '') + ' ' + (item.name || '')).toLowerCase();
+    const re = /(\d+)\s*(health|magicka|stamina)/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      const n = Number(m[1]);
+      const stat = m[2] as 'health' | 'magicka' | 'stamina';
+      if (Number.isFinite(n) && n > 0) out.push({ stat, amount: Math.floor(n) });
+    }
+
+    return out;
+  };
 
   // Persist currentCharacterId to localStorage
   useEffect(() => {
@@ -1397,6 +1439,15 @@ const App: React.FC = () => {
   const handleEatItem = (item: InventoryItem) => {
     if (!currentCharacterId || !activeCharacter) return;
     const nutrition = getFoodNutrition(item.name);
+    // Attempt to parse vitals-like effects from the item (some foods may heal)
+    const parsed = parseConsumableVitals(item);
+    const vitalsChange: any = {};
+    for (const p of parsed) {
+      if (p.stat === 'health') vitalsChange.currentHealth = (vitalsChange.currentHealth || 0) + p.amount;
+      if (p.stat === 'magicka') vitalsChange.currentMagicka = (vitalsChange.currentMagicka || 0) + p.amount;
+      if (p.stat === 'stamina') vitalsChange.currentStamina = (vitalsChange.currentStamina || 0) + p.amount;
+    }
+
     handleGameUpdate({
       timeAdvanceMinutes: 10,
       needsChange: { 
@@ -1404,14 +1455,41 @@ const App: React.FC = () => {
         thirst: -nutrition.thirstReduction,
         ...(nutrition.fatigueReduction ? { fatigue: -nutrition.fatigueReduction } : {})
       },
+      ...(Object.keys(vitalsChange).length ? { vitalsChange } : {}),
       removedItems: [{ name: item.name, quantity: 1 }]
     });
+    // Show toast(s) after vitals are applied to avoid race conditions
+    if (parsed.length) {
+      setTimeout(() => {
+        // If multiple vitals recovered, show a combined toast message
+        if (parsed.length === 1) {
+          const p = parsed[0];
+          const color = getStatColor(p.stat);
+          showToast(`Restored ${p.amount} ${p.stat}!`, 'success', { color, stat: p.stat, amount: p.amount });
+        } else {
+          const parts = parsed.map(p => `+${p.amount} ${p.stat}`).join(', ');
+          showToast(`Recovered ${parts}`, 'success', { color: getStatColor('food'), stat: 'food' });
+        }
+      }, 60);
+    } else {
+      // Generic food toast (distinct color)
+      showToast(`Ate ${item.name}`, 'info', { color: getStatColor('food'), stat: 'food' });
+    }
   };
 
   // Drink a specific item - uses dynamic nutrition values
   const handleDrinkItem = (item: InventoryItem) => {
     if (!currentCharacterId || !activeCharacter) return;
     const nutrition = getDrinkNutrition(item.name);
+    // Try to parse potential vitals from drink (some special drinks affect vitals)
+    const parsed = parseConsumableVitals(item);
+    const vitalsChange: any = {};
+    for (const p of parsed) {
+      if (p.stat === 'health') vitalsChange.currentHealth = (vitalsChange.currentHealth || 0) + p.amount;
+      if (p.stat === 'magicka') vitalsChange.currentMagicka = (vitalsChange.currentMagicka || 0) + p.amount;
+      if (p.stat === 'stamina') vitalsChange.currentStamina = (vitalsChange.currentStamina || 0) + p.amount;
+    }
+
     handleGameUpdate({
       timeAdvanceMinutes: 5,
       needsChange: { 
@@ -1419,8 +1497,24 @@ const App: React.FC = () => {
         hunger: -nutrition.hungerReduction,
         ...(nutrition.fatigueReduction ? { fatigue: -nutrition.fatigueReduction } : {})
       },
+      ...(Object.keys(vitalsChange).length ? { vitalsChange } : {}),
       removedItems: [{ name: item.name, quantity: 1 }]
     });
+
+    if (parsed.length) {
+      setTimeout(() => {
+        if (parsed.length === 1) {
+          const p = parsed[0];
+          const color = getStatColor(p.stat);
+          showToast(`Restored ${p.amount} ${p.stat}!`, 'success', { color, stat: p.stat, amount: p.amount });
+        } else {
+          const parts = parsed.map(p => `+${p.amount} ${p.stat}`).join(', ');
+          showToast(`Recovered ${parts}`, 'success', { color: getStatColor('food'), stat: 'food' });
+        }
+      }, 60);
+    } else {
+      showToast(`Drank ${item.name}`, 'info');
+    }
   };
 
   // Use a consumable item (potion, food, drink) - restores vitals and shows toast
@@ -1447,7 +1541,11 @@ const App: React.FC = () => {
               vitalsChange,
               removedItems: [{ name: item.name, quantity: 1 }]
             });
-            showToast(`Restored ${actual} ${resolved.stat}!`, 'success');
+            // show toast after vitals have been applied to avoid race conditions
+            setTimeout(() => {
+              const color = getStatColor(resolved.stat);
+              showToast(`Restored ${actual} ${resolved.stat}!`, 'success', { color, stat: resolved.stat, amount: actual });
+            }, 60);
           } else {
             showToast(`No effect from ${item.name}.`, 'warning');
           }

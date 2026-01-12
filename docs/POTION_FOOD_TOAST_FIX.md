@@ -28,7 +28,7 @@ The AI agent must update the **Status field** and generate a report after implem
 - Magicka potion usage → blue toast showing magicka recovered
 - Toast values match actual stat increases
 
-**Status:** ⚠️ Pending / ✅ DONE / ❌ BLOCKED  
+**Status:** ✅ DONE  
 
 ---
 
@@ -47,7 +47,7 @@ The AI agent must update the **Status field** and generate a report after implem
 - Toast color differs from potion colors
 - UI reflects stat change immediately
 
-**Status:** ⚠️ Pending / ✅ DONE / ❌ BLOCKED  
+**Status:** ✅ DONE  
 
 ---
 
@@ -66,7 +66,7 @@ The AI agent must update the **Status field** and generate a report after implem
 - Messages update in real-time
 - No UI glitches or wrong color assignment
 
-**Status:** ⚠️ Pending / ✅ DONE / ❌ BLOCKED  
+**Status:** ✅ DONE  
 
 ---
 

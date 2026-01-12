@@ -1,8 +1,8 @@
 - [x] Ability to select items as favorites and new group/ category called favorites.
 - [x] Ability / new feature to upgrade weapons and armor, new blacksmith feature and modal, costs money gradially, level depending as well.
-- [ ] At the moment using a potion gives the same color of tos message (green), we need red toast message color for health potions, green for stamina potions (unchanged), blue for magicka potions, eaten food heal player but food consumption tos messages have their own color.
+- [x] At the moment using a potion gives the same color of tos message (green), we need red toast message color for health potions, green for stamina potions (unchanged), blue for magicka potions, eaten food heal player but food consumption tos messages have their own color.
 - [ ] adding, removing quantities of items does not change the gold amount shown in the item card, if 5 breads are 64 golds, and I remove 1 bread it still counts as 64 golds for some reason.
-- [ ] adding - removing items one by one via buttons in inventory for items on items card, number input areas and area and buttons like this for admins and that can break the immersion of the game should be toggled hidden, and should be able to toggled on, but default should be hidden, in all areas of the game.
+- [ ] adding - removing items one by one via buttons usere/player controlled in inventory for items on items card, number input areas and area and buttons like this can break immersion and that can break the immersion of the game so they should be toggled hidden, and should be able to toggled on, but default should be hidden, in all areas of the game, removing an item from the inventory (dropping) should not be hidden or toggled, do not otuch that button.
 
 - [ ] Bugfix: even though the player is equipped with a double hand weapon, off hand is still available to equip weapons, which is not intended. When double handed weapons are equipped, off hand should become unavailable or emptied, and if another weapon is equipped in offhand while double handed weapons are equipped, double handed weapon should be unequipped automatically.
 
