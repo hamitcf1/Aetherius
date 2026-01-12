@@ -321,8 +321,7 @@ const App: React.FC = () => {
     console.log('showToast called:', message, type, opts);
     const id = uniqueId();
     setToastMessages(prev => {
-      // prevent exact duplicate messages with same color/stat
-      if (prev.find(p => p.message === message && (p.color || p.stat) === (opts?.color || opts?.stat))) return prev;
+      // Allow repeated messages so repeated consumptions show toasts; keep last 3 messages
       const next = [...prev.slice(-3), { id, message, type, color: opts?.color, stat: opts?.stat, amount: opts?.amount }];
       return next;
     });
@@ -1529,6 +1528,15 @@ const App: React.FC = () => {
       if (p.stat === 'stamina') vitalsChange.currentStamina = (vitalsChange.currentStamina || 0) + p.amount;
     }
 
+    // If no explicit vitals were parsed, derive a default heal from the nutrition
+    if (parsed.length === 0) {
+      const healAmount = Math.max(0, Math.floor(nutrition.hungerReduction / 2) + 10);
+      if (healAmount > 0) {
+        parsed.push({ stat: 'health', amount: healAmount });
+        vitalsChange.currentHealth = (vitalsChange.currentHealth || 0) + healAmount;
+      }
+    }
+
     handleGameUpdate({
       timeAdvanceMinutes: 10,
       needsChange: { 
@@ -1690,10 +1698,8 @@ const App: React.FC = () => {
 
     } else if (item.type === 'food') {
       handleEatItem(item);
-      showToast(`Ate ${item.name}`, 'info');
     } else if (item.type === 'drink') {
       handleDrinkItem(item);
-      showToast(`Drank ${item.name}`, 'info');
     } else if (item.type === 'ingredient') {
       // Ingredients might be used for crafting, but for now just consume
       handleGameUpdate({

@@ -565,8 +565,11 @@ export const CombatModal: React.FC<CombatModalProps> = ({
       if (onInventoryUpdate) {
         onInventoryUpdate([{ name: usedItem.name, quantity: 1 }]);
       }
-      if (showToast) {
-        showToast(`Used ${usedItem.name}`, 'info');
+      // Avoid duplicate toasts: if this item restored health, the heal toast was already shown above
+      if (!(action === 'item' && newPlayerStats.currentHealth > playerStats.currentHealth)) {
+        if (showToast) {
+          showToast(`Used ${usedItem.name}`, 'info');
+        }
       }
     }
     

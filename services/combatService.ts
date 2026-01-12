@@ -801,6 +801,11 @@ export const executePlayerAction = (
         if (actualHeal > 0) {
           newPlayerStats.currentHealth = newPlayerStats.currentHealth + actualHeal;
           usedItem = { ...item, quantity: item.quantity - 1 };
+          // Also apply survival deltas so food in combat reduces hunger/thirst accordingly
+          newState.survivalDelta = newState.survivalDelta || {};
+          newState.survivalDelta.hunger = (newState.survivalDelta.hunger || 0) - (nutrition.hungerReduction || 0);
+          newState.survivalDelta.thirst = (newState.survivalDelta.thirst || 0) - (nutrition.thirstReduction || 0);
+
           narrative = `You consume ${item.name} and recover ${actualHeal} health.`;
           newState.combatLog.push({ turn: newState.turn, actor: 'player', action: 'item', target: item.name, damage: 0, narrative, isCrit: false, timestamp: Date.now() });
           return { newState, newPlayerStats, narrative, usedItem };
