@@ -71,7 +71,7 @@ export function OnboardingModal(props: {
           <div className="space-y-3">
             <ul className="text-gray-300 text-sm font-sans list-disc pl-5 space-y-1">
               <li><span className="text-gray-200 font-semibold">Hero</span>: character sheet and progression.</li>
-              <li><span className="text-gray-200 font-semibold">Inventory</span>: inventory and equipment.</li>
+              <li><span className="text-gray-200 font-semibold">Equipment</span>: inventory and equipment.</li>
               <li><span className="text-gray-200 font-semibold">Quests</span>: quests and objectives.</li>
               <li><span className="text-gray-200 font-semibold">Story</span>: chapters and notes (long-term narrative).</li>
               <li><span className="text-gray-200 font-semibold">Journal</span>: first-person log entries.</li>

@@ -10,14 +10,16 @@ type Props = {
 };
 
 const AdventureInput = React.forwardRef<HTMLTextAreaElement, Props>(
-  ({ value, onChange, onSend, placeholder, disabled = false, rows = 1 }, ref) => {
+  ({ value, onChange, onSend, placeholder, disabled = false, rows = 2 }, ref) => {
     const innerRef = useRef<HTMLTextAreaElement | null>(null);
 
     useEffect(() => {
       const ta = (ref as any)?.current || innerRef.current;
       if (!ta) return;
       ta.style.height = 'auto';
-      ta.style.height = Math.min(200, ta.scrollHeight) + 'px';
+      // clamp max height so it behaves like a textarea with overflow
+      const max = 160; // px
+      ta.style.height = Math.min(max, ta.scrollHeight) + 'px';
     }, [value, ref]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -42,7 +44,7 @@ const AdventureInput = React.forwardRef<HTMLTextAreaElement, Props>(
         rows={rows}
         autoCapitalize="none"
         autoCorrect="off"
-        className="flex-1 bg-skyrim-paper/30 border border-skyrim-border rounded p-2 text-sm text-skyrim-text placeholder-gray-500 resize-none focus:border-skyrim-gold focus:outline-none disabled:opacity-50 font-sans normal-case"
+        className="flex-1 w-full bg-skyrim-paper/40 border border-skyrim-border rounded-lg p-3 text-sm text-skyrim-text placeholder-gray-500 resize-none focus:border-skyrim-gold focus:ring-1 focus:ring-skyrim-gold/50 disabled:opacity-50 font-sans normal-case min-h-[44px] max-h-40 overflow-auto"
         aria-label="Adventure input"
       />
     );

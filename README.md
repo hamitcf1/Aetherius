@@ -38,7 +38,7 @@ This README is both a player tutorial and a developer/operator guide.
 ### 2) Understand the tabs
 
 - **Hero**: your character sheet (stats, skills, perks/milestones, rules/constraints, and now in-game time + survival needs)
-- **Inventory**: inventory, quantities, equipped state, gold
+- **Equipment**: inventory, quantities, equipped state, gold
 - **Quests**: quests with location + objectives; supports bulk objective editing
 - **Story**: narrative chapters (manual or AI-generated)
 - **Journal**: first-person diary entries (auto-generated notes are also first-person)

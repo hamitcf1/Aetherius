@@ -2929,16 +2929,16 @@ const App: React.FC = () => {
         <nav className="fixed top-0 left-0 right-0 bg-skyrim-paper/95 backdrop-blur-md border-b border-skyrim-border z-40 shadow-2xl">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex items-center justify-between h-16">
-              <div className="flex items-center gap-2 text-skyrim-gold font-serif font-bold text-xl tracking-widest uppercase cursor-pointer" onClick={() => setCurrentCharacterId(null)}>
+              <div className="flex items-center gap-2 text-skyrim-gold font-serif font-bold text-xl tracking-widest uppercase cursor-pointer" onClick={() => setActiveTab(TABS.CHARACTER)}>
                 <Skull size={24} />
                 <span className="hidden md:inline">Skyrim Aetherius</span>
               </div>
               <div className="flex flex-nowrap items-center gap-1 sm:gap-2 relative overflow-hidden">
                 {[
-                    { id: TABS.INVENTORY, icon: Package, label: 'Inventory' },
+                        { id: TABS.CHARACTER, icon: User, label: 'Hero' },
+                    { id: TABS.INVENTORY, icon: Package, label: 'Equipment' },
                     { id: TABS.ADVENTURE, icon: Swords, label: 'Adventure' },
                     { id: TABS.QUESTS, icon: Scroll, label: 'Quests' },
-                    { id: TABS.CHARACTER, icon: User, label: 'Hero' },
                     { id: TABS.STORY, icon: Feather, label: 'Story' },
                     { id: TABS.JOURNAL, icon: BookOpen, label: 'Journal' },
                 ].map(tab => (
@@ -3135,8 +3135,21 @@ const App: React.FC = () => {
                 try {
                   const outcomeText = result === 'victory' ? 'You were victorious.' : result === 'defeat' ? 'You were defeated.' : result === 'fled' ? 'You fled the battle.' : result === 'surrendered' ? 'You surrendered.' : 'Combat ended.';
                   const playerInput = `Combat concluded. Outcome: ${outcomeText} Resume the adventure from here, branching the story appropriately for the outcome and present the next narrative and choices. NOTE: Combat rewards have already been applied (loot and XP). Do NOT re-award items, gold, or experience in your response; instead summarize rewards and continue the story.`;
-                  const aiContext = getAIContext();
-                  const resp = await generateAdventureResponse(playerInput, aiContext, `Continue the adventure and branch according to combat outcome. Do not grant duplicate rewards.`);
+                  // Build AI context and include combat outcome so model is explicitly aware of results
+                  let aiContextObj: any = {};
+                  try {
+                    const ctx = getAIContext();
+                    aiContextObj = ctx ? JSON.parse(ctx) : {};
+                  } catch (e) {
+                    aiContextObj = {};
+                  }
+                  aiContextObj.combatOutcome = {
+                    result,
+                    rewards: rewards || null,
+                    finalVitals: finalVitals || null,
+                    timeAdvanceMinutes: timeAdvanceMinutes || null
+                  };
+                  const resp = await generateAdventureResponse(playerInput, JSON.stringify(aiContextObj), `Continue the adventure and branch according to combat outcome. Do not grant duplicate rewards.`);
                   // Apply generated updates to game state so the adventure continues
                   if (resp) handleGameUpdate(resp);
                 } catch (e) {

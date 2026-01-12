@@ -72,7 +72,7 @@ export function OnboardingModal(props: {
           <div className="space-y-3">
             <ul className="text-gray-300 text-sm font-sans list-disc pl-5 space-y-1">
               <li><span className="text-skyrim-gold font-semibold">Hero</span>: Character sheet, stats, identity, and progression.</li>
-              <li><span className="text-skyrim-gold font-semibold">Inventory</span>: Inventory management and equipment.</li>
+              <li><span className="text-skyrim-gold font-semibold">Equipment</span>: Inventory management and equipment.</li>
               <li><span className="text-skyrim-gold font-semibold">Quests</span>: Active quests, objectives, and completion tracking.</li>
               <li><span className="text-skyrim-gold font-semibold">Story</span>: Chapters and narrative notes (long-term story).</li>
               <li><span className="text-skyrim-gold font-semibold">Journal</span>: First-person diary entries from your character's view.</li>
