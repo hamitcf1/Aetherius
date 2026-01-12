@@ -18,6 +18,20 @@ interface ChangelogEntry {
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.5.1',
+    date: '2026-01-12',
+    title: 'Bug fixes, type-safety and responsive UI updates',
+    changes: [
+      { type: 'fix', text: 'Fixed TypeScript errors across multiple components and services (compile clean)' },
+      { type: 'fix', text: 'Shop modal: added potion subtype compatibility to ShopItem' },
+      { type: 'fix', text: 'Combat modal: removed stray/unused imports and cleaned up references' },
+      { type: 'fix', text: 'Combat service: improved shield detection, added computeEnemyXP, and corrected enemy templates' },
+      { type: 'improvement', text: 'Perk Tree and Blacksmith modals are now mobile responsive and stack on small screens' },
+      { type: 'fix', text: 'Loot service: ensure generated rewards include descriptions to match combat state shapes' },
+      { type: 'improvement', text: 'Updated cross-file types and helpers (App, AdventureChat, PerkTreeModal, lootService)' },
+    ]
+  },
+  {
     version: '0.5.0',
     date: '2026-01-11',
     title: 'Game Features Expansion',
