@@ -178,9 +178,46 @@ export interface ValidationResult {
   sanitized: any;
 }
 
-export const validateGameStateUpdate = (response: any): ValidationResult => {
+export interface ValidationOptions {
+  allowMechanical?: boolean; // If false, mechanical fields (gold/xp/items/stats) are forbidden and will be stripped
+}
+
+const MECHANICAL_TEXT_PATTERNS: Array<[RegExp, string]> = [
+  [/\+\s*\d+\s*(gold|gp|g)\b/gi, 'some coin'],
+  [/gained\s+\d+\s+(gold|gp|g)\b/gi, 'found some coin'],
+  [/gained\s+\d+\s+experience\b/gi, 'learned something useful'],
+  [/\+\s*\d+\s*(xp|experience)\b/gi, 'earned experience'],
+  [/you\s+(?:drink|consume|used?)\s+[^\.\,\n]*/gi, 'you use an item'],
+  [/regain(?:ed)?\s+\d+\s+(health|hp|stamina|magicka)\b/gi, 'feel restored'],
+  [/lost\s+\d+\s+(health|hp|stamina|magicka)\b/gi, 'took damage'],
+  [/\b\d+\s+gold\b/gi, 'some coin'],
+  [/\b\+?\d+\s*xp\b/gi, 'some experience']
+];
+
+const sanitizeNarrativeMechanics = (text: string): { sanitized: string; found: string[] } => {
+  if (!text || typeof text !== 'string') return { sanitized: text, found: [] };
+  let sanitized = text;
+  const found: string[] = [];
+
+  for (const [rx, replacement] of MECHANICAL_TEXT_PATTERNS) {
+    if (rx.test(sanitized)) {
+      found.push(rx.toString());
+      sanitized = sanitized.replace(rx, replacement);
+    }
+  }
+
+  // Remove explicit patterns like "\+50 gold" or "+50 XP" left-over symbols
+  sanitized = sanitized.replace(/\+\d+\s*(xp|gold|gp|g)?/gi, '');
+  sanitized = sanitized.replace(/\b\d+\s*(xp|gold|gp|g)\b/gi, '');
+
+  return { sanitized: sanitized.trim(), found };
+};
+
+export const validateGameStateUpdate = (response: any, options: ValidationOptions = {}): ValidationResult => {
   const errors: string[] = [];
   const sanitized: any = {};
+  // Default behavior: allow mechanical fields unless explicitly disabled (adventure mode disables them)
+  const allowMechanical = options.allowMechanical !== false;
 
   // Validate narrative
   if (response.narrative) {
@@ -193,6 +230,15 @@ export const validateGameStateUpdate = (response: any): ValidationResult => {
       };
     } else {
       errors.push('Invalid narrative format');
+    }
+
+    // Always sanitize narrative for any mechanical text when in adventure mode (no mechanical changes allowed)
+    if (!allowMechanical && sanitized.narrative && sanitized.narrative.content) {
+      const { sanitized: s, found } = sanitizeNarrativeMechanics(sanitized.narrative.content);
+      if (found.length > 0) {
+        errors.push('Narrative contains mechanical descriptions which were removed for safety.');
+        sanitized.narrative.content = s;
+      }
     }
   }
 
@@ -229,21 +275,25 @@ export const validateGameStateUpdate = (response: any): ValidationResult => {
     }
   }
 
-  // Validate newItems
+  // Validate newItems (for adventure mode, adding mechanical items is forbidden)
   if (response.newItems) {
     if (!Array.isArray(response.newItems)) {
       errors.push('newItems must be an array');
     } else {
-      sanitized.newItems = response.newItems.filter((i: any) => 
-        i.name && typeof i.name === 'string'
-      ).map((i: any) => ({
-        name: i.name,
-        type: typeof i.type === 'string' ? i.type : 'misc',
-        description: typeof i.description === 'string' ? i.description : '',
-        quantity: typeof i.quantity === 'number' ? Math.max(1, Math.floor(i.quantity)) : 1,
-        weight: typeof i.weight === 'number' ? i.weight : undefined,
-        value: typeof i.value === 'number' ? i.value : undefined
-      }));
+      if (!allowMechanical) {
+        errors.push('newItems are forbidden in Adventure responses (mechanical state must be engine-controlled)');
+      } else {
+        sanitized.newItems = response.newItems.filter((i: any) => 
+          i.name && typeof i.name === 'string'
+        ).map((i: any) => ({
+          name: i.name,
+          type: typeof i.type === 'string' ? i.type : 'misc',
+          description: typeof i.description === 'string' ? i.description : '',
+          quantity: typeof i.quantity === 'number' ? Math.max(1, Math.floor(i.quantity)) : 1,
+          weight: typeof i.weight === 'number' ? i.weight : undefined,
+          value: typeof i.value === 'number' ? i.value : undefined
+        }));
+      }
     }
   }
 
@@ -252,12 +302,16 @@ export const validateGameStateUpdate = (response: any): ValidationResult => {
     if (!Array.isArray(response.removedItems)) {
       errors.push('removedItems must be an array');
     } else {
-      sanitized.removedItems = response.removedItems.filter((i: any) => 
-        i.name && typeof i.name === 'string'
-      ).map((i: any) => ({
-        name: i.name,
-        quantity: typeof i.quantity === 'number' ? Math.max(1, Math.floor(i.quantity)) : 1
-      }));
+      if (!allowMechanical) {
+        errors.push('removedItems are forbidden in Adventure responses (mechanical state must be engine-controlled)');
+      } else {
+        sanitized.removedItems = response.removedItems.filter((i: any) => 
+          i.name && typeof i.name === 'string'
+        ).map((i: any) => ({
+          name: i.name,
+          quantity: typeof i.quantity === 'number' ? Math.max(1, Math.floor(i.quantity)) : 1
+        }));
+      }
     }
   }
 
@@ -266,10 +320,14 @@ export const validateGameStateUpdate = (response: any): ValidationResult => {
     if (typeof response.statUpdates !== 'object') {
       errors.push('statUpdates must be an object');
     } else {
-      sanitized.statUpdates = {};
-      for (const key of ['health', 'magicka', 'stamina']) {
-        if (typeof response.statUpdates[key] === 'number') {
-          sanitized.statUpdates[key] = Math.max(0, Math.floor(response.statUpdates[key]));
+      if (!allowMechanical) {
+        errors.push('statUpdates are forbidden in Adventure responses (mechanical state must be engine-controlled)');
+      } else {
+        sanitized.statUpdates = {};
+        for (const key of ['health', 'magicka', 'stamina']) {
+          if (typeof response.statUpdates[key] === 'number') {
+            sanitized.statUpdates[key] = Math.max(0, Math.floor(response.statUpdates[key]));
+          }
         }
       }
     }
@@ -280,10 +338,14 @@ export const validateGameStateUpdate = (response: any): ValidationResult => {
     if (typeof response.vitalsChange !== 'object') {
       errors.push('vitalsChange must be an object');
     } else {
-      sanitized.vitalsChange = {};
-      for (const key of ['currentHealth', 'currentMagicka', 'currentStamina']) {
-        if (typeof response.vitalsChange[key] === 'number') {
-          sanitized.vitalsChange[key] = Math.floor(response.vitalsChange[key]);
+      if (!allowMechanical) {
+        errors.push('vitalsChange is forbidden in Adventure responses (mechanical state must be engine-controlled)');
+      } else {
+        sanitized.vitalsChange = {};
+        for (const key of ['currentHealth', 'currentMagicka', 'currentStamina']) {
+          if (typeof response.vitalsChange[key] === 'number') {
+            sanitized.vitalsChange[key] = Math.floor(response.vitalsChange[key]);
+          }
         }
       }
     }
@@ -291,11 +353,19 @@ export const validateGameStateUpdate = (response: any): ValidationResult => {
 
   // Validate numeric fields
   if (response.goldChange !== undefined) {
-    sanitized.goldChange = typeof response.goldChange === 'number' ? Math.floor(response.goldChange) : 0;
+    if (!allowMechanical) {
+      errors.push('goldChange is forbidden in Adventure responses (mechanical state must be engine-controlled)');
+    } else {
+      sanitized.goldChange = typeof response.goldChange === 'number' ? Math.floor(response.goldChange) : 0;
+    }
   }
   
   if (response.xpChange !== undefined) {
-    sanitized.xpChange = typeof response.xpChange === 'number' ? Math.max(0, Math.floor(response.xpChange)) : 0;
+    if (!allowMechanical) {
+      errors.push('xpChange is forbidden in Adventure responses (mechanical state must be engine-controlled)');
+    } else {
+      sanitized.xpChange = typeof response.xpChange === 'number' ? Math.max(0, Math.floor(response.xpChange)) : 0;
+    }
   }
 
   if (response.timeAdvanceMinutes !== undefined) {
@@ -329,7 +399,10 @@ export const validateGameStateUpdate = (response: any): ValidationResult => {
     sanitized.characterUpdates = response.characterUpdates;
   }
 
-  if (response.transactionId) sanitized.transactionId = response.transactionId;
+  if (response.transactionId) {
+    if (allowMechanical) sanitized.transactionId = response.transactionId;
+    else errors.push('transactionId is forbidden in Adventure responses (would imply mechanical application)');
+  }
   if (response.isPreview) sanitized.isPreview = response.isPreview;
 
   return {
@@ -711,10 +784,11 @@ export const generateAdventureResponse = async (
       const json = extractJsonObject(text) || "{}";
       const parsed = JSON.parse(json);
       
-      // Validate and sanitize the response
-      const validation = validateGameStateUpdate(parsed);
+      // Validate and sanitize the response - Adventure mode forbids mechanical changes
+      const validation = validateGameStateUpdate(parsed, { allowMechanical: false });
       if (validation.errors.length > 0) {
-        console.warn('[Gemini Service] Response validation warnings:', validation.errors);
+        // Log warnings for the caller to display if needed
+        console.warn('[Gemini Service] Adventure response validation warnings:', validation.errors);
       }
       
       // Use sanitized response

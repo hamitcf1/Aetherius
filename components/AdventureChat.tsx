@@ -36,7 +36,7 @@ interface AdventureChatProps {
   onUpdateState: (updates: GameStateUpdate) => void;
 }
 
-const SYSTEM_PROMPT = `You are an immersive Game Master (GM) for a text-based Skyrim adventure. You control the world, NPCs, enemies, and outcomes. The player controls their character's actions.
+const SYSTEM_PROMPT = `You are an immersive Game Master (GM) for a text-based Skyrim adventure. You are strictly a NARRATOR: describe scenes, NPCs, outcomes, and offer choices — but DO NOT make or apply mechanical changes. The game ENGINE is the only authority that applies items, gold, experience, potions, or stat changes. Adventure AI RESPONSES MUST BE NARRATIVE-ONLY. The player controls their character's actions.
 
 CORE RULES:
 1. Always stay in character as a Skyrim GM. Use Tamrielic lore, locations, factions, and NPCs.
@@ -1168,7 +1168,42 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
 
     try {
       const { generateAdventureResponse } = await import('../services/geminiService');
-      const context = buildContext();
+      // Build strict read-only AdventureContext to pass to the AI (engine state only - no mechanics allowed)
+      const simulationContext = buildContext();
+      const recentTx = getTransactionLedger().getRecentTransactions(5).map(t => ({ type: t.type, gold: t.goldAmount, xp: t.xpAmount, items: t.items, timestamp: t.timestamp }));
+      const playerReadOnly = character ? {
+        id: character.id,
+        name: character.name,
+        currentVitals: character.currentVitals || { currentHealth: character.stats.health, currentMagicka: character.stats.magicka, currentStamina: character.stats.stamina },
+        gold: character.gold || 0,
+        experience: character.experience || 0,
+        inventorySummary: inventory.map(i => ({ name: i.name, qty: i.quantity || 1 }))
+      } : null;
+
+      // Last combat summary (read-only): find last resolved combat scene
+      let lastCombatSummary: any = null;
+      try {
+        const state = simulationManagerRef.current?.getState();
+        const history = state?.sceneHistory || [];
+        for (let i = history.length - 1; i >= 0; i--) {
+          const s = history[i];
+          if (s.type === 'combat' && s.resolution && s.resolution !== 'none') {
+            lastCombatSummary = { resolution: s.resolution, location: s.location, events: s.events || [] };
+            break;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      const adventureContext = {
+        readOnly: true,
+        player: playerReadOnly,
+        recentEngineTransactions: recentTx,
+        lastCombat: lastCombatSummary
+      };
+
+      const context = `${simulationContext}\n\nADVENTURE_CONTEXT_JSON:\n${JSON.stringify(adventureContext, null, 2)}`;
       const systemPrompt = getSystemPrompt(); // Use dynamic system prompt with simulation context
       const result = await generateAdventureResponse(trimmed, context, systemPrompt, { model });
       
@@ -1189,10 +1224,34 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
         }
       }
       
+      // Sanitize narrative text to remove any explicit mechanical deltas (defense-in-depth)
+      const sanitizeMechanicalNarrative = (text: string) => {
+        if (!text || typeof text !== 'string') return text;
+        let s = text;
+        s = s.replace(/\+\s*\d+\s*(gold|gp|g)\b/gi, 'some coin');
+        s = s.replace(/gained\s+\d+\s+(gold|gp|g)\b/gi, 'found some coin');
+        s = s.replace(/gained\s+\d+\s+experience\b/gi, 'learned something useful');
+        s = s.replace(/\+\s*\d+\s*(xp|experience)\b/gi, 'some experience');
+        s = s.replace(/you\s+(?:drink|consume|used?)\s+[^\.\,\n]*/gi, 'you use an item');
+        s = s.replace(/regain(?:ed)?\s+\d+\s+(health|hp|stamina|magicka)\b/gi, 'feel restored');
+        s = s.replace(/lost\s+\d+\s+(health|hp|stamina|magicka)\b/gi, 'took damage');
+        s = s.replace(/\b\d+\s+gold\b/gi, 'some coin');
+        s = s.replace(/\b\+?\d+\s*xp\b/gi, 'some experience');
+        // Final pass to remove leftover +50 or similar
+        s = s.replace(/\+\d+\b/gi, '');
+        s = s.replace(/\b\d+\b/gi, (m) => (isNaN(Number(m)) ? m : ''));
+        return s.trim();
+      };
+
+      const sanitizedContent = sanitizeMechanicalNarrative(result.narrative?.content || 'The winds of fate are silent...');
+      if (sanitizedContent !== (result.narrative?.content || '')) {
+        setSimulationWarnings(prev => [...prev, 'Adventure response contained mechanical details which were removed to preserve engine authority.']);
+      }
+
       const gmMessage: ChatMessage = {
         id: Math.random().toString(36).substr(2, 9),
         role: 'gm',
-        content: result.narrative?.content || 'The winds of fate are silent...',
+        content: sanitizedContent || 'The winds of fate are silent...',
         timestamp: Date.now(),
         updates: result
       };

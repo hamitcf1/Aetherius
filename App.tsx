@@ -3130,6 +3130,15 @@ const App: React.FC = () => {
                 });
               }
 
+              // Emit a CombatResolved event (for subscribers wanting a deterministic signal)
+              try {
+                const { emitCombatResolved } = await import('./services/events');
+                emitCombatResolved({ result, rewards, finalVitals, timeAdvanceMinutes, combatResult });
+              } catch (e) {
+                // non-fatal - continue
+                console.warn('Failed to emit CombatResolved event:', e);
+              }
+
               // Automatically resume the adventure by asking the Game Master to continue
               (async () => {
                 try {

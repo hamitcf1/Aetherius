@@ -18,6 +18,21 @@ export interface CurrentVitals {
   currentStamina: number;
 }
 
+// Read-only context provided to Adventure AI. Includes engine-confirmed events and player snapshot.
+export interface AdventureContext {
+  readOnly: true;
+  player?: {
+    id?: string;
+    name?: string;
+    currentVitals?: CurrentVitals;
+    gold?: number;
+    experience?: number;
+    inventorySummary?: Array<{ name: string; qty: number }>;
+  };
+  recentEngineTransactions?: Array<{ type: string; gold?: number; xp?: number; items?: Array<any>; timestamp: number }>;
+  lastCombat?: { resolution?: string; location?: string; events?: string[] } | null;
+}
+
 export interface GameTime {
   day: number;
   hour: number;
