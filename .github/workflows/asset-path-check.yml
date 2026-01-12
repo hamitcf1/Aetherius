@@ -1,0 +1,21 @@
+name: Asset Path Check
+
+on:
+  push:
+    paths:
+      - '**/*'
+  pull_request:
+
+jobs:
+  asset-path-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install deps
+        run: npm ci
+      - name: Run asset path check
+        run: npm run check:assets

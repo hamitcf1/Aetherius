@@ -48,7 +48,7 @@ const DEFAULT_CONFIG: AudioConfig = {
 // Sound effect paths (to be populated with actual sound files)
 import { BASE_PATH } from './basePath';
 const SOUND_EFFECTS: Record<SoundEffect, string | null> = {
-  purchase: `${BASE_PATH}/audio/sfx/purchase.mp3`,       // drop at public./audio/sfx/
+  purchase: `${BASE_PATH}/audio/sfx/purchase.mp3`,       // drop at public/audio/sfx/
   sell: `${BASE_PATH}/audio/sfx/sell.mp3`,
   gold_gain: `${BASE_PATH}/audio/sfx/gold_gain.mp3`,
   gold_spend: `${BASE_PATH}/audio/sfx/gold_spend.mp3`,
