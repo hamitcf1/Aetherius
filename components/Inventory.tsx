@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, EquipmentSlot } from '../types';
-import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent, ArrowUpDown, User, Backpack, Check, ShoppingBag, Weight, Star } from 'lucide-react';
+import { Shield, Sword, FlaskConical, Gem, Key, Package, Trash2, Plus, Coins, Apple, Droplets, Tent, ArrowUpDown, User, Backpack, Check, ShoppingBag, Weight, Star, Eye, EyeOff } from 'lucide-react';
 import { EquipmentHUD, getDefaultSlotForItem, SLOT_CONFIGS_EXPORT } from './EquipmentHUD';
 import { isTwoHandedWeapon, isShield, canEquipInOffhand, canEquipInMainhand } from '../services/equipment';
 import { ShopModal } from './ShopModal';
@@ -64,11 +64,13 @@ const InventoryItemCard: React.FC<{
     const [editDesc, setEditDesc] = useState(item.description);
     const [editQty, setEditQty] = useState(item.quantity);
 
+    const { showQuantityControls } = useAppContext();
+
     const startEdit = () => {
-        setEditName(item.name);
-        setEditDesc(item.description);
-        setEditQty(item.quantity);
-        setEditMode(true);
+      setEditName(item.name);
+      setEditDesc(item.description);
+      setEditQty(item.quantity);
+      setEditMode(true);
     };
 
     const handleSave = () => {
@@ -102,18 +104,15 @@ const InventoryItemCard: React.FC<{
                             value={editName}
                             onChange={e => setEditName(e.target.value)}
                         />
-                        <input
-                            className="w-20 bg-black/40 border border-skyrim-border p-1 rounded text-gray-200 mb-1"
-                            type="number"
-                            min={1}
-                            value={editQty}
-                            onChange={e => setEditQty(Number(e.target.value))}
-                        />
-                        <input
-                            className="w-full bg-black/40 border border-skyrim-border p-1 rounded text-gray-200"
-                            value={editDesc}
-                            onChange={e => setEditDesc(e.target.value)}
-                        />
+                        {showQuantityControls && (
+                          <input
+                              className="w-20 bg-black/40 border border-skyrim-border p-1 rounded text-gray-200 mb-1"
+                              type="number"
+                              min={1}
+                              value={editQty}
+                              onChange={e => setEditQty(Number(e.target.value))}
+                          />
+                        )}
                         <div className="flex gap-2 mt-2">
                             <button onClick={handleSave} className="px-2 py-1 bg-skyrim-gold text-skyrim-dark rounded text-xs">Save</button>
                             <button onClick={() => setEditMode(false)} className="px-2 py-1 bg-gray-600 text-white rounded text-xs">Cancel</button>
@@ -199,8 +198,12 @@ const InventoryItemCard: React.FC<{
                               <Star size={14} />
                             </button>
                             <button onClick={startEdit} className="px-2 py-1 bg-skyrim-gold/20 text-skyrim-gold rounded text-xs">Edit</button>
-                            <button onClick={() => onDeltaQuantity(1)} className="px-2 py-1 bg-green-700/60 text-white rounded text-xs">+1</button>
-                            <button onClick={() => onDeltaQuantity(-1)} className="px-2 py-1 bg-red-700/60 text-white rounded text-xs">-1</button>
+                            {showQuantityControls && (
+                              <>
+                                <button onClick={() => onDeltaQuantity(1)} className="px-2 py-1 bg-green-700/60 text-white rounded text-xs">+1</button>
+                                <button onClick={() => onDeltaQuantity(-1)} className="px-2 py-1 bg-red-700/60 text-white rounded text-xs">-1</button>
+                              </>
+                            )}
                         </div>
                     </>
                 )}
@@ -227,7 +230,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
   const [blacksmithOpen, setBlacksmithOpen] = useState(false);
 
   // Get shop handlers and UI helpers from context
-  const { handleShopPurchase, handleShopSell, characterLevel, handleEatItem, handleDrinkItem, showToast } = useAppContext();
+  const { handleShopPurchase, handleShopSell, characterLevel, handleEatItem, handleDrinkItem, showToast, showQuantityControls, setShowQuantityControls } = useAppContext();
 
   // Calculate total carry weight
   const totalWeight = useMemo(() => {
@@ -376,6 +379,15 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
       return;
     }
 
+    // If equipping to offhand while a two-handed weapon is in main hand, auto-unequip that two-handed weapon
+    let unequipMainTwoHandedId: string | null = null;
+    if (targetSlot === 'offhand') {
+      const mainEquipped = items.find(i => i.equipped && i.slot === 'weapon');
+      if (mainEquipped && isTwoHandedWeapon(mainEquipped)) {
+        unequipMainTwoHandedId = mainEquipped.id;
+      }
+    }
+
     // If equipping a two-handed weapon to main hand, auto-unequip any offhand item
     const updatedItems = items.map(i => {
       if (i.id === item.id) {
@@ -387,6 +399,10 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
       }
       // Auto-unequip offhand when equipping two-handed in main
       if (targetSlot === 'weapon' && isTwoHandedWeapon(item) && i.equipped && i.slot === 'offhand') {
+        return { ...i, equipped: false, slot: undefined };
+      }
+      // Auto-unequip main two-handed when equipping to offhand
+      if (unequipMainTwoHandedId && i.id === unequipMainTwoHandedId) {
         return { ...i, equipped: false, slot: undefined };
       }
       return i;
@@ -611,6 +627,13 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems, gold, set
                 className="px-4 py-2 border border-skyrim-gold text-skyrim-gold hover:bg-skyrim-gold hover:text-skyrim-dark transition-colors rounded flex items-center gap-2"
             >
                 <Plus size={18} /> Add Item
+            </button>
+            <button
+              onClick={() => setShowQuantityControls(v => !v)}
+              title={showQuantityControls ? 'Hide quantity controls' : 'Show quantity controls'}
+              className={`px-3 py-2 rounded border ${showQuantityControls ? 'bg-skyrim-gold text-skyrim-dark border-skyrim-gold' : 'bg-black/30 text-gray-400 hover:bg-black/50'}`}
+            >
+              {showQuantityControls ? <Eye size={16} /> : <EyeOff size={16} />}
             </button>
           </div>
       </div>

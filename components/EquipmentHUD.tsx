@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { InventoryItem, EquipmentSlot } from '../types';
-import { Sword, Shield, Crown, Shirt, Hand, Footprints, CircleDot, Gem, X, Swords, Star } from 'lucide-react';
+import { Sword, Shield, Crown, Shirt, Hand, Footprints, CircleDot, Gem, X, Swords, Star, Lock } from 'lucide-react';
 import { getItemStats, shouldHaveStats } from '../services/itemStats';
 
 interface EquipmentHUDProps {
@@ -54,6 +54,18 @@ export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, on
     });
     
     return map;
+  }, [items]);
+
+  // Determine if offhand should be disabled due to a two-handed main weapon
+  const offhandDisabled = useMemo(() => {
+    const main = items.find(i => i.equipped && i.slot === 'weapon');
+    return !!(main && main.type === 'weapon' && shouldHaveStats(main.type) && main && main.name && main && (main.name && (() => {
+      // Use existing helper via import to determine two-handedness by name
+      // But avoid circular imports - simple name-based check similar to isTwoHandedWeapon
+      const nameLower = main.name.toLowerCase();
+      const twoHandKeywords = ['greatsword', 'great sword', 'two-handed', 'two handed', 'battleaxe', 'battle axe', 'warhammer', 'longsword', 'war axe', 'great axe', 'bow', 'longbow', 'halberd'];
+      return twoHandKeywords.some(k => nameLower.includes(k));
+    })()));
   }, [items]);
 
   // Calculate total stats
@@ -125,28 +137,36 @@ export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, on
         {/* Equipment Slots */}
         {SLOT_CONFIGS.map(config => {
           const equipped = equippedBySlot[config.slot];
-          
+          const isOffhand = config.slot === 'offhand';
+          const disabled = isOffhand && offhandDisabled;
           return (
             <div
               key={config.slot}
               className={`absolute ${config.position} z-10`}
             >
               <div
-                onClick={() => equipped ? onUnequip(equipped) : onEquipFromSlot(config.slot)}
+                onClick={() => {
+                  if (disabled) return;
+                  return equipped ? onUnequip(equipped) : onEquipFromSlot(config.slot);
+                }}
                 className={`
                   w-14 h-14 rounded-lg border-2 flex flex-col items-center justify-center cursor-pointer
                   transition-all duration-200 group relative
                   ${equipped 
                     ? 'bg-skyrim-gold/20 border-skyrim-gold shadow-[0_0_10px_rgba(192,160,98,0.3)]' 
-                    : 'bg-black/50 border-skyrim-border/50 hover:border-skyrim-gold/50 hover:bg-black/70'
+                    : disabled
+                      ? 'bg-gray-800 border-gray-700 cursor-not-allowed opacity-60'
+                      : 'bg-black/50 border-skyrim-border/50 hover:border-skyrim-gold/50 hover:bg-black/70'
                   }
                 `}
                 title={equipped ? `${equipped.name} (Click to unequip)` : (
-                  config.slot === 'offhand'
-                    ? 'Equip Off-hand (shields or small weapons only)'
-                    : config.slot === 'weapon'
-                      ? 'Equip Main Hand (two-handed or main-hand weapons)'
-                      : `Equip ${config.label}`
+                  disabled ? 'Disabled due to two-handed main weapon' : (
+                    config.slot === 'offhand'
+                      ? 'Equip Off-hand (shields or small weapons only)'
+                      : config.slot === 'weapon'
+                        ? 'Equip Main Hand (two-handed or main-hand weapons)'
+                        : `Equip ${config.label}`
+                  )
                 )}
               >
                 {equipped ? (
@@ -175,6 +195,11 @@ export const EquipmentHUD: React.FC<EquipmentHUDProps> = ({ items, onUnequip, on
                   <>
                     <div className="text-gray-600 group-hover:text-gray-400">{config.icon}</div>
                     <span className="text-[9px] text-gray-600 group-hover:text-gray-400 mt-0.5">{config.label}</span>
+                    {disabled && (
+                      <div className="absolute -top-2 right-0 text-gray-300 text-xs flex items-center gap-1">
+                        <Lock size={12} />
+                      </div>
+                    )}
                   </>
                 )}
               </div>

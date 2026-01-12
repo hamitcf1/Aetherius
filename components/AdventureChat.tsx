@@ -650,10 +650,28 @@ export const AdventureChat: React.FC<AdventureChatProps> = ({
     const targetSlot = slot || getDefaultSlotForItem(item) || undefined;
     if (!targetSlot) return;
 
+    // Prevent equipping shields in main hand
+    if (targetSlot === 'weapon' && isShield(item)) {
+      showToast?.('Cannot equip shields in main hand.', 'warning');
+      return;
+    }
+
+    // If equipping to offhand while a two-handed weapon is in main hand, auto-unequip that two-handed weapon
+    const mainEquipped = localInventory.find(i => i.equipped && i.slot === 'weapon');
+    let unequipMainTwoHandedId: string | null = null;
+    if (targetSlot === 'offhand' && mainEquipped && isTwoHandedWeapon(mainEquipped)) {
+      unequipMainTwoHandedId = mainEquipped.id;
+    }
+
     setLocalInventory(prev => {
       return prev.map(i => {
         if (i.id === item.id) return { ...i, equipped: true, slot: targetSlot };
         if (i.equipped && i.slot === targetSlot) return { ...i, equipped: false, slot: undefined };
+        if (unequipMainTwoHandedId && i.id === unequipMainTwoHandedId) return { ...i, equipped: false, slot: undefined };
+        // Auto-unequip offhand when equipping two-handed in main
+        if (targetSlot === 'weapon' && isTwoHandedWeapon(item) && i.equipped && i.slot === 'offhand') {
+          return { ...i, equipped: false, slot: undefined };
+        }
         return i;
       });
     });

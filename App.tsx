@@ -480,6 +480,28 @@ const App: React.FC = () => {
     }
   }, [currentUser?.uid]);
 
+  // Inventory quantity controls toggle (hidden by default)
+  const [showQuantityControls, setShowQuantityControls] = useState<boolean>(false);
+
+  useEffect(() => {
+    const key = currentUser?.uid ? `aetherius:showQuantityControls:${currentUser.uid}` : 'aetherius:showQuantityControls';
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw !== null) setShowQuantityControls(raw === 'true');
+    } catch {
+      // ignore
+    }
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
+    const key = currentUser?.uid ? `aetherius:showQuantityControls:${currentUser.uid}` : 'aetherius:showQuantityControls';
+    try {
+      localStorage.setItem(key, String(showQuantityControls));
+    } catch {
+      // ignore
+    }
+  }, [showQuantityControls, currentUser?.uid]);
+
   useEffect(() => {
     const key = currentUser?.uid ? `aetherius:aiModel:${currentUser.uid}` : 'aetherius:aiModel';
     try {
@@ -2726,6 +2748,8 @@ const App: React.FC = () => {
       companions,
       colorTheme,
       setColorTheme,
+      showQuantityControls,
+      setShowQuantityControls,
     }}>
       <LevelUpModal
         open={Boolean(pendingLevelUp)}

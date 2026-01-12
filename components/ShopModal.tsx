@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { X, ShoppingBag, Coins, Search, Package, Sword, Shield, FlaskConical, Tent, Apple, Droplets, ArrowDownToLine, ArrowUpFromLine, Check, Gem } from 'lucide-react';
+import { useAppContext } from '../AppContext';
 import type { InventoryItem } from '../types';
 import { playSoundEffect } from '../services/audioService';
 import { getItemStats, shouldHaveStats } from '../services/itemStats';
@@ -350,6 +351,7 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [recentlyPurchased, setRecentlyPurchased] = useState<Set<string>>(new Set());
   const [recentlySold, setRecentlySold] = useState<Set<string>>(new Set());
+  const { showQuantityControls } = useAppContext();
 
   // Handle ESC key to close
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -553,7 +555,7 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
             ) : (
               <div className="divide-y divide-skyrim-border/30">
                 {filteredShopItems.map(item => {
-                  const qty = getQuantity(item.id);
+                  const qty = showQuantityControls ? getQuantity(item.id) : 1;
                   const total = item.price * qty;
                   const canAfford = gold >= total;
 
@@ -594,21 +596,23 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
                           <Coins size={12} />
                           {item.price}
                         </div>
-                        <div className="flex items-center bg-black/40 rounded border border-skyrim-border/50">
-                          <button
-                            onClick={() => setQuantity(item.id, qty - 1)}
-                            className="px-1.5 py-0.5 text-gray-400 hover:text-white text-xs"
-                          >
-                            -
-                          </button>
-                          <span className="w-6 text-center text-gray-200 text-xs">{qty}</span>
-                          <button
-                            onClick={() => setQuantity(item.id, qty + 1)}
-                            className="px-1.5 py-0.5 text-gray-400 hover:text-white text-xs"
-                          >
-                            +
-                          </button>
-                        </div>
+                        {showQuantityControls && (
+                          <div className="flex items-center bg-black/40 rounded border border-skyrim-border/50">
+                            <button
+                              onClick={() => setQuantity(item.id, qty - 1)}
+                              className="px-1.5 py-0.5 text-gray-400 hover:text-white text-xs"
+                            >
+                              -
+                            </button>
+                            <span className="w-6 text-center text-gray-200 text-xs">{qty}</span>
+                            <button
+                              onClick={() => setQuantity(item.id, qty + 1)}
+                              className="px-1.5 py-0.5 text-gray-400 hover:text-white text-xs"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
                         <button
                           onClick={() => handleBuy(item)}
                           disabled={!canAfford || recentlyPurchased.has(item.id)}
@@ -684,7 +688,7 @@ export function ShopModal({ open, onClose, gold, onPurchase, inventory = [], onS
                           <Coins size={12} />
                           {unitPrice}/ea
                         </div>
-                        {maxQty > 1 && (
+                        {showQuantityControls && maxQty > 1 && (
                           <div className="flex items-center bg-black/40 rounded border border-skyrim-border/50">
                             <button
                               onClick={() => setQuantity(item.id, qty - 1, maxQty)}
